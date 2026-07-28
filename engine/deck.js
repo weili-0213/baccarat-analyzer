@@ -104,3 +104,104 @@ export default class Deck {
 
     }
 
+
+
+    /**
+     * 牌數
+     */
+    get count(){
+
+
+        return this.cards.length;
+
+
+    }
+    /**
+     * 驗證是否完整52張牌
+     */
+    isValid(){
+
+        return this.cards.length === 52;
+
+    }
+
+
+    /**
+     * 是否包含某張牌
+     */
+    has(card){
+
+
+        return this.cards.some(
+
+            item => item.equals(card)
+
+        );
+
+
+    }
+
+
+
+    /**
+     * 取得所有牌
+     */
+    getCards(){
+
+
+        return [...this.cards];
+
+
+    }
+
+
+
+    /**
+     * JSON
+     */
+    toJSON(){
+
+
+        return {
+
+            deckNumber:this.deckNumber,
+
+            cards:this.cards
+
+        };
+
+
+    }
+
+
+
+    /**
+     * JSON恢復
+     */
+    static fromJSON(data){
+
+
+        const deck = new Deck(
+
+            data.deckNumber
+
+        );
+
+
+        deck.cards = data.cards.map(
+
+            card => Card.fromJSON(card)
+
+        );
+
+
+        return deck;
+
+
+    }
+
+
+}                 # 一副牌
+
+    }
+
