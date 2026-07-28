@@ -165,7 +165,7 @@ hr{
 .card{
 
     width:90px;
-    height:130px;
+    aspect-ratio: 9 / 13;
 
     display:flex;
     align-items:center;
@@ -333,7 +333,6 @@ hr{
 
     .card{
         width:60px;
-        height:90px;
     }
 
     .hand{
