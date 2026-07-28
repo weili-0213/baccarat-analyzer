@@ -1,3 +1,5 @@
+import { cardSVG } from "./cardSVG.js";
+
 console.log("Baccarat Analyzer Started");
 
 let shoe = [];
