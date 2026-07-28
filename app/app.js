@@ -130,13 +130,13 @@ function handValue(cards){
 
     document.getElementById("result").innerHTML = `
     <b>Player</b><br>
-    ${p1}　${p2}<br>
+    ${playerCards.join("　")}<br>
     點數：${playerValue}
 
-　　<br><br>
+    <br><br>
 
-　　<b>Banker</b><br>
-　　${b1}　${b2}<br>
-　　點數：${bankerValue}
-　　`;
+    <b>Banker</b><br>
+    ${bankerCards.join("　")}<br>
+    點數：${bankerValue}
+    `;
 }
