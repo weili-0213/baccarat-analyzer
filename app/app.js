@@ -102,14 +102,14 @@ function handValue(cards){
 
 }
     
-    drawHand(){
+    function drawHand(){
 
-    if(shoe.length < 4){
+        if(shoe.length < 4){
 
-        document.getElementById("result").innerHTML =
-            "牌數不足，請開始新牌靴";
+            document.getElementById("result").innerHTML =
+                "牌數不足，請開始新牌靴";
 
-        return;
+            return;
     }
 
     // 玩家兩張
@@ -120,8 +120,11 @@ function handValue(cards){
     const b1 = shoe.pop();
     const b2 = shoe.pop();
 
-    const playerValue = handValue([p1, p2]);
-    const bankerValue = handValue([b1, b2]);
+    const playerCards = [p1, p2];
+    const bankerCards = [b1, b2];
+
+    let playerValue = handValue(playerCards);
+    let bankerValue = handValue(bankerCards);
 
     document.getElementById("cardsLeft").textContent = shoe.length;
 
