@@ -1,29 +1,73 @@
 console.log("Baccarat Analyzer Started");
 
+let shoe = [];
+
 document.getElementById("app").innerHTML = `
-    <div class="container">
+<div class="container">
 
-        <h2>目前牌靴</h2>
+<h2>目前牌靴</h2>
 
-        <p>剩餘牌數：312 張</p>
+<p>剩餘牌數：<span id="cardsLeft">0</span> 張</p>
 
-        <hr>
+<hr>
 
-        <button id="newShoe">
-            開始新牌靴
-        </button>
+<button id="newShoe">
+開始新牌靴
+</button>
 
-        <button id="draw">
-            發牌
-        </button>
+<button id="draw">
+發牌
+</button>
 
-        <hr>
+<hr>
 
-        <h2>結果</h2>
+<h2>結果</h2>
 
-        <p id="result">
-            等待開始...
-        </p>
+<p id="result">
+等待開始...
+</p>
 
-    </div>
+</div>
 `;
+
+document.getElementById("newShoe").addEventListener("click", newShoe);
+
+function newShoe() {
+
+    shoe = [];
+
+    const suits = ["♠","♥","♦","♣"];
+    const ranks = [
+        "A","2","3","4","5","6",
+        "7","8","9","10","J","Q","K"
+    ];
+
+    // 建立 8 副牌
+    for(let d=0; d<8; d++){
+
+        for(let suit of suits){
+
+            for(let rank of ranks){
+
+                shoe.push(rank + suit);
+
+            }
+
+        }
+
+    }
+
+    // Fisher-Yates 洗牌
+    for(let i = shoe.length - 1; i > 0; i--){
+
+        const j = Math.floor(Math.random() * (i + 1));
+
+        [shoe[i], shoe[j]] = [shoe[j], shoe[i]];
+
+    }
+
+    document.getElementById("cardsLeft").textContent = shoe.length;
+
+    document.getElementById("result").innerHTML =
+        "新牌靴建立成功！";
+}
