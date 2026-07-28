@@ -114,6 +114,30 @@ function handValue(cards){
             return;
     }
 
+    function startInputMode(){
+
+    document.getElementById("result").innerHTML = `
+
+        <div id="inputArea">
+
+            <h3>請輸入 Player 第一張牌</h3>
+
+            <div id="selectedCard">
+                尚未選擇
+            </div>
+
+            <div id="rankButtons"></div>
+
+            <div id="suitButtons"></div>
+
+        </div>
+
+    `;
+
+    createInputButtons();
+
+}
+
     // 玩家兩張
     const p1 = shoe.pop();
     const p2 = shoe.pop();
@@ -158,4 +182,26 @@ function handValue(cards){
     </div>
     `;
         
+}
+
+function createInputButtons(){
+
+    const ranks=[
+        "A","2","3","4","5","6",
+        "7","8","9","10","J","Q","K"
+    ];
+
+    const suits=["♠","♥","♦","♣"];
+
+    const rankDiv=document.getElementById("rankButtons");
+    const suitDiv=document.getElementById("suitButtons");
+
+    rankDiv.innerHTML=ranks.map(rank=>`
+        <button class="cardBtn rankBtn">${rank}</button>
+    `).join("");
+
+    suitDiv.innerHTML=suits.map(suit=>`
+        <button class="cardBtn suitBtn">${suit}</button>
+    `).join("");
+
 }
