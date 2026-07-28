@@ -24,3 +24,17 @@ button{
 hr{
     margin:20px 0;
 }
+
+.hand{
+    margin:20px 0;
+}
+
+.hand h3{
+    margin-bottom:8px;
+    color:#ffffff;
+}
+
+.hand p{
+    margin:5px 0;
+    font-size:18px;
+}
