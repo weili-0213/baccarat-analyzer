@@ -2,8 +2,12 @@ import { cardSVG } from "./cardSVG.js";
 
 console.log("Baccarat Analyzer Started");
 
+// ===== 全域變數 =====
 let shoe = [];
+let inputCards = [];
+let inputStep = 0;
 
+// ===== 建立畫面 =====
 document.getElementById("app").innerHTML = `
 <div class="container">
 
@@ -18,7 +22,11 @@ document.getElementById("app").innerHTML = `
 </button>
 
 <button id="draw">
-發牌
+🎲 測試發牌
+</button>
+
+<button id="inputMode">
+✍️ 手動輸入
 </button>
 
 <hr>
@@ -104,39 +112,15 @@ function handValue(cards){
 
 }
     
-    function drawHand(){
+function drawHand(){
 
-        if(shoe.length < 4){
+    if(shoe.length < 4){
 
-            document.getElementById("result").innerHTML =
-                "牌數不足，請開始新牌靴";
+        document.getElementById("result").innerHTML =
+            "牌數不足，請開始新牌靴";
 
-            return;
+        return;
     }
-
-    function startInputMode(){
-
-    document.getElementById("result").innerHTML = `
-
-        <div id="inputArea">
-
-            <h3>請輸入 Player 第一張牌</h3>
-
-            <div id="selectedCard">
-                尚未選擇
-            </div>
-
-            <div id="rankButtons"></div>
-
-            <div id="suitButtons"></div>
-
-        </div>
-
-    `;
-
-    createInputButtons();
-
-}
 
     // 玩家兩張
     const p1 = shoe.pop();
@@ -182,6 +166,137 @@ function handValue(cards){
     </div>
     `;
         
+}
+
+function startInputMode(){
+
+    inputCards = [];
+    inputStep = 0;
+    
+    document.getElementById("result").innerHTML = `
+
+        <div id="inputArea">
+
+            <h3>請輸入 Player 第一張牌</h3>
+
+            <div id="selectedCard">
+                尚未選擇
+            </div>
+
+            <div id="rankButtons"></div>
+
+            <div id="suitButtons"></div>
+
+        </div>
+
+    `;
+
+    createInputButtons();let selectedRank = "";
+
+    document.querySelectorAll(".rankBtn").forEach(btn=>{
+
+    btn.onclick=()=>{
+
+        selectedRank = btn.textContent;
+
+        document.getElementById("selectedCard").textContent =
+            "已選數字：" + selectedRank;
+
+    };
+
+});
+
+    document.querySelectorAll(".suitBtn").forEach(btn=>{
+
+    btn.onclick=()=>{
+
+        if(selectedRank==="") return;
+
+        addInputCard(selectedRank + btn.textContent);
+
+        selectedRank="";
+
+    };
+
+});
+
+    
+
+}
+        
+function addInputCard(card){
+
+    inputCards.push(card);
+
+    inputStep++;
+
+    const steps = [
+    "Player 第一張",
+    "Banker 第一張",
+    "Player 第二張",
+    "Banker 第二張"
+    ];
+
+    if(inputCards.length < 4){
+
+        document.getElementById("selectedCard").textContent =
+            `已輸入：${inputCards.join(" ")}
+    下一張：${steps[inputCards.length]}`;
+
+    }
+
+    // 已輸入四張牌，開始計算
+    if(inputCards.length === 4){
+
+        calculateInput();
+
+    }
+
+}
+
+function calculateInput(){
+
+    const playerCards = [
+        inputCards[0],
+        inputCards[2]
+    ];
+
+    const bankerCards = [
+        inputCards[1],
+        inputCards[3]
+    ];
+
+    const playerValue = handValue(playerCards);
+    const bankerValue = handValue(bankerCards);
+
+    document.getElementById("result").innerHTML = `
+    <div class="hand">
+
+        <h3>Player</h3>
+
+        <div class="cards">
+            ${playerCards.map(cardSVG).join("")}
+        </div>
+
+        <p>點數：${playerValue}</p>
+
+    </div>
+
+    <hr>
+
+    <div class="hand">
+
+        <h3>Banker</h3>
+
+        <div class="cards">
+            ${bankerCards.map(cardSVG).join("")}
+        </div>
+
+        <p>點數：${bankerValue}</p>
+
+    </div>
+    `;
+
 }
 
 function createInputButtons(){
