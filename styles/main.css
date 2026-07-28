@@ -222,6 +222,93 @@ hr{
 
 }
 
+/* ===== 手動輸入介面 ===== */
+
+#inputArea{
+
+    margin-top:20px;
+
+}
+
+#selectedCard{
+
+    text-align:center;
+
+    font-size:28px;
+
+    font-weight:bold;
+
+    color:#ffe17a;
+
+    margin:20px 0;
+
+    min-height:40px;
+
+}
+
+#rankButtons,
+#suitButtons{
+
+    display:flex;
+
+    flex-wrap:wrap;
+
+    justify-content:center;
+
+    gap:10px;
+
+    margin:15px 0;
+
+}
+
+.cardBtn{
+
+    width:60px;
+
+    padding:10px;
+
+    font-size:22px;
+
+    font-weight:bold;
+
+    border:none;
+
+    border-radius:8px;
+
+    cursor:pointer;
+
+    transition:.2s;
+
+}
+
+.rankBtn{
+
+    background:white;
+
+    color:#222;
+
+}
+
+.suitBtn{
+
+    background:#0c7b38;
+
+    color:white;
+
+    border:2px solid gold;
+
+}
+
+.cardBtn:hover{
+
+    transform:translateY(-2px);
+
+    box-shadow:0 4px 10px rgba(0,0,0,.3);
+
+}
+
+/* ===== 手機版 ===== */
+
 @media (max-width:600px){
 
     .container{
@@ -246,5 +333,25 @@ hr{
     .hand{
         padding:12px;
     }
+
+    .cardBtn{
+
+    width:60px !important;
+
+    padding:10px;
+
+    font-size:22px;
+
+    font-weight:bold;
+
+    border:none;
+
+    border-radius:8px;
+
+    cursor:pointer;
+
+    transition:.2s;
+
+}
 
 }
