@@ -133,7 +133,9 @@ function handValue(cards){
     document.getElementById("result").innerHTML = `
     <div class="hand">
     　　<h3>Player</h3>
-    　　<p>${playerCards.join(" ")}</p>
+    　　<p><div class="cards">
+        ${playerCards.map(cardSVG).join("")}
+    </div></p>
    　　 <p>點數：${playerValue}</p>
 　　</div>
 
@@ -141,7 +143,9 @@ function handValue(cards){
 
 　　<div class="hand">
     　　<h3>Banker</h3>
-   　　 <p>${bankerCards.join(" ")}</p>
+   　　 <p><div class="cards">
+        ${playerCards.map(cardSVG).join("")}
+    </div></p>
    　　 <p>點數：${bankerValue}</p>
 　　</div>
 　　`;
