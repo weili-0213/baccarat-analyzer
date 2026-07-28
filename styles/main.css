@@ -299,11 +299,23 @@ hr{
 
 }
 
-.cardBtn:hover{
+.cardBtn{
 
-    transform:translateY(-2px);
+    width:60px !important;
 
-    box-shadow:0 4px 10px rgba(0,0,0,.3);
+    padding:10px;
+
+    font-size:22px;
+
+    font-weight:bold;
+
+    border:none;
+
+    border-radius:8px;
+
+    cursor:pointer;
+
+    transition:.2s;
 
 }
 
@@ -335,23 +347,9 @@ hr{
     }
 
     .cardBtn{
-
-    width:60px !important;
-
-    padding:10px;
-
-    font-size:22px;
-
-    font-weight:bold;
-
-    border:none;
-
-    border-radius:8px;
-
-    cursor:pointer;
-
-    transition:.2s;
-
-}
+        width:48px !important;
+        font-size:18px;
+        padding:8px;
+    }
 
 }
