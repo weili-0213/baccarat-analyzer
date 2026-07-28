@@ -71,3 +71,36 @@ function newShoe() {
     document.getElementById("result").innerHTML =
         "新牌靴建立成功！";
 }
+
+document.getElementById("draw").addEventListener("click", drawHand);
+
+function drawHand(){
+
+    if(shoe.length < 4){
+
+        document.getElementById("result").innerHTML =
+            "牌數不足，請開始新牌靴";
+
+        return;
+    }
+
+    // 玩家兩張
+    const p1 = shoe.pop();
+    const p2 = shoe.pop();
+
+    // 莊家兩張
+    const b1 = shoe.pop();
+    const b2 = shoe.pop();
+
+    document.getElementById("cardsLeft").textContent = shoe.length;
+
+    document.getElementById("result").innerHTML = `
+        <b>Player</b><br>
+        ${p1}　${p2}
+
+        <br><br>
+
+        <b>Banker</b><br>
+        ${b1}　${b2}
+    `;
+}
