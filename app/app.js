@@ -132,21 +132,30 @@ function handValue(cards){
 
     document.getElementById("result").innerHTML = `
     <div class="hand">
-    　　<h3>Player</h3>
-    　　<p><div class="cards">
-        ${playerCards.map(cardSVG).join("")}
-    </div></p>
-   　　 <p>點數：${playerValue}</p>
-　　</div>
 
-　　<hr>
+        <h3>Player</h3>
 
-　　<div class="hand">
-    　　<h3>Banker</h3>
-   　　 <p><div class="cards">
-        ${playerCards.map(cardSVG).join("")}
-    </div></p>
-   　　 <p>點數：${bankerValue}</p>
-　　</div>
-　　`;
+        <div class="cards">
+            ${playerCards.map(cardSVG).join("")}
+        </div>
+
+        <p>點數：${playerValue}</p>
+
+    </div>
+
+    <hr>
+
+    <div class="hand">
+
+        <h3>Banker</h3>
+
+        <div class="cards">
+            ${bankerCards.map(cardSVG).join("")}
+        </div>
+
+        <p>點數：${bankerValue}</p>
+
+    </div>
+    `;
+        
 }
