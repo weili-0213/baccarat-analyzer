@@ -5,7 +5,6 @@ console.log("Baccarat Analyzer Started");
 // ===== 全域變數 =====
 let shoe = [];
 let inputCards = [];
-let inputStep = 0;
 
 // ===== 建立畫面 =====
 document.getElementById("app").innerHTML = `
@@ -42,9 +41,14 @@ document.getElementById("app").innerHTML = `
 
 document.getElementById("newShoe").addEventListener("click", newShoe);
 
+document.getElementById("draw").addEventListener("click", drawHand);
+
+document.getElementById("inputMode").addEventListener("click", startInputMode);
+
 function newShoe() {
 
     shoe = [];
+    inputCards = [];
 
     const suits = ["♠","♥","♦","♣"];
     const ranks = [
@@ -81,8 +85,6 @@ function newShoe() {
     document.getElementById("result").innerHTML =
         "新牌靴建立成功！";
 }
-
-document.getElementById("draw").addEventListener("click", drawHand);
 
 
 function baccaratValue(card){
@@ -170,8 +172,16 @@ function drawHand(){
 
 function startInputMode(){
 
+    if(shoe.length < 4){
+
+    document.getElementById("result").innerHTML =
+        "牌數不足，請開始新牌靴";
+
+    return;
+
+    }
+
     inputCards = [];
-    inputStep = 0;
     
     document.getElementById("result").innerHTML = `
 
@@ -191,16 +201,21 @@ function startInputMode(){
 
     `;
 
-    createInputButtons();let selectedRank = "";
+    createInputButtons();
+
+    document.getElementById("selectedCard").textContent =
+    "下一張：" + "Player 第一張";
+
+    let selectedRank = "";
 
     document.querySelectorAll(".rankBtn").forEach(btn=>{
 
-    btn.onclick=()=>{
+    btn.onclick = ()=>{
 
         selectedRank = btn.textContent;
 
         document.getElementById("selectedCard").textContent =
-            "已選數字：" + selectedRank;
+        "已選：" + selectedRank;
 
     };
 
@@ -226,34 +241,42 @@ function startInputMode(){
         
 function addInputCard(card){
 
+    const index = shoe.indexOf(card);
+
+    if(index === -1){
+
+        alert("這張牌不存在或已經使用過！");
+        return;
+
+    }
+
+    shoe.splice(index,1);
+
     inputCards.push(card);
 
-    inputStep++;
+    document.getElementById("cardsLeft").textContent = shoe.length;
 
     const steps = [
-    "Player 第一張",
-    "Banker 第一張",
-    "Player 第二張",
-    "Banker 第二張"
+        "Player 第一張",
+        "Banker 第一張",
+        "Player 第二張",
+        "Banker 第二張"
     ];
 
     if(inputCards.length < 4){
 
-        document.getElementById("selectedCard").textContent =
-            `已輸入：${inputCards.join(" ")}
+    document.getElementById("selectedCard").textContent =
+    `已輸入：${inputCards.join(" ")}
+
     下一張：${steps[inputCards.length]}`;
 
-    }
-
-    // 已輸入四張牌，開始計算
-    if(inputCards.length === 4){
+    }else{
 
         calculateInput();
 
     }
 
 }
-
 function calculateInput(){
 
     const playerCards = [
@@ -296,6 +319,9 @@ function calculateInput(){
 
     </div>
     `;
+
+    // 不要清
+    // inputCards = [];
 
 }
 
