@@ -129,14 +129,18 @@ function handValue(cards){
     document.getElementById("cardsLeft").textContent = shoe.length;
 
     document.getElementById("result").innerHTML = `
-    <b>Player</b><br>
-    ${playerCards.join("　")}<br>
-    點數：${playerValue}
+    <div class="hand">
+    　　<h3>Player</h3>
+    　　<p>${playerCards.join(" ")}</p>
+   　　 <p>點數：${playerValue}</p>
+　　</div>
 
-    <br><br>
+　　<hr>
 
-    <b>Banker</b><br>
-    ${bankerCards.join("　")}<br>
-    點數：${bankerValue}
-    `;
+　　<div class="hand">
+    　　<h3>Banker</h3>
+   　　 <p>${bankerCards.join(" ")}</p>
+   　　 <p>點數：${bankerValue}</p>
+　　</div>
+　　`;
 }
