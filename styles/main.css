@@ -261,26 +261,6 @@ hr{
 
 }
 
-.cardBtn{
-
-    width:60px;
-
-    padding:10px;
-
-    font-size:22px;
-
-    font-weight:bold;
-
-    border:none;
-
-    border-radius:8px;
-
-    cursor:pointer;
-
-    transition:.2s;
-
-}
-
 .rankBtn{
 
     background:white;
@@ -316,6 +296,20 @@ hr{
     cursor:pointer;
 
     transition:.2s;
+
+}
+
+.cardBtn:hover{
+
+    transform:translateY(-2px);
+
+    box-shadow:0 4px 10px rgba(0,0,0,.3);
+
+}
+
+.cardBtn:active{
+
+    transform:scale(.95);
 
 }
 
