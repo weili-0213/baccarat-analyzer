@@ -74,7 +74,35 @@ function newShoe() {
 
 document.getElementById("draw").addEventListener("click", drawHand);
 
-function drawHand(){
+
+function baccaratValue(card){
+
+    const rank = card.slice(0, -1);
+
+    if(rank === "A") return 1;
+
+    if(["10","J","Q","K"].includes(rank))
+        return 0;
+
+    return parseInt(rank);
+
+}
+
+function handValue(cards){
+
+    let total = 0;
+
+    for(const card of cards){
+
+        total += baccaratValue(card);
+
+    }
+
+    return total % 10;
+
+}
+    
+    drawHand(){
 
     if(shoe.length < 4){
 
@@ -92,15 +120,20 @@ function drawHand(){
     const b1 = shoe.pop();
     const b2 = shoe.pop();
 
+    const playerValue = handValue([p1, p2]);
+    const bankerValue = handValue([b1, b2]);
+
     document.getElementById("cardsLeft").textContent = shoe.length;
 
     document.getElementById("result").innerHTML = `
-        <b>Player</b><br>
-        ${p1}　${p2}
+    <b>Player</b><br>
+    ${p1}　${p2}<br>
+    點數：${playerValue}
 
-        <br><br>
+　　<br><br>
 
-        <b>Banker</b><br>
-        ${b1}　${b2}
-    `;
+　　<b>Banker</b><br>
+　　${b1}　${b2}<br>
+　　點數：${bankerValue}
+　　`;
 }
