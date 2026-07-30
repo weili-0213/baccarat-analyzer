@@ -180,7 +180,10 @@ function playBaccarat(){
 
     // ===== Natural =====
 
-    if(playerValue >= 8 || bankerValue >= 8){
+    if(
+        (playerCards.length === 2 && playerValue >= 8) ||
+        (bankerCards.length === 2 && bankerValue >= 8)
+        ){
 
         showResult(
             playerCards,
@@ -195,8 +198,6 @@ function playBaccarat(){
             shoe.length;
 
         return;
-
-    }
 
     // ===== Player 補牌 =====
 
@@ -715,12 +716,18 @@ function updateInputDisplay(){
     if(inputCards[2])
         playerCards.push(inputCards[2]);
 
+    if(inputCards[4])
+        playerCards.push(inputCards[4]);
+
 
     if(inputCards[1])
         bankerCards.push(inputCards[1]);
 
     if(inputCards[3])
         bankerCards.push(inputCards[3]);
+
+    if(inputCards[5])
+        bankerCards.push(inputCards[5]);
 
 
     playerArea.innerHTML =
@@ -753,12 +760,17 @@ function calculateInput(){
         inputCards[3]
     ];
 
-    const playerValue = handValue(playerCards);
-    const bankerValue = handValue(bankerCards);
 
-    if(playerValue >= 8 || bankerValue >= 8){
+    let playerValue = handValue(playerCards);
+    let bankerValue = handValue(bankerCards);
 
-    if(playerValue >= 8 || bankerValue >= 8){
+
+    // ===== Natural =====
+
+    if(
+        (playerCards.length === 2 && playerValue >= 8) ||
+        (bankerCards.length === 2 && bankerValue >= 8)
+    ){
 
         showResult(
             playerCards,
@@ -770,71 +782,118 @@ function calculateInput(){
         analyzeShoe();
 
         return;
-        
+
     }
 
-    // Player 是否補牌
+
+    // ===== Player 補牌 =====
+
     if(playerValue <= 5){
 
         document.getElementById("result").innerHTML = `
-            <h3>請輸入 Player 第三張牌</h3>
 
-            <div id="selectedCard">
-                尚未選擇
-            </div>
+        <h3>
+        請輸入 Player 第三張牌
+        </h3>
 
-            <div id="rankButtons"></div>
+        <div class="cards">
+        ${playerCards.map(cardSVG).join("")}
+        </div>
 
-            <div id="suitButtons"></div>
+        <p>
+        Player 點數：${playerValue}
+        </p>
+
+
+        <div id="selectedCard">
+        尚未選擇
+        </div>
+
+
+        <div id="rankButtons"></div>
+
+        <div id="suitButtons"></div>
+
         `;
 
-        inputStage = "playerThird";
+
+        inputStage="playerThird";
+
 
         createInputButtons();
         bindInputButtons();
+
 
         return;
 
     }
 
-    document.getElementById("result").innerHTML = `
-    <div class="hand">
 
-        <h3>Player</h3>
+    // ===== Player 停牌，進 Banker =====
 
-        <div class="cards">
-            ${playerCards.map(cardSVG).join("")}
-        </div>
+    if(bankerValue <=5){
 
-        <p>點數：${playerValue}</p>
+        inputStage="bankerThird";
 
-    </div>
+        document.getElementById("result").innerHTML=`
 
-    <hr>
+        <h3>
+        請輸入 Banker 第三張牌
+        </h3>
 
-    <div class="hand">
-
-        <h3>Banker</h3>
 
         <div class="cards">
-            ${bankerCards.map(cardSVG).join("")}
+
+        ${playerCards.map(cardSVG).join("")}
+
         </div>
 
-        <p>點數：${bankerValue}</p>
 
-    </div>
-    `;
+        <p>
+        Player 點數：
+        ${playerValue}
+        </p>
 
-    // 不要清
-    // inputCards = [];
+
+        <div id="selectedCard">
+        尚未選擇
+        </div>
+
+
+        <div id="rankButtons"></div>
+
+        <div id="suitButtons"></div>
+
+        `;
+
+
+        createInputButtons();
+        bindInputButtons();
+
+
+        return;
+
+    }
+
+
+    showResult(
+        playerCards,
+        bankerCards,
+        playerValue,
+        bankerValue
+    );
+
+    analyzeShoe();
+
+    return;
 
 }
 
 function calculatePlayerThird(){
 
-     // 更新輸入牌面顯示
+    // 更新輸入牌面
     updateInputDisplay();
-    
+
     // Player 前兩張
     const playerCards = [
         inputCards[0],
@@ -850,45 +909,84 @@ function calculatePlayerThird(){
     // Player 第三張
     playerCards.push(inputCards[4]);
 
+    // 重新計算點數
     const playerValue = handValue(playerCards);
     const bankerValue = handValue(bankerCards);
 
+    // Player 第三張點數
     const playerThirdValue =
         baccaratValue(inputCards[4]);
 
+    // Banker 是否需要補牌
     const bankerDraw = bankerNeedDraw(
-    bankerValue,
-    playerThirdValue
+        bankerValue,
+        playerThirdValue
     );
 
+    // ===== Banker 要補牌 =====
     if(bankerDraw){
 
-    document.getElementById("inputTitle").textContent =
-        "請輸入 Banker 第三張牌";
+        inputStage = "bankerThird";
 
+        document.getElementById("result").innerHTML = `
 
-    document.getElementById("selectedCard").textContent =
-        "尚未選擇";
+        <div class="hand">
 
+            <h3>Player</h3>
 
-    inputStage = "bankerThird";
+            <div class="cards">
+                ${playerCards.map(cardSVG).join("")}
+            </div>
 
+            <p>點數：${playerValue}</p>
 
-    createInputButtons();
+        </div>
 
-    bindInputButtons();
+        <hr>
 
+        <div class="hand">
 
-    return;
+            <h3>Banker</h3>
+
+            <div class="cards">
+                ${bankerCards.map(cardSVG).join("")}
+            </div>
+
+            <p>點數：${bankerValue}</p>
+
+        </div>
+
+        <hr>
+
+        <h3>請輸入 Banker 第三張牌</h3>
+
+        <div id="selectedCard">
+            尚未選擇
+        </div>
+
+        <div id="rankButtons"></div>
+
+        <div id="suitButtons"></div>
+
+        `;
+
+        createInputButtons();
+        bindInputButtons();
+
+        return;
 
     }
+
+    // ===== Banker 不補牌 =====
 
     showResult(
         playerCards,
         bankerCards,
         playerValue,
         bankerValue
-     );
+    );
+
+    analyzeShoe();
 
 }
 
@@ -934,6 +1032,19 @@ function showResult(
 
     let winner = "";
 
+    // ===== Natural 判斷 =====
+    let natural = "";
+
+    if(
+        (playerCards.length === 2 && playerValue >= 8) ||
+        (bankerCards.length === 2 && bankerValue >= 8)
+    ){
+
+        natural = "<h3>🎉 Natural</h3>";
+
+    }
+
+    // ===== 勝負判斷 =====
     if(playerValue > bankerValue){
 
         winner = "Player 勝";
@@ -949,6 +1060,7 @@ function showResult(
         winner = "Tie";
 
     }
+
 
     document.getElementById("result").innerHTML = `
         <div class="hand">
@@ -979,8 +1091,11 @@ function showResult(
 
         <hr>
 
+        ${natural}
+
         <h2>${winner}</h2>
     `;
+
 
 }
 
