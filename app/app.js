@@ -1100,6 +1100,12 @@ function showResult(
 
 }
 
+function cardAvailable(card){
+
+    return shoe.includes(card);
+
+}
+
 function createInputButtons(){
 
     const ranks=[
@@ -1107,18 +1113,32 @@ function createInputButtons(){
         "7","8","9","10","J","Q","K"
     ];
 
-    const suits=["♠","♥","♦","♣"];
+    const suits=[
+        "♠","♥","♦","♣"
+    ];
+
 
     const rankDiv=document.getElementById("rankButtons");
     const suitDiv=document.getElementById("suitButtons");
 
+
     rankDiv.innerHTML=ranks.map(rank=>`
-        <button class="cardBtn rankBtn">${rank}</button>
+
+        <button class="cardBtn rankBtn">
+            ${rank}
+        </button>
+
     `).join("");
 
+
     suitDiv.innerHTML=suits.map(suit=>`
-        <button class="cardBtn suitBtn">${suit}</button>
+
+        <button class="cardBtn suitBtn">
+            ${suit}
+        </button>
+
     `).join("");
+
 
 }
 
@@ -1126,31 +1146,68 @@ function bindInputButtons(){
 
     let selectedRank = "";
 
-    document.querySelectorAll(".rankBtn").forEach(btn=>{
+
+    document.querySelectorAll(".rankBtn")
+    .forEach(btn=>{
 
         btn.onclick = ()=>{
 
-            selectedRank = btn.textContent;
+            selectedRank = btn.textContent.trim();
 
-            document.getElementById("selectedCard").textContent =
-                "已選：" + selectedRank;
+
+            document.getElementById("selectedCard")
+            .textContent =
+            "已選：" + selectedRank;
+
 
         };
 
+
     });
 
-    document.querySelectorAll(".suitBtn").forEach(btn=>{
+
+
+    document.querySelectorAll(".suitBtn")
+    .forEach(btn=>{
+
 
         btn.onclick = ()=>{
 
-            if(selectedRank==="") return;
 
-            addInputCard(selectedRank + btn.textContent);
+            if(selectedRank==="")
+                return;
+
+
+            const card =
+                selectedRank +
+                btn.textContent.trim();
+
+
+
+            if(!cardAvailable(card)){
+
+
+                alert(
+                card+" 已使用或不存在"
+                );
+
+
+                return;
+
+            }
+
+
+
+            addInputCard(card);
+
 
             selectedRank="";
 
+
         };
 
+
     });
+
 
 }
