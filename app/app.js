@@ -270,7 +270,10 @@ function analyzeShoe(){
 
     const probability = countToProbability(count);
 
+    const nextRound = estimateNextRound();
+
     console.log(probability);
+    console.log(nextRound);
 
 }
 
