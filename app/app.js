@@ -15,6 +15,7 @@ const PAYOUT = {
 };
 let inputCards = [];
 let inputStage = "initial";
+let inputStep = 0;
 
 document.getElementById("newShoe").addEventListener("click", newShoe);
 
@@ -531,7 +532,10 @@ function startInputMode(){
 
 
     inputCards = [];
+
     inputStage = "initial";
+
+    inputStep = 0;
 
 
     document.getElementById("result").innerHTML = `
@@ -604,11 +608,11 @@ function startInputMode(){
 
 function resetInputRound(){
 
-    // 清除上一局輸入資料
     inputCards = [];
 
-    // 回到四張初始牌流程
     inputStage = "initial";
+
+    inputStep = 0;
 
 
     document.getElementById("result").innerHTML = `
@@ -698,6 +702,12 @@ function addInputCard(card){
 
     // 加入輸入牌
     inputCards.push(card);
+
+
+    inputStep++;
+
+
+    updateInputTitle();
 
 
     document.getElementById("cardsLeft").textContent =
@@ -801,6 +811,42 @@ function updateInputDisplay(){
 
 }
 
+function updateInputTitle(){
+
+    const title =
+        document.getElementById("inputTitle");
+
+
+    if(!title)
+        return;
+
+
+    const steps = [
+
+        "Player 第一張",
+
+        "Banker 第一張",
+
+        "Player 第二張",
+
+        "Banker 第二張",
+
+        "Player 第三張",
+
+        "Banker 第三張"
+
+    ];
+
+
+    if(inputStep < steps.length){
+
+        title.textContent =
+            "請輸入 " + steps[inputStep] + "牌";
+
+    }
+
+}
+
 function updatePlayer(cards, point) {
 
     document.getElementById("playerCards").innerHTML =
@@ -888,6 +934,10 @@ function calculateInput(){
 
         inputStage = "playerThird";
 
+        inputStep = 4;
+
+        updateInputTitle();
+
         updatePlayer(playerCards, playerValue);
         updateBanker(bankerCards, bankerValue);
 
@@ -908,6 +958,10 @@ function calculateInput(){
     if(bankerValue <= 5){
 
         inputStage = "bankerThird";
+
+        inputStep = 5;
+
+        updateInputTitle();
 
         updatePlayer(playerCards, playerValue);
         updateBanker(bankerCards, bankerValue);
@@ -974,6 +1028,10 @@ function calculatePlayerThird(){
    if(bankerDraw){
 
         inputStage = "bankerThird";
+
+        inputStep = 5;
+
+        updateInputTitle();
 
 
         updatePlayer(
