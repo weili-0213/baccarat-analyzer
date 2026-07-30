@@ -113,6 +113,10 @@ function handValue(cards){
     return total % 10;
 
 }
+
+function bankerNeedDraw(bankerValue, playerThirdValue){
+
+}
     
 function drawHand(){
 
@@ -291,6 +295,35 @@ function calculateInput(){
 
     const playerValue = handValue(playerCards);
     const bankerValue = handValue(bankerCards);
+
+    if(playerValue >= 8 || bankerValue >= 8){
+
+    document.getElementById("result").innerHTML =
+        "Natural，不需要補牌";
+
+    return;
+    }
+
+    // Player 是否補牌
+    if(playerValue <= 5){
+
+        document.getElementById("result").innerHTML = `
+            <h3>請輸入 Player 第三張牌</h3>
+
+            <div id="selectedCard">
+                尚未選擇
+            </div>
+
+            <div id="rankButtons"></div>
+
+            <div id="suitButtons"></div>
+        `;
+
+        createInputButtons();
+
+        return;
+
+    }
 
     document.getElementById("result").innerHTML = `
     <div class="hand">
