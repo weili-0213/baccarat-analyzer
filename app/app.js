@@ -65,6 +65,7 @@ function newShoe() {
 
     shoe = [];
     inputCards = [];
+    inputStage="initial";
 
     const suits = ["♠","♥","♦","♣"];
     const ranks = [
@@ -161,7 +162,6 @@ function bankerNeedDraw(bankerValue, playerThirdValue){
 
 function playBaccarat(){
 
-    // 複製目前剩餘牌靴
     const simShoe = [...shoe];
 
     // ===== 初始牌 =====
@@ -183,7 +183,7 @@ function playBaccarat(){
     if(
         (playerCards.length === 2 && playerValue >= 8) ||
         (bankerCards.length === 2 && bankerValue >= 8)
-        ){
+    ){
 
         showResult(
             playerCards,
@@ -198,6 +198,7 @@ function playBaccarat(){
             shoe.length;
 
         return;
+    }
 
     // ===== Player 補牌 =====
 
@@ -245,6 +246,8 @@ function playBaccarat(){
 
     }
 
+    shoe = simShoe;
+
     showResult(
         playerCards,
         bankerCards,
@@ -282,8 +285,6 @@ function analyzeShoe(){
         count[rank]++;
 
     }
-
-    const probability = countToProbability(count);
 
     const nextRound = estimateNextRound();
 
@@ -649,8 +650,6 @@ function addInputCard(card){
     inputCards.push(card);
 
     document.getElementById("cardsLeft").textContent = shoe.length;
-
-    analyzeShoe();
     
     const steps = [
         "Player 第一張",
@@ -837,35 +836,45 @@ function calculateInput(){
 
         document.getElementById("result").innerHTML=`
 
-        <h3>
-        請輸入 Banker 第三張牌
-        </h3>
+        <div class="hand">
 
+            <h3>Player</h3>
 
-        <div class="cards">
+            <div class="cards">
+                ${playerCards.map(cardSVG).join("")}
+            </div>
 
-        ${playerCards.map(cardSVG).join("")}
+            <p>點數：${playerValue}</p>
 
         </div>
 
+        <hr>
 
-        <p>
-        Player 點數：
-        ${playerValue}
-        </p>
+        <div class="hand">
 
+            <h3>Banker</h3>
+
+            <div class="cards">
+                ${bankerCards.map(cardSVG).join("")}
+            </div>
+
+            <p>點數：${bankerValue}</p>
+
+        </div>
+
+        <hr>
+
+        <h3>請輸入 Banker 第三張牌</h3>
 
         <div id="selectedCard">
-        尚未選擇
+            尚未選擇
         </div>
-
 
         <div id="rankButtons"></div>
 
         <div id="suitButtons"></div>
 
         `;
-
 
         createInputButtons();
         bindInputButtons();
@@ -996,18 +1005,24 @@ function calculateBankerThird(){
     updateInputDisplay();
 
     // Player 三張
-    const playerCards = [
+    const playerCards=[
         inputCards[0],
-        inputCards[2],
-        inputCards[4]
+        inputCards[2]
     ];
 
+    if(inputCards[4]){
+        playerCards.push(inputCards[4]);
+    }
+
     // Banker 三張
-    const bankerCards = [
+    const bankerCards=[
         inputCards[1],
-        inputCards[3],
-        inputCards[5]
+        inputCards[3]
     ];
+
+    if(inputCards[5]){
+        bankerCards.push(inputCards[5]);
+    }
 
     const playerValue = handValue(playerCards);
     const bankerValue = handValue(bankerCards);
