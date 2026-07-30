@@ -594,6 +594,12 @@ function startInputMode(){
     bindInputButtons();
 
 }
+
+function resetInputRound(){
+
+    startInputMode();
+
+}
         
 function addInputCard(card){
 
@@ -1021,8 +1027,14 @@ function showResult(
         ${natural}
 
         <h2>${winner}</h2>
+
+        <button id="nextRound">
+        下一局
+        </button>
     `;
 
+    document.getElementById("nextRound")
+        .onclick = resetInputRound;
 
 }
 
