@@ -554,36 +554,76 @@ function startInputMode(){
 
     if(shoe.length < 4){
 
-    document.getElementById("result").innerHTML =
-        "牌數不足，請開始新牌靴";
+        document.getElementById("result").innerHTML =
+            "牌數不足，請開始新牌靴";
 
-    return;
+        return;
 
     }
 
+
     inputCards = [];
     inputStage = "initial";
-    
+
+
     document.getElementById("result").innerHTML = `
 
-        <div id="inputArea">
+    <div id="inputArea">
 
-            <h3>請輸入 Player 第一張牌</h3>
+    <h3>目前牌局</h3>
 
-            <div id="selectedCard">
-                尚未選擇
-            </div>
 
-            <div id="rankButtons"></div>
+    <div class="hand">
 
-            <div id="suitButtons"></div>
+    <h3>Player</h3>
 
-        </div>
+    <div id="playerInputCards" class="cards">
+    尚未輸入
+    </div>
+
+    </div>
+
+
+    <hr>
+
+
+    <div class="hand">
+
+    <h3>Banker</h3>
+
+    <div id="bankerInputCards" class="cards">
+    尚未輸入
+    </div>
+
+    </div>
+
+
+    <hr>
+
+
+    <h3 id="inputTitle">
+    請輸入 Player 第一張牌
+    </h3>
+
+
+    <div id="selectedCard">
+    尚未選擇
+    </div>
+
+
+    <div id="rankButtons"></div>
+
+    <div id="suitButtons"></div>
+
+
+    </div>
 
     `;
 
+
     createInputButtons();
-    bindInputButtons();        
+
+    bindInputButtons();
 
 }
         
@@ -613,12 +653,16 @@ function addInputCard(card){
         "Banker 第二張"
     ];
 
+    updateInputDisplay();
+
+
     if(inputCards.length < 4){
 
-    document.getElementById("selectedCard").textContent =
-    `已輸入：${inputCards.join(" ")}
-
-    下一張：${steps[inputCards.length]}`;
+    document.getElementById("inputTitle").textContent =
+    `
+    請輸入：
+    ${steps[inputCards.length]}
+    `;
 
    }else{
 
@@ -639,6 +683,56 @@ else if(inputStage === "bankerThird"){
 }
 
 }
+
+}
+
+function updateInputDisplay(){
+
+    const playerArea =
+        document.getElementById("playerInputCards");
+
+    const bankerArea =
+        document.getElementById("bankerInputCards");
+
+
+    if(!playerArea || !bankerArea)
+        return;
+
+
+    const playerCards = [];
+
+    const bankerCards = [];
+
+
+    if(inputCards[0])
+        playerCards.push(inputCards[0]);
+
+    if(inputCards[2])
+        playerCards.push(inputCards[2]);
+
+
+    if(inputCards[1])
+        bankerCards.push(inputCards[1]);
+
+    if(inputCards[3])
+        bankerCards.push(inputCards[3]);
+
+
+    playerArea.innerHTML =
+        playerCards.length
+        ?
+        playerCards.map(cardSVG).join("")
+        :
+        "尚未輸入";
+
+
+    bankerArea.innerHTML =
+        bankerCards.length
+        ?
+        bankerCards.map(cardSVG).join("")
+        :
+        "尚未輸入";
+
 
 }
     
@@ -724,6 +818,9 @@ function calculateInput(){
 
 function calculatePlayerThird(){
 
+     // 更新輸入牌面顯示
+    updateInputDisplay();
+    
     // Player 前兩張
     const playerCards = [
         inputCards[0],
@@ -752,24 +849,24 @@ function calculatePlayerThird(){
 
     if(bankerDraw){
 
-    document.getElementById("result").innerHTML = `
-        <h3>請輸入 Banker 第三張牌</h3>
+    document.getElementById("inputTitle").textContent =
+        "請輸入 Banker 第三張牌";
 
-        <div id="selectedCard">
-            尚未選擇
-        </div>
 
-        <div id="rankButtons"></div>
+    document.getElementById("selectedCard").textContent =
+        "尚未選擇";
 
-        <div id="suitButtons"></div>
-    `;
 
     inputStage = "bankerThird";
 
+
     createInputButtons();
+
     bindInputButtons();
 
+
     return;
+
     }
 
     showResult(
@@ -782,6 +879,9 @@ function calculatePlayerThird(){
 }
 
 function calculateBankerThird(){
+
+     // 更新輸入牌面顯示
+    updateInputDisplay();
 
     // Player 三張
     const playerCards = [
@@ -806,6 +906,8 @@ function calculateBankerThird(){
         playerValue,
         bankerValue
     );
+
+    analyzeShoe();
 
 }
 
