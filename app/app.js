@@ -952,13 +952,26 @@ function calculatePlayerThird(){
     // ===== Banker 要補牌 =====
    if(bankerDraw){
 
-       inputStage = "bankerThird";
+        inputStage = "bankerThird";
 
 
-       updateStatus("Banker 補牌");
+        updatePlayer(
+            playerCards,
+            playerValue
+        );
 
-       updateNext("請輸入 Banker 第三張");
-        
+
+        updateBanker(
+            bankerCards,
+            bankerValue
+        );
+
+
+        updateStatus("Banker 補牌");
+
+        updateNext("請輸入 Banker 第三張");
+
+
         createInputButtons();
         bindInputButtons();
 
