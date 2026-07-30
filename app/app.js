@@ -281,6 +281,22 @@ function analyzeShoe(){
 
     const nextRound = estimateNextRound();
 
+    const totalCards = shoe.length;
+
+    const highCards =
+    count["9"]+
+    count["10"]+
+    count["J"]+
+    count["Q"]+
+    count["K"];
+
+    const lowCards =
+    count["A"]+
+    count["2"]+
+    count["3"]+
+    count["4"]+
+    count["5"];
+
     const playerEV =
         calculateEV(nextRound.player, PAYOUT.player);
 
@@ -298,6 +314,20 @@ function analyzeShoe(){
 
     document.getElementById("prediction").innerHTML = `
     <h3>下一局預測</h3>
+
+    <hr>
+
+    <h3>牌靴資訊</h3>
+
+    <p>
+    高牌(9~K):
+    ${((highCards/totalCards)*100).toFixed(2)}%
+    </p>
+
+    <p>
+    低牌(A~5):
+    ${((lowCards/totalCards)*100).toFixed(2)}%
+    </p>
 
     <p>
     Player：
