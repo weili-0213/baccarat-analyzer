@@ -707,6 +707,44 @@ function updateInputDisplay(){
 
 
 }
+
+function updatePlayer(cards, point) {
+
+    document.getElementById("playerCards").innerHTML =
+        cards.map(cardSVG).join("");
+
+    document.getElementById("playerPoint").textContent =
+        `點數：${point}`;
+
+}
+
+function updateBanker(cards, point) {
+
+    document.getElementById("bankerCards").innerHTML =
+        cards.map(cardSVG).join("");
+
+    document.getElementById("bankerPoint").textContent =
+        `點數：${point}`;
+
+}
+
+function updateStatus(text) {
+
+    document.getElementById("gameStatus").textContent = text;
+
+}
+
+function updateNext(text) {
+
+    document.getElementById("nextStep").textContent = text;
+
+}
+
+function updatePrediction(html) {
+
+    document.getElementById("predictionContent").innerHTML = html;
+
+}
     
 function calculateInput(){
 
@@ -732,12 +770,13 @@ function calculateInput(){
         (bankerCards.length === 2 && bankerValue >= 8)
     ){
 
-        showResult(
-            playerCards,
-            bankerCards,
-            playerValue,
-            bankerValue
-        );
+        updatePlayer(playerCards, playerValue);
+
+        updateBanker(bankerCards, bankerValue);
+
+        updateStatus("Natural");
+
+        updateNext("本局完成");
 
         analyzeShoe();
 
@@ -748,110 +787,56 @@ function calculateInput(){
 
     // ===== Player 補牌 =====
 
-    if(playerValue <= 5){
+    if (playerValue <= 5) {
 
-        document.getElementById("result").innerHTML = `
+        inputStage = "playerThird";
 
-        <h3>
-        請輸入 Player 第三張牌
-        </h3>
+        updatePlayer(playerCards, playerValue);
 
-        <div class="cards">
-        ${playerCards.map(cardSVG).join("")}
-        </div>
+        updateBanker(bankerCards, bankerValue);
 
-        <p>
-        Player 點數：${playerValue}
-        </p>
+        updateStatus("Player 補牌");
 
-
-        <div id="selectedCard">
-        尚未選擇
-        </div>
-
-
-        <div id="rankButtons"></div>
-
-        <div id="suitButtons"></div>
-
-        `;
-
-
-        inputStage="playerThird";
-
+        updateNext("請輸入 Player 第三張");
 
         createInputButtons();
         bindInputButtons();
 
-
         return;
 
-    }
+}
 
 
     // ===== Player 停牌，進 Banker =====
 
-    if(bankerValue <=5){
+    if (bankerValue <= 5) {
 
-        inputStage="bankerThird";
+        inputStage = "bankerThird";
 
-        document.getElementById("result").innerHTML=`
+        updatePlayer(playerCards, playerValue);
 
-        <div class="hand">
+        updateBanker(bankerCards, bankerValue);
 
-            <h3>Player</h3>
+        updateStatus("Banker 補牌");
 
-            <div class="cards">
-                ${playerCards.map(cardSVG).join("")}
-            </div>
-
-            <p>點數：${playerValue}</p>
-
-        </div>
-
-        <hr>
-
-        <div class="hand">
-
-            <h3>Banker</h3>
-
-            <div class="cards">
-                ${bankerCards.map(cardSVG).join("")}
-            </div>
-
-            <p>點數：${bankerValue}</p>
-
-        </div>
-
-        <hr>
-
-        <h3>請輸入 Banker 第三張牌</h3>
-
-        <div id="selectedCard">
-            尚未選擇
-        </div>
-
-        <div id="rankButtons"></div>
-
-        <div id="suitButtons"></div>
-
-        `;
+        updateNext("請輸入 Banker 第三張");
 
         createInputButtons();
         bindInputButtons();
 
-
         return;
+
 
     }
 
 
-    showResult(
-        playerCards,
-        bankerCards,
-        playerValue,
-        bankerValue
-    );
+    updatePlayer(playerCards, playerValue);
+
+    updateBanker(bankerCards, bankerValue);
+
+    updateStatus("開牌完成");
+
+    updateNext("開始下一局");
 
     analyzeShoe();
 
@@ -898,48 +883,14 @@ function calculatePlayerThird(){
 
         inputStage = "bankerThird";
 
-        document.getElementById("result").innerHTML = `
+        updatePlayer(playerCards, playerValue);
 
-        <div class="hand">
+        updateBanker(bankerCards, bankerValue);
 
-            <h3>Player</h3>
+        updateStatus("Player 補牌");
 
-            <div class="cards">
-                ${playerCards.map(cardSVG).join("")}
-            </div>
-
-            <p>點數：${playerValue}</p>
-
-        </div>
-
-        <hr>
-
-        <div class="hand">
-
-            <h3>Banker</h3>
-
-            <div class="cards">
-                ${bankerCards.map(cardSVG).join("")}
-            </div>
-
-            <p>點數：${bankerValue}</p>
-
-        </div>
-
-        <hr>
-
-        <h3>請輸入 Banker 第三張牌</h3>
-
-        <div id="selectedCard">
-            尚未選擇
-        </div>
-
-        <div id="rankButtons"></div>
-
-        <div id="suitButtons"></div>
-
-        `;
-
+        updateNext("請輸入 Player 第三張");
+        
         createInputButtons();
         bindInputButtons();
 
