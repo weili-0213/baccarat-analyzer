@@ -275,6 +275,25 @@ function analyzeShoe(){
     console.log(probability);
     console.log(nextRound);
 
+    document.getElementById("result").innerHTML = `
+    <h3>下一局預測</h3>
+
+    <p>
+        Player 勝率：
+        ${(nextRound.player * 100).toFixed(2)}%
+    </p>
+
+    <p>
+        Banker 勝率：
+        ${(nextRound.banker * 100).toFixed(2)}%
+    </p>
+
+    <p>
+        Tie 機率：
+        ${(nextRound.tie * 100).toFixed(2)}%
+    </p>
+`;
+
 }
 
 function countToProbability(count){
