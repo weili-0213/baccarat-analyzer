@@ -16,69 +16,6 @@ const PAYOUT = {
 let inputCards = [];
 let inputStage = "initial";
 
-// ===== 建立畫面 =====
-document.getElementById("app").innerHTML = `
-<div class="container">
-
-<h1>Baccarat Analyzer</h1>
-
-<div class="dashboard">
-
-    <!-- 左側 -->
-    <div class="left-panel">
-
-        <h2>目前牌靴</h2>
-
-        <p>
-            剩餘牌數：
-            <span id="cardsLeft">0</span> 張
-        </p>
-
-        <button id="newShoe">
-            開始新牌靴
-        </button>
-
-        <button id="draw">
-            🎲 測試發牌
-        </button>
-
-        <button id="inputMode">
-            ✍️ 手動輸入
-        </button>
-
-    </div>
-
-    <!-- 中間 -->
-    <div class="center-panel">
-
-        <h2>目前牌局</h2>
-
-        <div id="result">
-
-            等待開始...
-
-        </div>
-
-    </div>
-
-    <!-- 右側 -->
-    <div class="right-panel">
-
-        <h2>下一局預測</h2>
-
-        <div id="prediction">
-
-            尚未分析
-
-        </div>
-
-    </div>
-
-</div>
-
-</div>
-`;
-
 document.getElementById("newShoe").addEventListener("click", newShoe);
 
 document.getElementById("draw").addEventListener("click", drawHand);
