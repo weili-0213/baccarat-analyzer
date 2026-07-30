@@ -146,16 +146,24 @@ function bankerNeedDraw(bankerValue, playerThirdValue){
 
 function playBaccarat(){
 
+    // 複製目前剩餘牌靴
+    const simShoe = [...shoe];
+
+    let playerWin = 0;
+    let bankerWin = 0;
+    let tie = 0;
+
+    const simulations = 5000;
+
     // ===== 初始牌 =====
 
-    const playerCards = [
-        shoe.pop(),
-        shoe.pop()
-    ];
-
+   const playerCards = [
+       simShoe.pop(),
+      simShoe.pop()
+   ];
     const bankerCards = [
-        shoe.pop(),
-        shoe.pop()
+        simShoe.pop(),
+        simShoe.pop()
     ];
 
     let playerValue = handValue(playerCards);
@@ -182,7 +190,7 @@ function playBaccarat(){
 
     if(playerValue <= 5){
 
-        const card = shoe.pop();
+        const card = simShoe.pop();
 
         playerCards.push(card);
 
@@ -198,7 +206,7 @@ function playBaccarat(){
 
         if(bankerValue <= 5){
 
-            bankerCards.push(shoe.pop());
+            bankerCards.push(simShoe.pop());
 
             bankerValue = handValue(bankerCards);
 
@@ -214,7 +222,7 @@ function playBaccarat(){
             )
         ){
 
-            bankerCards.push(shoe.pop());
+           bankerCards.push(simShoe.pop());
 
             bankerValue = handValue(bankerCards);
 
@@ -282,7 +290,123 @@ function countToProbability(count){
     return probability;
 
 }
-    
+
+function estimateNextRound(){
+
+    let playerWin = 0;
+    let bankerWin = 0;
+    let tie = 0;
+
+    const simulations = 5000;
+
+    for(let i = 0; i < simulations; i++){
+
+        // ===== 複製剩餘牌靴 =====
+        const simShoe = [...shoe];
+
+        // ===== 洗牌 =====
+        for(let j = simShoe.length - 1; j > 0; j--){
+
+            const k = Math.floor(Math.random() * (j + 1));
+
+            [simShoe[j], simShoe[k]] = [simShoe[k], simShoe[j]];
+
+        }
+
+        // ===== 初始牌 =====
+        const playerCards = [
+            simShoe.pop(),
+            simShoe.pop()
+        ];
+
+        const bankerCards = [
+            simShoe.pop(),
+            simShoe.pop()
+        ];
+
+        // ===== 計算點數 =====
+        let playerValue = handValue(playerCards);
+        let bankerValue = handValue(bankerCards);
+
+        // ===== Natural 以外才補牌 =====
+        if(playerValue < 8 && bankerValue < 8){
+
+            // ===== Player 補牌 =====
+            let playerThirdValue = null;
+
+            if(playerValue <= 5){
+
+                const card = simShoe.pop();
+
+                playerCards.push(card);
+
+                playerThirdValue = baccaratValue(card);
+
+                playerValue = handValue(playerCards);
+
+            }
+
+            // ===== Banker 補牌 =====
+            if(playerThirdValue === null){
+
+                if(bankerValue <= 5){
+
+                    bankerCards.push(simShoe.pop());
+
+                    bankerValue = handValue(bankerCards);
+
+                }
+
+            }
+            else{
+
+                if(
+                    bankerNeedDraw(
+                        bankerValue,
+                        playerThirdValue
+                    )
+                ){
+
+                    bankerCards.push(simShoe.pop());
+
+                    bankerValue = handValue(bankerCards);
+
+                }
+
+            }
+
+        }
+
+        // ===== 統計勝負 =====
+        if(playerValue > bankerValue){
+
+            playerWin++;
+
+        }
+        else if(playerValue < bankerValue){
+
+            bankerWin++;
+
+        }
+        else{
+
+            tie++;
+
+        }
+
+    }
+
+    // ===== 回傳機率 =====
+    return {
+
+        player: playerWin / simulations,
+        banker: bankerWin / simulations,
+        tie: tie / simulations
+
+    };
+
+}
+
 function drawHand(){
 
     if(shoe.length < 4){
