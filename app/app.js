@@ -14,8 +14,14 @@ const PAYOUT = {
 
 };
 let inputCards = [];
+
 let inputStage = "initial";
+
 let inputStep = 0;
+
+
+// 輸入模式分析鎖
+let inputAnalysisLock = false;
 
 document.getElementById("newShoe").addEventListener("click", newShoe);
 
@@ -536,7 +542,9 @@ function startInputMode(){
     inputStage = "initial";
 
     inputStep = 0;
+    
 
+    inputAnalysisLock = true;
 
     document.getElementById("result").innerHTML = `
 
@@ -614,6 +622,8 @@ function resetInputRound(){
 
     inputStep = 0;
 
+
+    inputAnalysisLock = true;
 
     document.getElementById("result").innerHTML = `
 
@@ -920,7 +930,11 @@ function calculateInput(){
 
         updateNext("本局完成");
 
+        inputAnalysisLock = false;
+
+
         updateShoe();
+
 
         return;
 
@@ -984,6 +998,10 @@ function calculateInput(){
     updateStatus("開牌完成");
 
     updateNext("開始下一局");
+
+
+    inputAnalysisLock = false;
+
 
     updateShoe();
 
@@ -1067,6 +1085,9 @@ function calculatePlayerThird(){
     );
 
 
+    inputAnalysisLock = false;
+
+
     updateShoe();
 
 }
@@ -1106,6 +1127,10 @@ function calculateBankerThird(){
         bankerValue
     );
 
+    
+    inputAnalysisLock = false;
+
+    
     updateShoe();
 
 }
@@ -1198,7 +1223,33 @@ function updateShoe(){
         shoe.length;
 
 
-    // 牌靴剩餘足夠才分析
+    // 輸入模式鎖定時不分析
+
+    if(inputAnalysisLock){
+
+        const box =
+        document.getElementById("prediction");
+
+
+        if(box){
+
+            box.innerHTML =
+            `
+            <h3>
+            ⏳ 等待本局完成
+            </h3>
+
+            <p>
+            完成開牌後更新下一局EV分析
+            </p>
+            `;
+
+        }
+
+        return;
+
+    }
+
 
     if(shoe.length > 20){
 
