@@ -710,8 +710,7 @@ function addInputCard(card){
     updateInputTitle();
 
 
-    document.getElementById("cardsLeft").textContent =
-        shoe.length;
+    updateShoe();
 
 
     updateInputDisplay();
@@ -921,7 +920,7 @@ function calculateInput(){
 
         updateNext("本局完成");
 
-        analyzeShoe();
+        updateShoe();
 
         return;
 
@@ -986,7 +985,7 @@ function calculateInput(){
 
     updateNext("開始下一局");
 
-    analyzeShoe();
+    updateShoe();
 
 }
 
@@ -1067,7 +1066,8 @@ function calculatePlayerThird(){
         bankerValue
     );
 
-    analyzeShoe();
+
+    updateShoe();
 
 }
 
@@ -1106,7 +1106,7 @@ function calculateBankerThird(){
         bankerValue
     );
 
-    analyzeShoe();
+    updateShoe();
 
 }
 
@@ -1189,6 +1189,22 @@ function showResult(
 
     document.getElementById("nextRound")
         .onclick = resetInputRound;
+
+}
+
+function updateShoe(){
+
+    document.getElementById("cardsLeft").textContent =
+        shoe.length;
+
+
+    // 牌靴剩餘足夠才分析
+
+    if(shoe.length > 20){
+
+        analyzeShoe();
+
+    }
 
 }
 
