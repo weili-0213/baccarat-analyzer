@@ -20,38 +20,62 @@ let inputStage = "initial";
 document.getElementById("app").innerHTML = `
 <div class="container">
 
-<h2>目前牌靴</h2>
+<h1>Baccarat Analyzer</h1>
 
-<p>剩餘牌數：<span id="cardsLeft">0</span> 張</p>
+<div class="dashboard">
 
-<hr>
+    <!-- 左側 -->
+    <div class="left-panel">
 
-<button id="newShoe">
-開始新牌靴
-</button>
+        <h2>目前牌靴</h2>
 
-<button id="draw">
-🎲 測試發牌
-</button>
+        <p>
+            剩餘牌數：
+            <span id="cardsLeft">0</span> 張
+        </p>
 
-<button id="inputMode">
-✍️ 手動輸入
-</button>
+        <button id="newShoe">
+            開始新牌靴
+        </button>
 
-<hr>
+        <button id="draw">
+            🎲 測試發牌
+        </button>
 
-<h2>結果</h2>
+        <button id="inputMode">
+            ✍️ 手動輸入
+        </button>
 
-<div id="result">
-等待開始...
+    </div>
+
+    <!-- 中間 -->
+    <div class="center-panel">
+
+        <h2>目前牌局</h2>
+
+        <div id="result">
+
+            等待開始...
+
+        </div>
+
+    </div>
+
+    <!-- 右側 -->
+    <div class="right-panel">
+
+        <h2>下一局預測</h2>
+
+        <div id="prediction">
+
+            尚未分析
+
+        </div>
+
+    </div>
+
 </div>
 
-<hr>
-
-<h2>下一局預測</h2>
-
-<div id="prediction">
-尚未分析
 </div>
 `;
 
