@@ -4,6 +4,15 @@ console.log("Baccarat Analyzer Started");
 
 // ===== 全域變數 =====
 let shoe = [];
+const PAYOUT = {
+
+    player: 1,
+
+    banker: 0.95,
+
+    tie: 8
+
+};
 let inputCards = [];
 let inputStage = "initial";
 
@@ -278,13 +287,42 @@ function analyzeShoe(){
 
     const nextRound = estimateNextRound();
 
+    const playerEV =
+        calculateEV(nextRound.player, PAYOUT.player);
+
+    const bankerEV =
+        calculateEV(nextRound.banker, PAYOUT.banker);
+
+    const tieEV =
+        calculateEV(nextRound.tie, PAYOUT.tie);
+
     document.getElementById("prediction").innerHTML = `
-        <p>Player 勝率：${(nextRound.player * 100).toFixed(2)}%</p>
+    <h3>下一局預測</h3>
 
-        <p>Banker 勝率：${(nextRound.banker * 100).toFixed(2)}%</p>
+    <p>
+    Player：
+    ${(nextRound.player*100).toFixed(2)}%
 
-        <p>Tie 機率：${(nextRound.tie * 100).toFixed(2)}%</p>
-        `;
+    EV：
+    ${(playerEV*100).toFixed(2)}%
+    </p>
+
+    <p>
+    Banker：
+    ${(nextRound.banker*100).toFixed(2)}%
+
+    EV：
+    ${(bankerEV*100).toFixed(2)}%
+    </p>
+
+    <p>
+    Tie：
+    ${(nextRound.tie*100).toFixed(2)}%
+
+    EV：
+    ${(tieEV*100).toFixed(2)}%
+    </p>
+    `;
 
 }
 
@@ -418,6 +456,12 @@ function estimateNextRound(){
         tie: tie / simulations
 
     };
+
+}
+
+function calculateEV(probability, payout){
+
+    return probability * payout - (1 - probability);
 
 }
 
