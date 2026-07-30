@@ -758,10 +758,19 @@ function calculateInput(){
 
     if(playerValue >= 8 || bankerValue >= 8){
 
-    document.getElementById("result").innerHTML =
-        "Natural，不需要補牌";
+    if(playerValue >= 8 || bankerValue >= 8){
 
-    return;
+        showResult(
+            playerCards,
+            bankerCards,
+            playerValue,
+            bankerValue
+        );
+
+        analyzeShoe();
+
+        return;
+        
     }
 
     // Player 是否補牌
