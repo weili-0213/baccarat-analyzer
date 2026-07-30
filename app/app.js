@@ -597,7 +597,72 @@ function startInputMode(){
 
 function resetInputRound(){
 
-    startInputMode();
+    // 清除上一局輸入資料
+    inputCards = [];
+
+    // 回到四張初始牌流程
+    inputStage = "initial";
+
+
+    document.getElementById("result").innerHTML = `
+
+    <div id="inputArea">
+
+    <h3>目前牌局</h3>
+
+
+    <div class="hand">
+
+    <h3>Player</h3>
+
+    <div id="playerInputCards" class="cards">
+    尚未輸入
+    </div>
+
+    </div>
+
+
+    <hr>
+
+
+    <div class="hand">
+
+    <h3>Banker</h3>
+
+    <div id="bankerInputCards" class="cards">
+    尚未輸入
+    </div>
+
+    </div>
+
+
+    <hr>
+
+
+    <h3 id="inputTitle">
+    請輸入 Player 第一張牌
+    </h3>
+
+
+    <div id="selectedCard">
+    尚未選擇
+    </div>
+
+
+    <div id="rankButtons"></div>
+
+    <div id="suitButtons"></div>
+
+
+    </div>
+
+    `;
+
+
+    createInputButtons();
+
+    bindInputButtons();
+
 
 }
         
@@ -885,17 +950,14 @@ function calculatePlayerThird(){
     );
 
     // ===== Banker 要補牌 =====
-    if(bankerDraw){
+   if(bankerDraw){
 
-        inputStage = "bankerThird";
+       inputStage = "bankerThird";
 
-        updatePlayer(playerCards, playerValue);
 
-        updateBanker(bankerCards, bankerValue);
+       updateStatus("Banker 補牌");
 
-        updateStatus("Player 補牌");
-
-        updateNext("請輸入 Player 第三張");
+       updateNext("請輸入 Banker 第三張");
         
         createInputButtons();
         bindInputButtons();
