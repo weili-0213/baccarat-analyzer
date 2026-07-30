@@ -33,10 +33,16 @@ document.getElementById("app").innerHTML = `
 
 <h2>結果</h2>
 
-<p id="result">
+<div id="result">
 等待開始...
-</p>
+</div>
 
+<hr>
+
+<h2>下一局預測</h2>
+
+<div id="prediction">
+尚未分析
 </div>
 `;
 
@@ -272,27 +278,13 @@ function analyzeShoe(){
 
     const nextRound = estimateNextRound();
 
-    console.log(probability);
-    console.log(nextRound);
+    document.getElementById("prediction").innerHTML = `
+        <p>Player 勝率：${(nextRound.player * 100).toFixed(2)}%</p>
 
-    document.getElementById("result").innerHTML = `
-    <h3>下一局預測</h3>
+        <p>Banker 勝率：${(nextRound.banker * 100).toFixed(2)}%</p>
 
-    <p>
-        Player 勝率：
-        ${(nextRound.player * 100).toFixed(2)}%
-    </p>
-
-    <p>
-        Banker 勝率：
-        ${(nextRound.banker * 100).toFixed(2)}%
-    </p>
-
-    <p>
-        Tie 機率：
-        ${(nextRound.tie * 100).toFixed(2)}%
-    </p>
-`;
+        <p>Tie 機率：${(nextRound.tie * 100).toFixed(2)}%</p>
+        `;
 
 }
 
