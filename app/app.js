@@ -5,6 +5,7 @@ console.log("Baccarat Analyzer Started");
 // ===== 全域變數 =====
 let shoe = [];
 let inputCards = [];
+let inputStage = "initial";
 
 // ===== 建立畫面 =====
 document.getElementById("app").innerHTML = `
@@ -116,6 +117,170 @@ function handValue(cards){
 
 function bankerNeedDraw(bankerValue, playerThirdValue){
 
+    if(bankerValue <= 2){
+        return true;
+    }
+
+    if(bankerValue === 3){
+        return playerThirdValue !== 8;
+    }
+
+    if(bankerValue === 4){
+        return playerThirdValue >= 2 &&
+               playerThirdValue <= 7;
+    }
+
+    if(bankerValue === 5){
+        return playerThirdValue >= 4 &&
+               playerThirdValue <= 7;
+    }
+
+    if(bankerValue === 6){
+        return playerThirdValue === 6 ||
+               playerThirdValue === 7;
+    }
+
+    return false;
+
+}
+
+function playBaccarat(){
+
+    // ===== 初始牌 =====
+
+    const playerCards = [
+        shoe.pop(),
+        shoe.pop()
+    ];
+
+    const bankerCards = [
+        shoe.pop(),
+        shoe.pop()
+    ];
+
+    let playerValue = handValue(playerCards);
+    let bankerValue = handValue(bankerCards);
+
+    // ===== Natural =====
+
+    if(playerValue >= 8 || bankerValue >= 8){
+
+        showResult(
+            playerCards,
+            bankerCards,
+            playerValue,
+            bankerValue
+        );
+
+        return;
+
+    }
+
+    // ===== Player 補牌 =====
+
+    let playerThirdValue = null;
+
+    if(playerValue <= 5){
+
+        const card = shoe.pop();
+
+        playerCards.push(card);
+
+        playerThirdValue = baccaratValue(card);
+
+        playerValue = handValue(playerCards);
+
+    }
+
+    // ===== Banker 補牌 =====
+
+    if(playerThirdValue === null){
+
+        if(bankerValue <= 5){
+
+            bankerCards.push(shoe.pop());
+
+            bankerValue = handValue(bankerCards);
+
+        }
+
+    }
+    else{
+
+        if(
+            bankerNeedDraw(
+                bankerValue,
+                playerThirdValue
+            )
+        ){
+
+            bankerCards.push(shoe.pop());
+
+            bankerValue = handValue(bankerCards);
+
+        }
+
+    }
+
+    showResult(
+        playerCards,
+        bankerCards,
+        playerValue,
+        bankerValue
+    );
+
+    document.getElementById("cardsLeft").textContent =
+        shoe.length;
+
+}
+
+function analyzeShoe(){
+
+    const count = {
+        A:0,
+        2:0,
+        3:0,
+        4:0,
+        5:0,
+        6:0,
+        7:0,
+        8:0,
+        9:0,
+        10:0,
+        J:0,
+        Q:0,
+        K:0
+    };
+
+    for(const card of shoe){
+
+        const rank = card.slice(0,-1);
+
+        count[rank]++;
+
+    }
+
+    const probability = countToProbability(count);
+
+    console.log(probability);
+
+}
+
+function countToProbability(count){
+
+    const total = shoe.length;
+
+    const probability = {};
+
+    for(const rank in count){
+
+        probability[rank] =
+            count[rank] / total;
+
+    }
+
+    return probability;
+
 }
     
 function drawHand(){
@@ -128,50 +293,8 @@ function drawHand(){
         return;
     }
 
-    // 玩家兩張
-    const p1 = shoe.pop();
-    const p2 = shoe.pop();
-
-    // 莊家兩張
-    const b1 = shoe.pop();
-    const b2 = shoe.pop();
-
-    const playerCards = [p1, p2];
-    const bankerCards = [b1, b2];
-
-    let playerValue = handValue(playerCards);
-    let bankerValue = handValue(bankerCards);
-
-    document.getElementById("cardsLeft").textContent = shoe.length;
-
-    document.getElementById("result").innerHTML = `
-    <div class="hand">
-
-        <h3>Player</h3>
-
-        <div class="cards">
-            ${playerCards.map(cardSVG).join("")}
-        </div>
-
-        <p>點數：${playerValue}</p>
-
-    </div>
-
-    <hr>
-
-    <div class="hand">
-
-        <h3>Banker</h3>
-
-        <div class="cards">
-            ${bankerCards.map(cardSVG).join("")}
-        </div>
-
-        <p>點數：${bankerValue}</p>
-
-    </div>
-    `;
-        
+    playBaccarat();
+    
 }
 
 function startInputMode(){
@@ -186,6 +309,7 @@ function startInputMode(){
     }
 
     inputCards = [];
+    inputStage = "initial";
     
     document.getElementById("result").innerHTML = `
 
@@ -206,40 +330,7 @@ function startInputMode(){
     `;
 
     createInputButtons();
-
-    document.getElementById("selectedCard").textContent =
-    "下一張：" + "Player 第一張";
-
-    let selectedRank = "";
-
-    document.querySelectorAll(".rankBtn").forEach(btn=>{
-
-    btn.onclick = ()=>{
-
-        selectedRank = btn.textContent;
-
-        document.getElementById("selectedCard").textContent =
-        "已選：" + selectedRank;
-
-    };
-
-});
-
-    document.querySelectorAll(".suitBtn").forEach(btn=>{
-
-    btn.onclick=()=>{
-
-        if(selectedRank==="") return;
-
-        addInputCard(selectedRank + btn.textContent);
-
-        selectedRank="";
-
-    };
-
-});
-
-    
+    bindInputButtons();        
 
 }
         
@@ -260,6 +351,8 @@ function addInputCard(card){
 
     document.getElementById("cardsLeft").textContent = shoe.length;
 
+    analyzeShoe();
+    
     const steps = [
         "Player 第一張",
         "Banker 第一張",
@@ -274,13 +367,28 @@ function addInputCard(card){
 
     下一張：${steps[inputCards.length]}`;
 
-    }else{
+   }else{
 
-        calculateInput();
+    if(inputStage === "initial"){
 
-    }
+    calculateInput();
 
 }
+else if(inputStage === "playerThird"){
+
+    calculatePlayerThird();
+
+}
+else if(inputStage === "bankerThird"){
+
+    calculateBankerThird();
+
+}
+
+}
+
+}
+    
 function calculateInput(){
 
     const playerCards = [
@@ -319,7 +427,10 @@ function calculateInput(){
             <div id="suitButtons"></div>
         `;
 
+        inputStage = "playerThird";
+
         createInputButtons();
+        bindInputButtons();
 
         return;
 
@@ -358,6 +469,152 @@ function calculateInput(){
 
 }
 
+function calculatePlayerThird(){
+
+    // Player 前兩張
+    const playerCards = [
+        inputCards[0],
+        inputCards[2]
+    ];
+
+    // Banker 前兩張
+    const bankerCards = [
+        inputCards[1],
+        inputCards[3]
+    ];
+
+    // Player 第三張
+    playerCards.push(inputCards[4]);
+
+    const playerValue = handValue(playerCards);
+    const bankerValue = handValue(bankerCards);
+
+    const playerThirdValue =
+        baccaratValue(inputCards[4]);
+
+    const bankerDraw = bankerNeedDraw(
+    bankerValue,
+    playerThirdValue
+    );
+
+    if(bankerDraw){
+
+    document.getElementById("result").innerHTML = `
+        <h3>請輸入 Banker 第三張牌</h3>
+
+        <div id="selectedCard">
+            尚未選擇
+        </div>
+
+        <div id="rankButtons"></div>
+
+        <div id="suitButtons"></div>
+    `;
+
+    inputStage = "bankerThird";
+
+    createInputButtons();
+    bindInputButtons();
+
+    return;
+    }
+
+    showResult(
+        playerCards,
+        bankerCards,
+        playerValue,
+        bankerValue
+     );
+
+}
+
+function calculateBankerThird(){
+
+    // Player 三張
+    const playerCards = [
+        inputCards[0],
+        inputCards[2],
+        inputCards[4]
+    ];
+
+    // Banker 三張
+    const bankerCards = [
+        inputCards[1],
+        inputCards[3],
+        inputCards[5]
+    ];
+
+    const playerValue = handValue(playerCards);
+    const bankerValue = handValue(bankerCards);
+
+    showResult(
+        playerCards,
+        bankerCards,
+        playerValue,
+        bankerValue
+    );
+
+}
+
+function showResult(
+    playerCards,
+    bankerCards,
+    playerValue,
+    bankerValue
+){
+
+    let winner = "";
+
+    if(playerValue > bankerValue){
+
+        winner = "Player 勝";
+
+    }
+    else if(playerValue < bankerValue){
+
+        winner = "Banker 勝";
+
+    }
+    else{
+
+        winner = "Tie";
+
+    }
+
+    document.getElementById("result").innerHTML = `
+        <div class="hand">
+
+            <h3>Player</h3>
+
+            <div class="cards">
+                ${playerCards.map(cardSVG).join("")}
+            </div>
+
+            <p>點數：${playerValue}</p>
+
+        </div>
+
+        <hr>
+
+        <div class="hand">
+
+            <h3>Banker</h3>
+
+            <div class="cards">
+                ${bankerCards.map(cardSVG).join("")}
+            </div>
+
+            <p>點數：${bankerValue}</p>
+
+        </div>
+
+        <hr>
+
+        <h2>${winner}</h2>
+    `;
+
+}
+
 function createInputButtons(){
 
     const ranks=[
@@ -377,5 +634,38 @@ function createInputButtons(){
     suitDiv.innerHTML=suits.map(suit=>`
         <button class="cardBtn suitBtn">${suit}</button>
     `).join("");
+
+}
+
+function bindInputButtons(){
+
+    let selectedRank = "";
+
+    document.querySelectorAll(".rankBtn").forEach(btn=>{
+
+        btn.onclick = ()=>{
+
+            selectedRank = btn.textContent;
+
+            document.getElementById("selectedCard").textContent =
+                "已選：" + selectedRank;
+
+        };
+
+    });
+
+    document.querySelectorAll(".suitBtn").forEach(btn=>{
+
+        btn.onclick = ()=>{
+
+            if(selectedRank==="") return;
+
+            addInputCard(selectedRank + btn.textContent);
+
+            selectedRank="";
+
+        };
+
+    });
 
 }
