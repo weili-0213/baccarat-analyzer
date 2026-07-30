@@ -693,13 +693,33 @@ function addInputCard(card){
     updateInputDisplay();
 
 
-    if(inputCards.length < 4){
+    if(
+        playerValue >= 8 ||
+        bankerValue >= 8
+    ){
 
-    document.getElementById("inputTitle").textContent =
-    `
-    請輸入：
-    ${steps[inputCards.length]}
-    `;
+        updatePlayer(playerCards, playerValue);
+
+        updateBanker(bankerCards, bankerValue);
+
+        updateStatus(
+            playerValue >= 8 ? 
+            "Player Natural" :
+            "Banker Natural"
+        );
+
+        updateNext("本局完成");
+
+
+        document.getElementById("rankButtons").innerHTML="";
+        document.getElementById("suitButtons").innerHTML="";
+
+
+        analyzeShoe();
+
+        return;
+
+    }
 
    }else{
 
@@ -821,11 +841,11 @@ function calculateInput(){
 
     const playerCards = [
         inputCards[0],
-        inputCards[1]
+        inputCards[2]
     ];
 
     const bankerCards = [
-        inputCards[2],
+        inputCards[1],
         inputCards[3]
     ];
 
