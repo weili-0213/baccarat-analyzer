@@ -821,11 +821,11 @@ function calculateInput(){
 
     const playerCards = [
         inputCards[0],
-        inputCards[2]
+        inputCards[1]
     ];
 
     const bankerCards = [
-        inputCards[1],
+        inputCards[2],
         inputCards[3]
     ];
 
@@ -837,15 +837,19 @@ function calculateInput(){
     // ===== Natural =====
 
     if(
-        (playerCards.length === 2 && playerValue >= 8) ||
-        (bankerCards.length === 2 && bankerValue >= 8)
+        playerValue >= 8 ||
+        bankerValue >= 8
     ){
 
         updatePlayer(playerCards, playerValue);
 
         updateBanker(bankerCards, bankerValue);
 
-        updateStatus("Natural");
+        updateStatus(
+            playerValue >= 8 ? 
+            "Player Natural" :
+            "Banker Natural"
+        );
 
         updateNext("本局完成");
 
@@ -858,12 +862,11 @@ function calculateInput(){
 
     // ===== Player 補牌 =====
 
-    if (playerValue <= 5) {
+    if(playerValue <= 5){
 
         inputStage = "playerThird";
 
         updatePlayer(playerCards, playerValue);
-
         updateBanker(bankerCards, bankerValue);
 
         updateStatus("Player 補牌");
@@ -874,18 +877,17 @@ function calculateInput(){
         bindInputButtons();
 
         return;
+    }
 
-}
 
 
-    // ===== Player 停牌，進 Banker =====
+    // ===== Banker 補牌 =====
 
-    if (bankerValue <= 5) {
+    if(bankerValue <= 5){
 
         inputStage = "bankerThird";
 
         updatePlayer(playerCards, playerValue);
-
         updateBanker(bankerCards, bankerValue);
 
         updateStatus("Banker 補牌");
@@ -896,9 +898,8 @@ function calculateInput(){
         bindInputButtons();
 
         return;
-
-
     }
+
 
 
     updatePlayer(playerCards, playerValue);
@@ -910,8 +911,6 @@ function calculateInput(){
     updateNext("開始下一局");
 
     analyzeShoe();
-
-    return;
 
 }
 
