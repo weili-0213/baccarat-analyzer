@@ -677,69 +677,58 @@ function addInputCard(card){
 
     }
 
+
+    // 從牌靴移除
     shoe.splice(index,1);
 
+
+    // 加入輸入牌
     inputCards.push(card);
 
-    document.getElementById("cardsLeft").textContent = shoe.length;
-    
-    const steps = [
-        "Player 第一張",
-        "Banker 第一張",
-        "Player 第二張",
-        "Banker 第二張"
-    ];
+
+    document.getElementById("cardsLeft").textContent =
+        shoe.length;
+
 
     updateInputDisplay();
 
 
-    if(
-        playerValue >= 8 ||
-        bankerValue >= 8
-    ){
-
-        updatePlayer(playerCards, playerValue);
-
-        updateBanker(bankerCards, bankerValue);
-
-        updateStatus(
-            playerValue >= 8 ? 
-            "Player Natural" :
-            "Banker Natural"
-        );
-
-        updateNext("本局完成");
-
-
-        document.getElementById("rankButtons").innerHTML="";
-        document.getElementById("suitButtons").innerHTML="";
-
-
-        analyzeShoe();
-
-        return;
-
-    }
-
-   }else{
+    // ===== 判斷目前輸入階段 =====
 
     if(inputStage === "initial"){
 
-    calculateInput();
 
-}
-else if(inputStage === "playerThird"){
+        if(inputCards.length === 4){
 
-    calculatePlayerThird();
+            calculateInput();
 
-}
-else if(inputStage === "bankerThird"){
+        }
 
-    calculateBankerThird();
 
-}
+    }
 
-}
+    else if(inputStage === "playerThird"){
+
+
+        if(inputCards.length === 5){
+
+            calculatePlayerThird();
+
+        }
+
+
+    }
+
+    else if(inputStage === "bankerThird"){
+
+
+        if(inputCards.length === 6){
+
+            calculateBankerThird();
+
+        }
+
+    }
 
 }
 
