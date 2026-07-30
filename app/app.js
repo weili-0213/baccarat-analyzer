@@ -164,12 +164,6 @@ function playBaccarat(){
     // 複製目前剩餘牌靴
     const simShoe = [...shoe];
 
-    let playerWin = 0;
-    let bankerWin = 0;
-    let tie = 0;
-
-    const simulations = 5000;
-
     // ===== 初始牌 =====
 
    const playerCards = [
@@ -328,7 +322,6 @@ function analyzeShoe(){
     EV：
     ${(tieEV*100).toFixed(2)}%
     </p>
-    `;
 
     <hr>
 
@@ -341,6 +334,7 @@ function analyzeShoe(){
     EV：
     ${(bestBet.ev * 100).toFixed(2)}%
     </p>
+    `;
 
 }
 
