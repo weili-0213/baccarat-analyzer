@@ -189,6 +189,11 @@ function playBaccarat(){
             bankerValue
         );
 
+        analyzeShoe();
+
+        document.getElementById("cardsLeft").textContent =
+            shoe.length;
+
         return;
 
     }
