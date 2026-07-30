@@ -545,7 +545,7 @@ function startInputMode(){
 
     <h3>Player</h3>
 
-    <div id="playerInputCards" class="cards">
+    <div id="playerCards" class="cards">
     尚未輸入
     </div>
 
@@ -559,7 +559,7 @@ function startInputMode(){
 
     <h3>Banker</h3>
 
-    <div id="bankerInputCards" class="cards">
+    <div id="bankerCards" class="cards">
     尚未輸入
     </div>
 
@@ -568,7 +568,14 @@ function startInputMode(){
 
     <hr>
 
+    <h3 id="gameStatus">
+    等待輸入
+    </h3>
 
+    <p id="nextStep">
+    請輸入 Player 第一張牌
+    </p>
+    
     <h3 id="inputTitle">
     請輸入 Player 第一張牌
     </h3>
@@ -615,7 +622,7 @@ function resetInputRound(){
 
     <h3>Player</h3>
 
-    <div id="playerInputCards" class="cards">
+    <div id="playerCards" class="cards">
     尚未輸入
     </div>
 
@@ -629,7 +636,7 @@ function resetInputRound(){
 
     <h3>Banker</h3>
 
-    <div id="bankerInputCards" class="cards">
+    <div id="bankerCards" class="cards">
     尚未輸入
     </div>
 
@@ -638,6 +645,13 @@ function resetInputRound(){
 
     <hr>
 
+    <h3 id="gameStatus">
+    等待輸入
+    </h3>
+
+    <p id="nextStep">
+    請輸入 Player 第一張牌
+    </p>
 
     <h3 id="inputTitle">
     請輸入 Player 第一張牌
@@ -735,19 +749,19 @@ function addInputCard(card){
 function updateInputDisplay(){
 
     const playerArea =
-        document.getElementById("playerInputCards");
+        document.getElementById("playerCards");
 
     const bankerArea =
-        document.getElementById("bankerInputCards");
+        document.getElementById("bankerCards");
 
 
     if(!playerArea || !bankerArea)
         return;
 
 
-    const playerCards = [];
+    const playerCards=[];
 
-    const bankerCards = [];
+    const bankerCards=[];
 
 
     if(inputCards[0])
@@ -784,7 +798,6 @@ function updateInputDisplay(){
         bankerCards.map(cardSVG).join("")
         :
         "尚未輸入";
-
 
 }
 
