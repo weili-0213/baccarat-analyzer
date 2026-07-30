@@ -45,24 +45,17 @@ h2{
 
 .container{
 
-    max-width:900px;
-
-    margin:40px auto;
-
-    padding:30px;
+    max-width:1400px;
+    width:98%;
+    margin:10px auto;
+    padding:15px;
 
     border-radius:20px;
-
     background:rgba(255,255,255,.05);
-
     border:4px solid gold;
-
     box-shadow:0 0 25px rgba(0,0,0,.45);
 
-    backdrop-filter:blur(4px);
-
     position:relative;
-
     overflow:hidden;
 
 }
@@ -89,11 +82,11 @@ button{
 
     width:100%;
 
-    padding:18px;
+    padding:12px;
 
     margin:10px 0;
 
-    font-size:22px;
+    font-size:18px;
 
     font-weight:bold;
 
@@ -146,9 +139,33 @@ hr{
 
     border-radius:12px;
 
-    padding:16px;
+    padding:12px;
 
-    margin:20px 0;
+    margin:8px 0;
+
+}
+
+.dashboard{
+
+    display:grid;
+
+    grid-template-columns:320px 1fr 340px;
+
+    gap:20px;
+
+    align-items:start;
+
+}
+
+.left-panel,
+.center-panel,
+.right-panel{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:15px;
 
 }
 
@@ -157,14 +174,14 @@ hr{
     display:flex;
     flex-wrap:wrap;
     justify-content:center;
-    gap:15px;
+    gap:8px;
     margin:10px 0;
 
 }
 
 .card{
 
-    width:90px;
+    width:60px;
     aspect-ratio: 9 / 13;
 
     display:flex;
@@ -310,6 +327,18 @@ hr{
 .cardBtn:active{
 
     transform:scale(.95);
+
+}
+
+#result{
+
+    min-height:340px;
+
+}
+
+#prediction{
+
+    min-height:240px;
 
 }
 
