@@ -41,13 +41,21 @@ h2{
 
 .topBar{
 
+    position:sticky;
+    top:0;
+    z-index:100;
+
     display:flex;
-
     justify-content:space-between;
-
     align-items:center;
 
+    padding:10px 0;
     margin-bottom:15px;
+
+    background:rgba(11,111,53,.95);
+    backdrop-filter:blur(8px);
+
+    border-bottom:1px solid rgba(255,255,255,.12);
 
 }
 
@@ -136,9 +144,9 @@ button{
 
     width:100%;
 
-    padding:14px;
+    padding:16px;
 
-    font-size:16px;
+    font-size:18px;
 
     font-weight:bold;
 
@@ -214,10 +222,14 @@ hr{
 .cards{
 
     display:flex;
-    flex-wrap:wrap;
+
     justify-content:center;
-    gap:8px;
-    margin:10px 0;
+
+    align-items:center;
+
+    gap:6px;
+
+    flex-wrap:nowrap;
 
 }
 
@@ -374,29 +386,13 @@ hr{
 
 #result{
 
-    min-height:260px;
-
-    background:rgba(255,255,255,.05);
-
-    border-radius:12px;
-
     padding:12px;
-
-    box-sizing:border-box;
 
 }
 
 #prediction{
 
-    min-height:160px;
-
-    background:rgba(255,255,255,.05);
-
-    border-radius:12px;
-
     padding:12px;
-
-    box-sizing:border-box;
 
 }
 
@@ -458,14 +454,16 @@ hr{
 
     .cardBtn{
 
-        flex:1;
+    flex:1;
 
-        max-width:46px;
+    max-width:none;
 
-        font-size:18px;
+    min-width:52px;
 
-        padding:8px;
+    height:52px;
 
-    }
+    font-size:22px;
+
+}
 
 }
