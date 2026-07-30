@@ -296,6 +296,12 @@ function analyzeShoe(){
     const tieEV =
         calculateEV(nextRound.tie, PAYOUT.tie);
 
+    const bestBet = getBestBet(
+        playerEV,
+        bankerEV,
+        tieEV
+    );
+
     document.getElementById("prediction").innerHTML = `
     <h3>下一局預測</h3>
 
@@ -323,6 +329,18 @@ function analyzeShoe(){
     ${(tieEV*100).toFixed(2)}%
     </p>
     `;
+
+    <hr>
+
+    <h3>
+    最佳下注：
+    ${bestBet.name}
+    </h3>
+
+    <p>
+    EV：
+    ${(bestBet.ev * 100).toFixed(2)}%
+    </p>
 
 }
 
@@ -462,6 +480,35 @@ function estimateNextRound(){
 function calculateEV(probability, payout){
 
     return probability * payout - (1 - probability);
+
+}
+
+function getBestBet(playerEV, bankerEV, tieEV){
+
+    let best = {
+        name: "Player",
+        ev: playerEV
+    };
+
+    if(bankerEV > best.ev){
+
+        best = {
+            name: "Banker",
+            ev: bankerEV
+        };
+
+    }
+
+    if(tieEV > best.ev){
+
+        best = {
+            name: "Tie",
+            ev: tieEV
+        };
+
+    }
+
+    return best;
 
 }
 
