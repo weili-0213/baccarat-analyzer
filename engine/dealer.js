@@ -1,11 +1,7 @@
 /**
  * Baccarat Analyzer
  * -----------------------------------------
- *
- * Dealer
- *
- * 百家樂發牌引擎
- *
+ * Dealer v2
  */
 
 import Round from "./round.js";
@@ -24,10 +20,27 @@ export default class Dealer {
 
         this.shoe = shoe;
 
+        this.round = null;
+
+        this.playerThirdCard = null;
+
     }
 
     /**
-     * 抽一張牌
+     * 開始新局
+     */
+    newRound() {
+
+        this.round = new Round();
+
+        this.playerThirdCard = null;
+
+        return this.round;
+
+    }
+
+    /**
+     * 抽牌
      */
     draw() {
 
@@ -36,94 +49,132 @@ export default class Dealer {
     }
 
     /**
-     * 發一局牌
+     * 初始四張牌
+     */
+    dealInitial() {
+
+        if (!this.round) {
+
+            this.newRound();
+
+        }
+
+        this.round.deal("player", this.draw());
+
+        this.round.deal("banker", this.draw());
+
+        this.round.deal("player", this.draw());
+
+        this.round.deal("banker", this.draw());
+
+        return this.round;
+
+    }
+
+    /**
+     * 是否 Natural
+     */
+    checkNatural() {
+
+        return this.round.isNatural;
+
+    }
+
+    /**
+     * Player 第三張
+     */
+    playPlayerThirdCard() {
+
+        if (
+
+            playerMustDraw(
+
+                this.round.playerScore
+
+            )
+
+        ) {
+
+            this.playerThirdCard = this.draw();
+
+            this.round.deal(
+
+                "player",
+
+                this.playerThirdCard
+
+            );
+
+        }
+
+        return this.playerThirdCard;
+
+    }
+
+    /**
+     * Banker 第三張
+     */
+    playBankerThirdCard() {
+
+        if (
+
+            bankerMustDraw(
+
+                this.round.bankerScore,
+
+                this.playerThirdCard
+
+            )
+
+        ) {
+
+            this.round.deal(
+
+                "banker",
+
+                this.draw()
+
+            );
+
+        }
+
+    }
+
+    /**
+     * 完成牌局
+     */
+    finish() {
+
+        this.round.finish();
+
+        return this.round;
+
+    }
+
+    /**
+     * 一鍵完成整局
      */
     play() {
 
-        const round = new Round();
+        this.newRound();
 
-        //-------------------------
-        // 初始四張牌
-        //-------------------------
-
-        round.deal(
-            "player",
-            this.draw()
-        );
-
-        round.deal(
-            "banker",
-            this.draw()
-        );
-
-        round.deal(
-            "player",
-            this.draw()
-        );
-
-        round.deal(
-            "banker",
-            this.draw()
-        );
-
-        //-------------------------
-        // Natural
-        //-------------------------
-
-        if (round.isNatural) {
-
-            round.finish();
-
-            return round;
-
-        }
-
-        //-------------------------
-        // Player 第三張
-        //-------------------------
-
-        let playerThird = null;
+        this.dealInitial();
 
         if (
-            playerMustDraw(
-                round.playerScore
-            )
+
+            this.checkNatural()
+
         ) {
 
-            playerThird = this.draw();
-
-            round.deal(
-                "player",
-                playerThird
-            );
+            return this.finish();
 
         }
 
-        //-------------------------
-        // Banker 第三張
-        //-------------------------
+        this.playPlayerThirdCard();
 
-        if (
-            bankerMustDraw(
-                round.bankerScore,
-                playerThird
-            )
-        ) {
+        this.playBankerThirdCard();
 
-            round.deal(
-                "banker",
-                this.draw()
-            );
-
-        }
-
-        //-------------------------
-        // 完成
-        //-------------------------
-
-        round.finish();
-
-        return round;
+        return this.finish();
 
     }
 
