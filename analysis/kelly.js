@@ -1,42 +1,33 @@
 /**
  * Baccarat Analyzer
  * -----------------------------------------
- * Kelly Criterion v4
+ * Kelly Criterion v5
  *
- * 支援：
- * Player
- * Banker
- * Tie
- * Player Pair
- * Banker Pair
- * Super 6
- * Dragon Bonus
- * 任意 Side Bet
+ * Bet Decision Engine
+ *
+ * 功能：
+ * 1. Kelly
+ * 2. Fraction Kelly
+ * 3. EV
+ * 4. ROI
+ * 5. Risk
+ * 6. Confidence
+ * 7. Score
+ * 8. Ranking
  */
 
 import { calculateEV } from "./ev.js";
 
-/**
- * Kelly Formula
- *
- * b = 賠率
- * p = 勝率
- *
- * f = (bp-q)/b
- */
 export function calculateKelly(probability, odds) {
 
-    const p = probability;
-    const q = 1 - probability;
     const b = odds;
+    const p = probability;
+    const q = 1 - p;
 
     return (b * p - q) / b;
 
 }
 
-/**
- * Kelly不能小於0
- */
 export function safeKelly(probability, odds) {
 
     return Math.max(
@@ -46,9 +37,6 @@ export function safeKelly(probability, odds) {
 
 }
 
-/**
- * Fraction Kelly
- */
 export function fractionalKelly(
     probability,
     odds,
@@ -56,17 +44,12 @@ export function fractionalKelly(
 ){
 
     return (
-        safeKelly(
-            probability,
-            odds
-        ) * fraction
+        safeKelly(probability, odds)
+        * fraction
     );
 
 }
 
-/**
- * 建議下注金額
- */
 export function recommendedBet({
 
     bankroll,
@@ -90,50 +73,9 @@ export function recommendedBet({
 }
 
 /**
- * 限制下注比例
- *
- * 預設最多5%
- */
-export function cappedBet({
-
-    bankroll,
-
-    probability,
-
-    odds,
-
-    fraction = 0.5,
-
-    maxPercent = 0.05
-
-}){
-
-    const bet =
-        recommendedBet({
-
-            bankroll,
-
-            probability,
-
-            odds,
-
-            fraction
-
-        });
-
-    return Math.min(
-
-        bet,
-
-        bankroll * maxPercent
-
-    );
-
-}
-
-/**
  * EV
  */
+
 export function expectedEV(
     probability,
     odds
@@ -147,36 +89,184 @@ export function expectedEV(
 }
 
 /**
- * 是否值得下注
+ * ROI
  */
-export function shouldBet(
+
+export function expectedROI(
     probability,
     odds
 ){
 
-    return expectedEV(
+    return calculateEV(
         probability,
         odds
-    ) > 0;
+    );
 
 }
 
 /**
- * 單一投注分析
+ * Risk
+ *
+ * EV越高
+ * Kelly越小
+ * 代表越安全
  */
-export function analyzeBet({
 
-    name,
+export function riskScore(
+
+    probability,
+
+    odds
+
+){
+
+    const ev =
+        expectedEV(
+            probability,
+            odds
+        );
+
+    const k =
+        safeKelly(
+            probability,
+            odds
+        );
+
+    return Math.max(
+
+        0,
+
+        1 - (ev + k)
+
+    );
+
+}
+
+/**
+ * Confidence
+ *
+ * EV + Kelly
+ */
+
+export function confidenceScore(
+
+    probability,
+
+    odds
+
+){
+
+    const ev =
+        expectedEV(
+            probability,
+            odds
+        );
+
+    const k =
+        safeKelly(
+            probability,
+            odds
+        );
+
+    return Math.max(
+
+        0,
+
+        ev + k
+
+    );
+
+}
+
+/**
+ * 綜合評分
+ */
+
+export function recommendationScore({
 
     probability,
 
     odds,
 
+    evWeight = 0.5,
+
+    kellyWeight = 0.3,
+
+    confidenceWeight = 0.2
+
+}){
+
+    const ev =
+        expectedEV(
+            probability,
+            odds
+        );
+
+    const k =
+        safeKelly(
+            probability,
+            odds
+        );
+
+    const c =
+        confidenceScore(
+            probability,
+            odds
+        );
+
+    return (
+
+        ev * evWeight +
+
+        k * kellyWeight +
+
+        c * confidenceWeight
+
+    );
+
+}
+
+/**
+ * 完整分析
+ */
+
+export function analyzeBet({
+
+    name,
+
     bankroll,
+
+    probability,
+
+    odds,
 
     fraction = 0.5
 
 }){
+
+    const ev =
+        expectedEV(
+            probability,
+            odds
+        );
+
+    const kelly =
+        safeKelly(
+            probability,
+            odds
+        );
+
+    const confidence =
+        confidenceScore(
+            probability,
+            odds
+        );
+
+    const risk =
+        riskScore(
+            probability,
+            odds
+        );
 
     return {
 
@@ -186,31 +276,17 @@ export function analyzeBet({
 
         odds,
 
-        ev:
-            expectedEV(
-                probability,
-                odds
-            ),
+        ev,
 
-        kelly:
-            safeKelly(
-                probability,
-                odds
-            ),
+        roi: ev,
+
+        kelly,
 
         halfKelly:
-            fractionalKelly(
-                probability,
-                odds,
-                0.5
-            ),
+            kelly * 0.5,
 
         quarterKelly:
-            fractionalKelly(
-                probability,
-                odds,
-                0.25
-            ),
+            kelly * 0.25,
 
         suggestedBet:
             recommendedBet({
@@ -225,77 +301,103 @@ export function analyzeBet({
 
             }),
 
-        cappedBet:
-            cappedBet({
+        confidence,
 
-                bankroll,
+        risk,
+
+        score:
+            recommendationScore({
 
                 probability,
 
-                odds,
-
-                fraction
-
-            }),
-
-        shouldBet:
-            shouldBet(
-                probability,
                 odds
-            )
+
+            })
 
     };
 
 }
 
 /**
- * 多個下注一起分析
+ * 分析全部下注
  */
+
 export function analyzeAll({
 
     bankroll,
 
-    bets,
-
-    fraction = 0.5
+    bets
 
 }){
 
-    return bets.map(
+    return bets
 
-        bet =>
+        .map(
 
-            analyzeBet({
+            bet =>
 
-                bankroll,
+                analyzeBet({
 
-                fraction,
+                    bankroll,
 
-                ...bet
+                    ...bet
 
-            })
+                })
+
+        )
+
+        .sort(
+
+            (a,b)=>b.score-a.score
+
+        );
+
+}
+
+/**
+ * 最佳下注
+ */
+
+export function bestBet(results){
+
+    return results[0] ?? null;
+
+}
+
+/**
+ * 前N名推薦
+ */
+
+export function topRecommendations(
+
+    results,
+
+    count = 3
+
+){
+
+    return results.slice(
+
+        0,
+
+        count
 
     );
 
 }
 
 /**
- * 找最佳下注
+ * 不建議下注
  */
-export function bestBet(results){
 
-    if(results.length === 0){
+export function rejectedBets(results){
 
-        return null;
+    return results.filter(
 
-    }
+        bet =>
 
-    return [...results]
+            bet.ev <= 0
 
-        .sort(
-
-            (a,b)=>b.ev-a.ev
-
-        )[0];
+    );
 
 }
