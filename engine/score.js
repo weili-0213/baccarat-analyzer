@@ -2,8 +2,6 @@
  * Baccarat Analyzer
  * -----------------------------------------
  * Score Helper
- *
- * 百家樂點數計算
  */
 
 import Card from "./card.js";
@@ -18,30 +16,26 @@ export function cardValue(card) {
     }
 
     return card.baccaratValue;
+
 }
 
 /**
- * 計算手牌點數
+ * 手牌點數
  */
 export function baccaratScore(cards) {
-
-    if (!Array.isArray(cards)) {
-        throw new Error("Cards must be an array");
-    }
 
     let total = 0;
 
     for (const card of cards) {
-
         total += cardValue(card);
-
     }
 
     return total % 10;
+
 }
 
 /**
- * 是否 Natural
+ * Natural
  */
 export function isNatural(cards) {
 
@@ -52,5 +46,37 @@ export function isNatural(cards) {
     const score = baccaratScore(cards);
 
     return score === 8 || score === 9;
+
+}
+
+/**
+ * 比較兩手牌
+ *
+ * 回傳：
+ * 1  Player Win
+ * 0  Tie
+ * -1 Banker Win
+ */
+export function compareHands(playerCards, bankerCards) {
+
+    const player = baccaratScore(playerCards);
+    const banker = baccaratScore(bankerCards);
+
+    if (player > banker) return 1;
+    if (player < banker) return -1;
+
+    return 0;
+
+}
+
+/**
+ * 勝差
+ */
+export function scoreMargin(playerCards, bankerCards) {
+
+    return Math.abs(
+        baccaratScore(playerCards) -
+        baccaratScore(bankerCards)
+    );
 
 }
