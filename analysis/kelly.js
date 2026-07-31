@@ -1,403 +1,382 @@
 /**
  * Baccarat Analyzer
  * -----------------------------------------
- * Kelly Criterion v5
  *
- * Bet Decision Engine
+ * Kelly Criterion
  *
- * 功能：
- * 1. Kelly
- * 2. Fraction Kelly
- * 3. EV
- * 4. ROI
- * 5. Risk
- * 6. Confidence
- * 7. Score
- * 8. Ranking
+ * 只負責：
+ * 1. Full Kelly
+ * 2. Fractional Kelly
+ * 3. 建議下注金額
+ * 4. 最低及最高下注限制
  */
 
-import { calculateEV } from "./ev.js";
+const DEFAULT_CONFIG = Object.freeze({
 
-export function calculateKelly(probability, odds) {
+    bankroll: 10000,
 
-    const b = odds;
-    const p = probability;
-    const q = 1 - p;
+    fraction: 0.5,
 
-    return (b * p - q) / b;
+    minBet: 0,
 
-}
+    maxBet: Infinity,
 
-export function safeKelly(probability, odds) {
+    maxBankrollRatio: 0.05
 
-    return Math.max(
-        0,
-        calculateKelly(probability, odds)
-    );
+});
 
-}
+export default class Kelly {
 
-export function fractionalKelly(
-    probability,
-    odds,
-    fraction = 0.5
-){
+    constructor(config = {}) {
 
-    return (
-        safeKelly(probability, odds)
-        * fraction
-    );
+        this.setConfig(config);
 
-}
+    }
 
-export function recommendedBet({
+    /**
+     * 更新設定
+     */
+    setConfig(config = {}) {
 
-    bankroll,
+        this.config = {
 
-    probability,
+            ...DEFAULT_CONFIG,
+            ...config
 
-    odds,
+        };
 
-    fraction = 0.5
+        this.validateConfig();
 
-}){
+        return this;
 
-    return bankroll *
+    }
 
-        fractionalKelly(
-            probability,
-            odds,
-            fraction
+    /**
+     * 驗證設定
+     */
+    validateConfig() {
+
+        const {
+            bankroll,
+            fraction,
+            minBet,
+            maxBet,
+            maxBankrollRatio
+        } = this.config;
+
+        if (
+            !Number.isFinite(bankroll) ||
+            bankroll < 0
+        ) {
+            throw new Error(
+                "Bankroll must be a non-negative number"
+            );
+        }
+
+        if (
+            !Number.isFinite(fraction) ||
+            fraction < 0 ||
+            fraction > 1
+        ) {
+            throw new Error(
+                "Kelly fraction must be between 0 and 1"
+            );
+        }
+
+        if (
+            !Number.isFinite(minBet) ||
+            minBet < 0
+        ) {
+            throw new Error(
+                "Minimum bet must be non-negative"
+            );
+        }
+
+        if (
+            maxBet !== Infinity &&
+            (
+                !Number.isFinite(maxBet) ||
+                maxBet < minBet
+            )
+        ) {
+            throw new Error(
+                "Maximum bet must be greater than minimum bet"
+            );
+        }
+
+        if (
+            !Number.isFinite(maxBankrollRatio) ||
+            maxBankrollRatio < 0 ||
+            maxBankrollRatio > 1
+        ) {
+            throw new Error(
+                "Maximum bankroll ratio must be between 0 and 1"
+            );
+        }
+
+    }
+
+    /**
+     * 驗證勝率及淨賠率
+     */
+    validateInput(
+        winProbability,
+        netOdds,
+        pushProbability = 0
+    ) {
+
+        if (
+            !Number.isFinite(winProbability) ||
+            winProbability < 0 ||
+            winProbability > 1
+        ) {
+            throw new Error(
+                "Win probability must be between 0 and 1"
+            );
+        }
+
+        if (
+            !Number.isFinite(pushProbability) ||
+            pushProbability < 0 ||
+            pushProbability > 1
+        ) {
+            throw new Error(
+                "Push probability must be between 0 and 1"
+            );
+        }
+
+        if (
+            winProbability + pushProbability > 1
+        ) {
+            throw new Error(
+                "Win and push probabilities cannot exceed 1"
+            );
+        }
+
+        if (
+            !Number.isFinite(netOdds) ||
+            netOdds <= 0
+        ) {
+            throw new Error(
+                "Net odds must be greater than 0"
+            );
+        }
+
+    }
+
+    /**
+     * Full Kelly
+     *
+     * f = (bp - q) / b
+     *
+     * b = 淨賠率
+     * p = 勝率
+     * q = 敗率
+     *
+     * Push 不輸不贏，因此：
+     * q = 1 - p - push
+     */
+    ratio(
+        winProbability,
+        netOdds,
+        pushProbability = 0
+    ) {
+
+        this.validateInput(
+            winProbability,
+            netOdds,
+            pushProbability
         );
 
-}
+        const loseProbability =
+            1 -
+            winProbability -
+            pushProbability;
 
-/**
- * EV
- */
+        const value = (
 
-export function expectedEV(
-    probability,
-    odds
-){
+            netOdds * winProbability -
+            loseProbability
 
-    return calculateEV(
-        probability,
-        odds
-    );
+        ) / netOdds;
 
-}
+        return Math.max(0, value);
 
-/**
- * ROI
- */
+    }
 
-export function expectedROI(
-    probability,
-    odds
-){
+    /**
+     * Fractional Kelly
+     */
+    fractionalRatio(
+        winProbability,
+        netOdds,
+        pushProbability = 0,
+        fraction = this.config.fraction
+    ) {
 
-    return calculateEV(
-        probability,
-        odds
-    );
+        if (
+            !Number.isFinite(fraction) ||
+            fraction < 0 ||
+            fraction > 1
+        ) {
+            throw new Error(
+                "Kelly fraction must be between 0 and 1"
+            );
+        }
 
-}
+        return this.ratio(
+            winProbability,
+            netOdds,
+            pushProbability
+        ) * fraction;
 
-/**
- * Risk
- *
- * EV越高
- * Kelly越小
- * 代表越安全
- */
+    }
 
-export function riskScore(
+    /**
+     * 建議下注金額
+     */
+    calculate({
 
-    probability,
+        winProbability,
 
-    odds
+        netOdds,
 
-){
+        pushProbability = 0,
 
-    const ev =
-        expectedEV(
-            probability,
-            odds
+        bankroll = this.config.bankroll,
+
+        fraction = this.config.fraction,
+
+        minBet = this.config.minBet,
+
+        maxBet = this.config.maxBet,
+
+        maxBankrollRatio =
+            this.config.maxBankrollRatio
+
+    }) {
+
+        if (
+            !Number.isFinite(bankroll) ||
+            bankroll < 0
+        ) {
+            throw new Error(
+                "Bankroll must be a non-negative number"
+            );
+        }
+
+        const fullKelly = this.ratio(
+            winProbability,
+            netOdds,
+            pushProbability
         );
 
-    const k =
-        safeKelly(
-            probability,
-            odds
-        );
+        const appliedKelly =
+            fullKelly * fraction;
 
-    return Math.max(
+        const rawAmount =
+            bankroll * appliedKelly;
 
-        0,
+        const bankrollCap =
+            bankroll * maxBankrollRatio;
 
-        1 - (ev + k)
+        const effectiveMax =
+            Math.min(
+                maxBet,
+                bankrollCap
+            );
 
-    );
+        let amount =
+            Math.min(
+                rawAmount,
+                effectiveMax
+            );
 
-}
+        if (amount < minBet) {
+            amount = 0;
+        }
 
-/**
- * Confidence
- *
- * EV + Kelly
- */
+        return {
 
-export function confidenceScore(
+            winProbability,
 
-    probability,
+            loseProbability:
+                1 -
+                winProbability -
+                pushProbability,
 
-    odds
+            pushProbability,
 
-){
+            netOdds,
 
-    const ev =
-        expectedEV(
-            probability,
-            odds
-        );
+            fullKelly,
 
-    const k =
-        safeKelly(
-            probability,
-            odds
-        );
+            appliedKelly,
 
-    return Math.max(
+            fraction,
 
-        0,
+            bankroll,
 
-        ev + k
+            rawAmount,
 
-    );
+            amount:
+                Math.floor(amount),
 
-}
+            capped:
+                rawAmount > effectiveMax,
 
-/**
- * 綜合評分
- */
+            shouldBet:
+                amount > 0
 
-export function recommendationScore({
+        };
 
-    probability,
+    }
 
-    odds,
+    /**
+     * 一次計算所有下注項目
+     *
+     * bets 範例：
+     * {
+     *   player: {
+     *     winProbability: 0.446,
+     *     pushProbability: 0.096,
+     *     netOdds: 1
+     *   }
+     * }
+     */
+    calculateAll(
+        bets,
+        options = {}
+    ) {
 
-    evWeight = 0.5,
+        if (
+            !bets ||
+            typeof bets !== "object" ||
+            Array.isArray(bets)
+        ) {
+            throw new Error(
+                "Bets must be an object"
+            );
+        }
 
-    kellyWeight = 0.3,
+        const result = {};
 
-    confidenceWeight = 0.2
+        for (
+            const [name, bet] of
+            Object.entries(bets)
+        ) {
 
-}){
+            result[name] = this.calculate({
 
-    const ev =
-        expectedEV(
-            probability,
-            odds
-        );
+                ...bet,
+                ...options
 
-    const k =
-        safeKelly(
-            probability,
-            odds
-        );
+            });
 
-    const c =
-        confidenceScore(
-            probability,
-            odds
-        );
+        }
 
-    return (
+        return result;
 
-        ev * evWeight +
-
-        k * kellyWeight +
-
-        c * confidenceWeight
-
-    );
-
-}
-
-/**
- * 完整分析
- */
-
-export function analyzeBet({
-
-    name,
-
-    bankroll,
-
-    probability,
-
-    odds,
-
-    fraction = 0.5
-
-}){
-
-    const ev =
-        expectedEV(
-            probability,
-            odds
-        );
-
-    const kelly =
-        safeKelly(
-            probability,
-            odds
-        );
-
-    const confidence =
-        confidenceScore(
-            probability,
-            odds
-        );
-
-    const risk =
-        riskScore(
-            probability,
-            odds
-        );
-
-    return {
-
-        name,
-
-        probability,
-
-        odds,
-
-        ev,
-
-        roi: ev,
-
-        kelly,
-
-        halfKelly:
-            kelly * 0.5,
-
-        quarterKelly:
-            kelly * 0.25,
-
-        suggestedBet:
-            recommendedBet({
-
-                bankroll,
-
-                probability,
-
-                odds,
-
-                fraction
-
-            }),
-
-        confidence,
-
-        risk,
-
-        score:
-            recommendationScore({
-
-                probability,
-
-                odds
-
-            })
-
-    };
-
-}
-
-/**
- * 分析全部下注
- */
-
-export function analyzeAll({
-
-    bankroll,
-
-    bets
-
-}){
-
-    return bets
-
-        .map(
-
-            bet =>
-
-                analyzeBet({
-
-                    bankroll,
-
-                    ...bet
-
-                })
-
-        )
-
-        .sort(
-
-            (a,b)=>b.score-a.score
-
-        );
-
-}
-
-/**
- * 最佳下注
- */
-
-export function bestBet(results){
-
-    return results[0] ?? null;
-
-}
-
-/**
- * 前N名推薦
- */
-
-export function topRecommendations(
-
-    results,
-
-    count = 3
-
-){
-
-    return results.slice(
-
-        0,
-
-        count
-
-    );
-
-}
-
-/**
- * 不建議下注
- */
-
-export function rejectedBets(results){
-
-    return results.filter(
-
-        bet =>
-
-            bet.ev <= 0
-
-    );
+    }
 
 }
