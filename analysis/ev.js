@@ -1,25 +1,28 @@
 /**
  * Baccarat Analyzer
  * -----------------------------------------
- * Expected Value Calculator
+ * Expected Value Engine
  *
- * EV = p(win) × 賠率
- *      - p(lose)
- *
- * Tie 不算輸贏時：
  * EV = Win × Odds - Lose
+ *
+ * Author:
+ * Baccarat Analyzer
  */
 
 const DEFAULT_PAYOUT = {
 
     player: 1,
+
     banker: 0.95,
+
     tie: 8,
 
     playerPair: 11,
+
     bankerPair: 11,
 
     playerDragonBonus: 30,
+
     bankerDragonBonus: 30,
 
     super6: 12
@@ -28,25 +31,30 @@ const DEFAULT_PAYOUT = {
 
 export default class EV {
 
-    constructor(payout = DEFAULT_PAYOUT){
+    constructor(payout = DEFAULT_PAYOUT) {
 
-        this.payout = payout;
+        this.payout = {
+
+            ...DEFAULT_PAYOUT,
+            ...payout
+
+        };
 
     }
 
     /**
      * 通用EV
      */
-    calculate(win, lose, odds){
+    calculate(win, lose, odds) {
 
-        return win * odds - lose;
+        return (win * odds) - lose;
 
     }
 
     /**
-     * 閒
+     * Player
      */
-    player(prob){
+    player(prob) {
 
         return this.calculate(
             prob.player,
@@ -57,9 +65,9 @@ export default class EV {
     }
 
     /**
-     * 莊
+     * Banker
      */
-    banker(prob){
+    banker(prob) {
 
         return this.calculate(
             prob.banker,
@@ -70,9 +78,9 @@ export default class EV {
     }
 
     /**
-     * 和
+     * Tie
      */
-    tie(prob){
+    tie(prob) {
 
         return this.calculate(
             prob.tie,
@@ -83,9 +91,9 @@ export default class EV {
     }
 
     /**
-     * 閒對
+     * Player Pair
      */
-    playerPair(prob){
+    playerPair(prob) {
 
         return this.calculate(
             prob.playerPair,
@@ -96,9 +104,9 @@ export default class EV {
     }
 
     /**
-     * 莊對
+     * Banker Pair
      */
-    bankerPair(prob){
+    bankerPair(prob) {
 
         return this.calculate(
             prob.bankerPair,
@@ -109,9 +117,9 @@ export default class EV {
     }
 
     /**
-     * Super6
+     * Super 6
      */
-    super6(prob){
+    super6(prob) {
 
         return this.calculate(
             prob.super6,
@@ -124,7 +132,7 @@ export default class EV {
     /**
      * Dragon Bonus Player
      */
-    playerDragonBonus(prob){
+    playerDragonBonus(prob) {
 
         return this.calculate(
             prob.playerDragonBonus,
@@ -137,7 +145,7 @@ export default class EV {
     /**
      * Dragon Bonus Banker
      */
-    bankerDragonBonus(prob){
+    bankerDragonBonus(prob) {
 
         return this.calculate(
             prob.bankerDragonBonus,
@@ -150,7 +158,7 @@ export default class EV {
     /**
      * 全部EV
      */
-    all(prob){
+    all(prob) {
 
         return {
 
@@ -177,33 +185,71 @@ export default class EV {
     }
 
     /**
-     * 找最大EV
+     * EV排序
      */
-    best(prob){
+    ranking(prob) {
 
-        const ev = this.all(prob);
+        return Object.entries(
+            this.all(prob)
+        )
 
-        let bestKey = null;
-        let bestValue = -Infinity;
+        .map(([bet, ev]) => ({
 
-        for(const key in ev){
+            bet,
 
-            if(ev[key] > bestValue){
+            ev
 
-                bestValue = ev[key];
-                bestKey = key;
+        }))
 
-            }
+        .sort((a, b) => b.ev - a.ev);
 
-        }
+    }
 
-        return {
+    /**
+     * 最佳下注
+     */
+    best(prob) {
 
-            bet: bestKey,
+        return this.ranking(prob)[0];
 
-            ev: bestValue
+    }
 
-        };
+    /**
+     * 是否正EV
+     */
+    isPositive(ev) {
+
+        return ev > 0;
+
+    }
+
+    /**
+     * 百分比格式
+     */
+    format(ev) {
+
+        return (ev * 100).toFixed(2) + "%";
+
+    }
+
+    /**
+     * 報表
+     */
+    report(prob) {
+
+        const ranking = this.ranking(prob);
+
+        return ranking.map(item => ({
+
+            bet: item.bet,
+
+            ev: item.ev,
+
+            percent: this.format(item.ev),
+
+            positive: this.isPositive(item.ev)
+
+        }));
 
     }
 
