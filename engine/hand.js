@@ -159,25 +159,11 @@ export default class Hand {
      *
      * 只取個位數
      */
-    get value(){
+    import { baccaratScore } from "./score.js";
 
+    get value() {
 
-        const total =
-            this.cards.reduce(
-
-                (sum, card)=>{
-
-                    return sum + card.baccaratValue;
-
-                },
-
-                0
-
-            );
-
-
-        return total % 10;
-
+        return baccaratScore(this.cards);
 
     }
 
@@ -188,21 +174,15 @@ export default class Hand {
      *
      * Natural 8 / 9
      */
-    get isNatural(){
 
+    import {
+        baccaratScore,
+        isNatural
+    } from "./score.js";
 
-        if(this.cards.length !== 2){
+    get isNatural() {
 
-            return false;
-
-        }
-
-
-        return (
-            this.value === 8 ||
-            this.value === 9
-        );
-
+        return isNatural(this.cards);
 
     }
 
