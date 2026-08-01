@@ -1,165 +1,173 @@
 /**
  * Baccarat Analyzer
  * -----------------------------------------
- *
  * Dealer Test
- *
- * 測試：
- * 1. Shoe
- * 2. Burn
- * 3. Dealer
- * 4. Round
- * 5. RoundResult
  */
 
-import Shoe from "../engine/shoe.js";
-import Burn from "../engine/burn.js";
-import Dealer from "../engine/dealer.js";
+import Shoe
+    from "../engine/shoe.js";
+
+import Burn
+    from "../engine/burn.js";
+
+import Dealer
+    from "../engine/dealer.js";
+
+
+function assert(
+    condition,
+    message
+) {
+
+    if (!condition) {
+
+        throw new Error(
+            message
+        );
+
+    }
+
+}
+
 
 export default async function dealerTest() {
 
-    console.log("========== Dealer Test ==========");
+    const shoe =
+        new Shoe(8);
 
-    //
-    // 建立牌靴
-    //
-    const shoe = new Shoe(8);
+    const burn =
+        new Burn(shoe);
 
-    shoe.shuffle();
+    const burnResult =
+        burn.execute();
 
-    console.log("Deck Count :", shoe.deckCount);
-    console.log("Total Cards :", shoe.total);
+    const dealer =
+        new Dealer(shoe);
 
-    //
-    // 開靴燒牌
-    //
-    const burn = new Burn(shoe);
+    const result =
+        dealer.play();
 
-    const burnResult = burn.execute();
 
-    console.log(
-        "Burn Card :",
-        burnResult.indicator.toString()
+    assert(
+
+        result !== null,
+
+        "Dealer.play() 必須回傳 RoundResult"
+
     );
 
-    console.log(
-        "Burn Count:",
-        burnResult.amount
+
+    assert(
+
+        [
+            "player",
+            "banker",
+            "tie"
+        ].includes(
+            result.winner
+                .toLowerCase()
+        ),
+
+        "Winner 必須是 Player、Banker 或 Tie"
+
     );
 
-    //
-    // 建立 Dealer
-    //
-    const dealer = new Dealer(shoe);
 
-    //
-    // 完成一局
-    //
-    const result = dealer.play();
-
-    console.log("");
-
-    console.log("Winner :", result.winner);
-
-    console.log("");
-
-    console.log(
-        "Player Cards :",
-        dealer.playerHand.toString()
-    );
-
-    console.log(
-        "Player Score :",
-        dealer.playerScore
-    );
-
-    console.log("");
-
-    console.log(
-        "Banker Cards :",
-        dealer.bankerHand.toString()
-    );
-
-    console.log(
-        "Banker Score :",
-        dealer.bankerScore
-    );
-
-    console.log("");
-
-    console.log(
-        "Dealer Finished :",
-        dealer.finished
-    );
-
-    console.log(
-        "Dealer.result === result :",
-        dealer.result === result
-    );
-
-    console.log(
-        "Round.result === result :",
-        dealer.currentRound.result === result
-    );
-
-    console.log("");
-
-    //
-    // Assertions
-    //
-
-    console.assert(
+    assert(
 
         dealer.finished === true,
 
-        "Dealer 應該完成"
+        "Dealer 應該進入 FINISHED 狀態"
 
     );
 
-    console.assert(
+
+    assert(
 
         dealer.result === result,
 
-        "Dealer.result 應等於回傳 Result"
+        "Dealer.result 應與 play() 回傳結果相同"
 
     );
 
-    console.assert(
 
-        dealer.currentRound.result === result,
+    assert(
 
-        "Round.result 應等於回傳 Result"
+        dealer.currentRound
+            .result === result,
 
-    );
-
-    console.assert(
-
-        dealer.playerHand.count >= 2,
-
-        "Player 至少兩張牌"
+        "Round.result 應與 play() 回傳結果相同"
 
     );
 
-    console.assert(
 
-        dealer.bankerHand.count >= 2,
+    assert(
 
-        "Banker 至少兩張牌"
+        dealer.playerHand.count >= 2 &&
+        dealer.playerHand.count <= 3,
 
-    );
-
-    console.assert(
-
-        ["player","banker","tie"].includes(
-            result.winner?.toLowerCase()
-        ),
-
-        "Winner 必須為 player、banker 或 tie"
+        "Player 手牌必須為 2 或 3 張"
 
     );
 
-    console.log("");
 
-    console.log("✅ Dealer Test PASS");
+    assert(
+
+        dealer.bankerHand.count >= 2 &&
+        dealer.bankerHand.count <= 3,
+
+        "Banker 手牌必須為 2 或 3 張"
+
+    );
+
+
+    assert(
+
+        dealer.playerScore >= 0 &&
+        dealer.playerScore <= 9,
+
+        "Player 點數必須介於 0 到 9"
+
+    );
+
+
+    assert(
+
+        dealer.bankerScore >= 0 &&
+        dealer.bankerScore <= 9,
+
+        "Banker 點數必須介於 0 到 9"
+
+    );
+
+
+    assert(
+
+        shoe.remaining < shoe.total,
+
+        "完成燒牌與一局後，剩餘牌數應減少"
+
+    );
+
+
+    return [
+
+        `燒牌指示牌：${burnResult.indicator.toString()}`,
+
+        `燒牌張數：${burnResult.amount}`,
+
+        `閒家：${dealer.playerHand.toString()}`,
+
+        `閒家點數：${dealer.playerScore}`,
+
+        `莊家：${dealer.bankerHand.toString()}`,
+
+        `莊家點數：${dealer.bankerScore}`,
+
+        `勝方：${result.winner}`,
+
+        `剩餘牌數：${shoe.remaining}`
+
+    ].join("\n");
 
 }
