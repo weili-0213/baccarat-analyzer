@@ -363,6 +363,4 @@ export default class Shoe {
 
     }
 
-
-
-}                 # 八副牌
+}                 
