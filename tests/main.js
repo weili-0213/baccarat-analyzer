@@ -19,6 +19,9 @@ import dealerTest
 import roundTest
     from "./round.test.js";
 
+import historyTest
+    from "./history.test.js";
+
 
 /**
  * 新增測試時，只需：
@@ -38,6 +41,12 @@ const TESTS = [
         id: "round",
         name: "Round",
         run: roundTest
+    },
+
+    {
+        id: "history",
+        name: "History",
+        run: historyTest
     }
 
 ];
