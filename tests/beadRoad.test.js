@@ -873,7 +873,15 @@ export default async function beadRoadTest() {
     /*
      * 測試 14：
      * 非法資料
+     *
+     * 注意：
+     * build() 會先 clear()，
+     * 所以使用獨立實例測試，
+     * 避免清除主要 beadRoad。
      */
+    const invalidRoad =
+        new BeadRoad();
+
     assertThrows(
         () => {
 
@@ -888,7 +896,7 @@ export default async function beadRoadTest() {
     assertThrows(
         () => {
 
-            beadRoad.add({
+            invalidRoad.add({
                 winner: "Unknown"
             });
 
@@ -899,7 +907,7 @@ export default async function beadRoadTest() {
     assertThrows(
         () => {
 
-            beadRoad.add(null);
+            invalidRoad.add(null);
 
         },
         "null entry 應丟出錯誤"
@@ -908,7 +916,7 @@ export default async function beadRoadTest() {
     assertThrows(
         () => {
 
-            beadRoad.addAll({});
+            invalidRoad.addAll({});
 
         },
         "addAll() 非陣列應丟出錯誤"
@@ -917,7 +925,7 @@ export default async function beadRoadTest() {
     assertThrows(
         () => {
 
-            beadRoad.build({});
+            invalidRoad.build({});
 
         },
         "不支援的 build source 應丟出錯誤"
