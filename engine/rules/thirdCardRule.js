@@ -1,5 +1,8 @@
 /**
- * 莊家第三張補牌表
+ * Baccarat Analyzer
+ * -----------------------------------------
+ *
+ * 莊家第三張補牌規則
  */
 
 export function bankerThirdCardRule(
@@ -7,11 +10,24 @@ export function bankerThirdCardRule(
     playerThirdCard
 ) {
 
-    if (!playerThirdCard) {
-        throw new Error("Player third card required");
+    if (
+        !Number.isInteger(bankerValue) ||
+        bankerValue < 0 ||
+        bankerValue > 9
+    ) {
+        throw new RangeError(
+            "Banker value must be an integer between 0 and 9."
+        );
     }
 
-    const rank = playerThirdCard.rank;
+    if (!playerThirdCard) {
+        throw new Error(
+            "Player third card is required."
+        );
+    }
+
+    const rank =
+        playerThirdCard.rank;
 
     if (bankerValue <= 2) {
         return true;
@@ -51,73 +67,3 @@ export function bankerThirdCardRule(
     return false;
 
 }
-│   ├── round.js
- * Baccarat Analyzer
- *
- * Baccarat Rules
- */
-
-import Hand from "./hand.js";
-import RoundResult from "./roundResult.js";
-import { drawTo } from "./draw.js";
-import { playerMustDraw } from "./rules/playerRule.js";
-import { bankerMustDraw } from "./rules/bankerRule.js";
-
-
-export function playRound(shoe){
-
-    const player = new Hand();
-    const banker = new Hand();
-
-
-    drawTo(player, shoe);
-    drawTo(banker, shoe);
-
-    drawTo(player, shoe);
-    drawTo(banker, shoe);
-
-
-    if(player.isNatural || banker.isNatural){
-
-        return new RoundResult(
-            player,
-            banker
-        );
-
-    }
-
-
-    if(playerMustDraw(player)){
-
-        drawTo(player, shoe);
-
-    }
-
-
-    const playerThird =
-        player.count === 3
-        ?
-        player.lastCard
-        :
-        null;
-
-
-
-    if(
-        bankerMustDraw(
-            banker,
-            playerThird
-        )
-    ){
-
-        drawTo(banker, shoe);
-
-    }
-
-
-    return new RoundResult(
-        player,
-        banker
-    );
-
-}    
