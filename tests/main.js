@@ -22,6 +22,9 @@ import roundTest
 import historyTest
     from "./history.test.js";
 
+import beadRoadTest
+    from "./beadRoad.test.js";
+
 
 /**
  * 新增測試時，只需：
@@ -47,10 +50,15 @@ const TESTS = [
         id: "history",
         name: "History",
         run: historyTest
+    },
+
+    {
+        id: "bead-road",
+        name: "Bead Road",
+        run: beadRoadTest
     }
 
 ];
-
 
 const elements = {
 
