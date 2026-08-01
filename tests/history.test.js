@@ -2,10 +2,7 @@
  * Baccarat Analyzer
  * -----------------------------------------
  *
- * History Test
- *
- * 使用真實 Round 與 Card 建立結果，
- * 不直接修改 RoundResult 的 getter。
+ * History v5 Test
  */
 
 import Card from "../engine/card.js";
@@ -27,9 +24,6 @@ function assert(
 }
 
 
-/**
- * 建立牌
- */
 function card(
     rank,
     suit,
@@ -46,15 +40,7 @@ function card(
 
 
 /**
- * 透過真實手牌建立 RoundResult
- *
- * 發牌順序：
- * Player 1
- * Banker 1
- * Player 2
- * Banker 2
- * Player 3（選填）
- * Banker 3（選填）
+ * 使用真實牌面建立 RoundResult
  */
 function createResult({
 
@@ -66,30 +52,6 @@ function createResult({
 
     const round =
         new Round();
-
-    if (
-        !Array.isArray(playerCards) ||
-        playerCards.length < 2 ||
-        playerCards.length > 3
-    ) {
-
-        throw new Error(
-            "Player cards must contain 2 or 3 cards."
-        );
-
-    }
-
-    if (
-        !Array.isArray(bankerCards) ||
-        bankerCards.length < 2 ||
-        bankerCards.length > 3
-    ) {
-
-        throw new Error(
-            "Banker cards must contain 2 or 3 cards."
-        );
-
-    }
 
     round.deal(
         "player",
@@ -134,112 +96,13 @@ function createResult({
 }
 
 
-/**
- * 兼容 last getter 與 last() 方法
- */
-function getLast(history) {
-
-    if (
-        typeof history.last ===
-        "function"
-    ) {
-
-        return history.last();
-
-    }
-
-    return history.last ?? null;
-
-}
-
-
-/**
- * 兼容 statistics()、getStatistics()、
- * stats getter 與 summary getter。
- */
-function getStatistics(history) {
-
-    if (
-        typeof history.statistics ===
-        "function"
-    ) {
-
-        return history.statistics();
-
-    }
-
-    if (
-        typeof history.getStatistics ===
-        "function"
-    ) {
-
-        return history.getStatistics();
-
-    }
-
-    if (
-        history.stats &&
-        typeof history.stats ===
-        "object"
-    ) {
-
-        return history.stats;
-
-    }
-
-    if (
-        history.summary &&
-        typeof history.summary ===
-        "object"
-    ) {
-
-        return history.summary;
-
-    }
-
-    throw new Error(
-        "History does not provide statistics(), getStatistics(), stats, or summary."
-    );
-
-}
-
-
-/**
- * 從可能的欄位名稱中取得統計值
- */
-function readStat(
-    stats,
-    names
-) {
-
-    for (const name of names) {
-
-        if (
-            Number.isFinite(
-                stats?.[name]
-            )
-        ) {
-
-            return stats[name];
-
-        }
-
-    }
-
-    throw new Error(
-        `Missing statistics field: ${names.join(" / ")}`
-    );
-
-}
-
-
 export default async function historyTest() {
 
     const details = [];
 
     /*
      * 測試 1：
-     * 建立空 History
+     * 初始狀態
      */
     const history =
         new History();
@@ -250,8 +113,18 @@ export default async function historyTest() {
     );
 
     assert(
-        getLast(history) === null,
+        history.isEmpty === true,
+        "新 History 應為空"
+    );
+
+    assert(
+        history.last === null,
         "空 History 的 last 應為 null"
+    );
+
+    assert(
+        history.get(0) === null,
+        "空 History 的 get(0) 應為 null"
     );
 
     details.push(
@@ -260,15 +133,11 @@ export default async function historyTest() {
 
 
     /*
-     * 測試 2：
-     * Player 勝、Player Pair、Natural
+     * 第一局：
+     * Player 勝、Player Pair、Player Natural
      *
-     * Player：
-     * 4 + 4 = 8
-     * Pair + Natural
-     *
-     * Banker：
-     * 2 + 3 = 5
+     * Player：4 + 4 = 8
+     * Banker：2 + 3 = 5
      */
     const playerResult =
         createResult({
@@ -286,21 +155,18 @@ export default async function historyTest() {
         });
 
     assert(
-        playerResult.winner ===
-            "Player",
+        playerResult.winner === "Player",
         "第一局應為 Player 勝"
     );
 
     assert(
-        playerResult.playerPair ===
-            true,
-        "第一局應有 Player Pair"
+        playerResult.playerPair === true,
+        "第一局應為 Player Pair"
     );
 
     assert(
-        playerResult.playerNatural ===
-            true,
-        "第一局 Player 應為 Natural"
+        playerResult.playerNatural === true,
+        "第一局應為 Player Natural"
     );
 
     history.add(
@@ -309,14 +175,11 @@ export default async function historyTest() {
 
 
     /*
-     * 測試 3：
+     * 第二局：
      * Banker 勝 6 點、Super 6
      *
-     * Player：
-     * A + 3 = 4
-     *
-     * Banker：
-     * 2 + 4 = 6
+     * Player：A + 3 = 4
+     * Banker：2 + 4 = 6
      */
     const bankerResult =
         createResult({
@@ -334,20 +197,17 @@ export default async function historyTest() {
         });
 
     assert(
-        bankerResult.winner ===
-            "Banker",
+        bankerResult.winner === "Banker",
         "第二局應為 Banker 勝"
     );
 
     assert(
-        bankerResult.bankerScore ===
-            6,
+        bankerResult.bankerScore === 6,
         "第二局 Banker 應為 6 點"
     );
 
     assert(
-        bankerResult.super6 ===
-            true,
+        bankerResult.super6 === true,
         "第二局應為 Super 6"
     );
 
@@ -357,14 +217,11 @@ export default async function historyTest() {
 
 
     /*
-     * 測試 4：
+     * 第三局：
      * Tie
      *
-     * Player：
-     * 2 + 5 = 7
-     *
-     * Banker：
-     * 3 + 4 = 7
+     * Player：2 + 5 = 7
+     * Banker：3 + 4 = 7
      */
     const tieResult =
         createResult({
@@ -382,8 +239,7 @@ export default async function historyTest() {
         });
 
     assert(
-        tieResult.winner ===
-            "Tie",
+        tieResult.winner === "Tie",
         "第三局應為 Tie"
     );
 
@@ -391,89 +247,141 @@ export default async function historyTest() {
         tieResult
     );
 
+
+    /*
+     * 第四局：
+     * Banker Pair、Banker Natural
+     *
+     * Player：2 + 3 = 5
+     * Banker：4 + 4 = 8
+     */
+    const bankerNaturalResult =
+        createResult({
+
+            playerCards: [
+                card("2", "C", 2),
+                card("3", "D", 2)
+            ],
+
+            bankerCards: [
+                card("4", "S", 2),
+                card("4", "H", 2)
+            ]
+
+        });
+
+    history.add(
+        bankerNaturalResult
+    );
+
     assert(
-        history.count === 3,
-        "新增三局後 count 應為 3"
+        history.count === 4,
+        "新增四局後 count 應為 4"
+    );
+
+    assert(
+        history.isEmpty === false,
+        "新增紀錄後不應為空"
     );
 
     details.push(
-        "新增三局結果：PASS"
+        "新增四局：PASS"
     );
 
 
     /*
-     * 測試 5：
-     * last
+     * getAll()
      */
-    const last =
-        getLast(history);
+    const all =
+        history.getAll();
 
     assert(
-        last === tieResult,
-        "最後一局應為新增的 Tie Result"
+        Array.isArray(all),
+        "getAll() 應回傳陣列"
     );
 
     assert(
-        last.winner === "Tie",
-        "最後一局勝方應為 Tie"
+        all.length === 4,
+        "getAll() 應包含四局"
+    );
+
+    assert(
+        all !== history.rounds,
+        "getAll() 應回傳陣列副本"
     );
 
     details.push(
-        "last：PASS"
+        "getAll()：PASS"
     );
 
 
     /*
-     * 測試 6：
-     * 統計
+     * last / get()
      */
-    const stats =
-        getStatistics(
-            history
-        );
-
-    const playerWins =
-        readStat(
-            stats,
-            [
-                "playerWins",
-                "player",
-                "playerCount"
-            ]
-        );
-
-    const bankerWins =
-        readStat(
-            stats,
-            [
-                "bankerWins",
-                "banker",
-                "bankerCount"
-            ]
-        );
-
-    const ties =
-        readStat(
-            stats,
-            [
-                "ties",
-                "tie",
-                "tieCount"
-            ]
-        );
+    assert(
+        history.last ===
+            bankerNaturalResult,
+        "last 應為第四局"
+    );
 
     assert(
-        playerWins === 1,
+        history.get(0) ===
+            playerResult,
+        "get(0) 應為第一局"
+    );
+
+    assert(
+        history.get(99) === null,
+        "不存在的 index 應回傳 null"
+    );
+
+    details.push(
+        "last / get()：PASS"
+    );
+
+
+    /*
+     * lastRounds()
+     */
+    const recent =
+        history.lastRounds(2);
+
+    assert(
+        recent.length === 2,
+        "lastRounds(2) 應回傳兩局"
+    );
+
+    assert(
+        recent[0] === tieResult,
+        "最近兩局第一筆應為 Tie"
+    );
+
+    assert(
+        recent[1] ===
+            bankerNaturalResult,
+        "最近兩局第二筆應為 Banker Natural"
+    );
+
+    details.push(
+        "lastRounds()：PASS"
+    );
+
+
+    /*
+     * 勝負統計
+     */
+    assert(
+        history.playerWins === 1,
         "Player 勝局數應為 1"
     );
 
     assert(
-        bankerWins === 1,
-        "Banker 勝局數應為 1"
+        history.bankerWins === 2,
+        "Banker 勝局數應為 2"
     );
 
     assert(
-        ties === 1,
+        history.ties === 1,
         "Tie 局數應為 1"
     );
 
@@ -483,169 +391,271 @@ export default async function historyTest() {
 
 
     /*
-     * 測試 7：
-     * Pair、Natural、Super 6 統計
-     *
-     * 不同 History 版本可能使用不同欄位名稱。
+     * Pair 統計
      */
-    const playerPairs =
-        readStat(
-            stats,
-            [
-                "playerPairs",
-                "playerPair",
-                "playerPairCount"
-            ]
-        );
-
-    const bankerPairs =
-        readStat(
-            stats,
-            [
-                "bankerPairs",
-                "bankerPair",
-                "bankerPairCount"
-            ]
-        );
-
-    const naturals =
-        readStat(
-            stats,
-            [
-                "naturals",
-                "natural",
-                "naturalCount"
-            ]
-        );
-
-    const super6Count =
-        readStat(
-            stats,
-            [
-                "super6",
-                "super6Count"
-            ]
-        );
-
     assert(
-        playerPairs === 1,
+        history.playerPairs === 1,
         "Player Pair 次數應為 1"
     );
 
     assert(
-        bankerPairs === 0,
-        "Banker Pair 次數應為 0"
-    );
-
-    assert(
-        naturals === 1,
-        "Natural 次數應為 1"
-    );
-
-    assert(
-        super6Count === 1,
-        "Super 6 次數應為 1"
+        history.bankerPairs === 1,
+        "Banker Pair 次數應為 1"
     );
 
     details.push(
-        "Pair／Natural／Super 6：PASS"
+        "Pair 統計：PASS"
     );
 
 
     /*
-     * 測試 8：
-     * JSON 輸出
+     * Natural 統計
+     */
+    assert(
+        history.playerNaturals === 1,
+        "Player Natural 次數應為 1"
+    );
+
+    assert(
+        history.bankerNaturals === 1,
+        "Banker Natural 次數應為 1"
+    );
+
+    details.push(
+        "Natural 統計：PASS"
+    );
+
+
+    /*
+     * Super 6
+     */
+    assert(
+        history.super6Count === 1,
+        "Super 6 次數應為 1"
+    );
+
+    details.push(
+        "Super 6 統計：PASS"
+    );
+
+
+    /*
+     * Dragon Bonus
+     *
+     * 你的 History v5 定義是：
+     * margin >= 4
+     */
+    const expectedDragonBonus =
+        history.getAll()
+            .filter(
+                result =>
+                    result.margin >= 4
+            )
+            .length;
+
+    assert(
+        history.dragonBonusCount ===
+            expectedDragonBonus,
+        "Dragon Bonus 統計應與 margin >= 4 一致"
+    );
+
+    details.push(
+        "Dragon Bonus 統計：PASS"
+    );
+
+
+    /*
+     * Win Rate
+     */
+    const winRate =
+        history.winRate;
+
+    assert(
+        winRate.player === 1 / 4,
+        "Player 勝率應為 25%"
+    );
+
+    assert(
+        winRate.banker === 2 / 4,
+        "Banker 勝率應為 50%"
+    );
+
+    assert(
+        winRate.tie === 1 / 4,
+        "Tie 勝率應為 25%"
+    );
+
+    assert(
+        Math.abs(
+            (
+                winRate.player +
+                winRate.banker +
+                winRate.tie
+            ) - 1
+        ) < 0.000001,
+        "勝率總和應為 1"
+    );
+
+    details.push(
+        "勝率：PASS"
+    );
+
+
+    /*
+     * Trend
+     */
+    const expectedTrend = [
+        "Player",
+        "Banker",
+        "Tie",
+        "Banker"
+    ];
+
+    assert(
+        JSON.stringify(
+            history.trend
+        ) ===
+        JSON.stringify(
+            expectedTrend
+        ),
+        "Trend 順序不正確"
+    );
+
+    details.push(
+        "Trend：PASS"
+    );
+
+
+    /*
+     * Streak
+     *
+     * 最後只有一局 Banker，
+     * 因為前一局是 Tie。
+     */
+    assert(
+        history.streak !== null,
+        "非空 History 應有 streak"
+    );
+
+    assert(
+        history.streak.winner ===
+            "Banker",
+        "目前連續勝方應為 Banker"
+    );
+
+    assert(
+        history.streak.count === 1,
+        "目前 Banker streak 應為 1"
+    );
+
+    details.push(
+        "Streak：PASS"
+    );
+
+
+    /*
+     * Roadmap Data
+     */
+    const roadmap =
+        history.roadmapData;
+
+    assert(
+        Array.isArray(roadmap),
+        "roadmapData 應為陣列"
+    );
+
+    assert(
+        roadmap.length === 4,
+        "roadmapData 應包含四局"
+    );
+
+    assert(
+        roadmap[0].winner ===
+            "Player",
+        "Roadmap 第一局應為 Player"
+    );
+
+    assert(
+        roadmap[0].playerPair ===
+            true,
+        "Roadmap 應保留 Player Pair"
+    );
+
+    assert(
+        roadmap[1].super6 ===
+            true,
+        "Roadmap 應保留 Super 6"
+    );
+
+    details.push(
+        "Roadmap Data：PASS"
+    );
+
+
+    /*
+     * JSON
+     *
+     * History v5 目前只有 toJSON()，
+     * 尚未提供 fromJSON()。
      */
     const json =
         history.toJSON();
 
     assert(
-        json !== null &&
-        typeof json === "object",
-        "History.toJSON() 應回傳物件"
-    );
-
-    const restored =
-        History.fromJSON(
-            json
-        );
-
-    assert(
-        restored instanceof History,
-        "fromJSON() 應回傳 History"
+        Array.isArray(json),
+        "History.toJSON() 應回傳陣列"
     );
 
     assert(
-        restored.count === 3,
-        "JSON 還原後 count 應為 3"
+        json.length === 4,
+        "JSON 應包含四局"
     );
 
     assert(
-        getLast(restored)
-            .winner === "Tie",
-        "JSON 還原後最後一局應為 Tie"
-    );
-
-    const restoredStats =
-        getStatistics(
-            restored
-        );
-
-    assert(
-        readStat(
-            restoredStats,
-            [
-                "playerWins",
-                "player",
-                "playerCount"
-            ]
-        ) === 1,
-        "JSON 還原後 Player 統計應一致"
+        json[0].winner === "Player",
+        "JSON 第一局應為 Player"
     );
 
     assert(
-        readStat(
-            restoredStats,
-            [
-                "bankerWins",
-                "banker",
-                "bankerCount"
-            ]
-        ) === 1,
-        "JSON 還原後 Banker 統計應一致"
-    );
-
-    assert(
-        readStat(
-            restoredStats,
-            [
-                "ties",
-                "tie",
-                "tieCount"
-            ]
-        ) === 1,
-        "JSON 還原後 Tie 統計應一致"
+        json[1].super6 === true,
+        "JSON 第二局應為 Super 6"
     );
 
     details.push(
-        "JSON 還原：PASS"
+        "toJSON()：PASS"
     );
 
 
     /*
-     * 測試 9：
      * Clear
      */
-    restored.clear();
+    history.clear();
 
     assert(
-        restored.count === 0,
+        history.count === 0,
         "clear() 後 count 應為 0"
     );
 
     assert(
-        getLast(restored) === null,
+        history.isEmpty === true,
+        "clear() 後應為空"
+    );
+
+    assert(
+        history.last === null,
         "clear() 後 last 應為 null"
+    );
+
+    assert(
+        history.streak === null,
+        "clear() 後 streak 應為 null"
+    );
+
+    assert(
+        history.winRate.player === 0 &&
+        history.winRate.banker === 0 &&
+        history.winRate.tie === 0,
+        "空 History 的勝率應全部為 0"
     );
 
     details.push(
@@ -655,7 +665,7 @@ export default async function historyTest() {
 
     return [
 
-        "History 測試全部完成",
+        "History v5 測試全部完成",
 
         "",
 
@@ -663,21 +673,25 @@ export default async function historyTest() {
 
         "",
 
-        `總局數：${history.count}`,
+        "測試前總局數：4",
 
-        `Player 勝：${playerWins}`,
+        "Player 勝：1",
 
-        `Banker 勝：${bankerWins}`,
+        "Banker 勝：2",
 
-        `Tie：${ties}`,
+        "Tie：1",
 
-        `Player Pair：${playerPairs}`,
+        "Player Pair：1",
 
-        `Banker Pair：${bankerPairs}`,
+        "Banker Pair：1",
 
-        `Natural：${naturals}`,
+        "Player Natural：1",
 
-        `Super 6：${super6Count}`
+        "Banker Natural：1",
+
+        "Super 6：1",
+
+        `Dragon Bonus：${expectedDragonBonus}`
 
     ].join("\n");
 
