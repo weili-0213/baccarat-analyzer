@@ -1,34 +1,27 @@
+import dealerTest from "./dealer.test.js";
+
 async function run() {
 
     console.clear();
 
-    console.log("==========");
+    console.log("=================================");
+    console.log(" Baccarat Analyzer Test Runner");
+    console.log("=================================");
 
-    console.log("Dealer");
+    try {
 
-    console.log("==========");
+        await dealerTest();
 
-    await testDealer();
+    }
+    catch (error) {
 
-    console.log("");
+        console.error("");
 
-    console.log("==========");
+        console.error("❌ Dealer Test FAIL");
 
-    console.log("Round");
+        console.error(error);
 
-    console.log("==========");
-
-    await testRound();
-
-    console.log("");
-
-    console.log("==========");
-
-    console.log("History");
-
-    console.log("==========");
-
-    await testHistory();
+    }
 
 }
 
