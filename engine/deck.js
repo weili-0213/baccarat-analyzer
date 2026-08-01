@@ -1,25 +1,15 @@
 /**
  * Baccarat Analyzer
  * -----------------------------------------
+ *
  * Deck Model
  *
  * 一副標準撲克牌
- *
- * 52 Cards
- *
- * Rank:
- * A,2,3,4,5,6,7,8,9,10,J,Q,K
- *
- * Suit:
- * S,H,D,C
  */
-
 
 import Card from "./card.js";
 
-
-const RANKS = [
-
+const RANKS = Object.freeze([
     "A",
     "2",
     "3",
@@ -33,172 +23,161 @@ const RANKS = [
     "J",
     "Q",
     "K"
+]);
 
-];
-
-
-const SUITS = [
-
+const SUITS = Object.freeze([
     "S",
     "H",
     "D",
     "C"
-
-];
-
+]);
 
 export default class Deck {
 
+    constructor(deckNumber = 1) {
 
-    constructor(deckNumber = 1){
+        if (
+            !Number.isInteger(deckNumber) ||
+            deckNumber < 1
+        ) {
+            throw new Error(
+                `Invalid deck number: ${deckNumber}`
+            );
+        }
 
-    if(
-        !Number.isInteger(deckNumber) ||
-        deckNumber < 1
-    ){
-        throw new Error(
-            `Invalid deck number: ${deckNumber}`
-        );
+        this.deckNumber =
+            deckNumber;
+
+        this.cards = [];
+
+        this.create();
+
     }
 
-
-    this.deckNumber = deckNumber;
-
-    this.cards = [];
-
-    this.create();
-
-} 
-
-
-
     /**
-     * 建立52張牌
+     * 建立 52 張牌
      */
     create() {
 
         this.cards = [];
 
+        for (const suit of SUITS) {
 
-        for(const suit of SUITS){
-
-
-            for(const rank of RANKS){
-
+            for (const rank of RANKS) {
 
                 this.cards.push(
-
                     new Card(
                         rank,
                         suit,
                         this.deckNumber
                     )
-
                 );
-
 
             }
 
         }
 
+        return this;
 
     }
-
-
 
     /**
      * 牌數
      */
-    get count(){
-
+    get count() {
 
         return this.cards.length;
 
-
     }
+
     /**
-     * 驗證是否完整52張牌
+     * 是否為完整牌組
      */
-    isValid(){
+    isValid() {
 
-        return this.cards.length === 52;
+        return (
+            this.cards.length === 52
+        );
 
     }
-
 
     /**
      * 是否包含某張牌
      */
-    has(card){
+    has(card) {
 
+        if (!(card instanceof Card)) {
+            return false;
+        }
 
         return this.cards.some(
-
-            item => item.equals(card)
-
+            item =>
+                item.equals(card)
         );
 
-
     }
-
-
 
     /**
      * 取得所有牌
      */
-    getCards(){
+    getCards() {
 
-
-        return [...this.cards];
-
+        return [
+            ...this.cards
+        ];
 
     }
-
-
 
     /**
      * JSON
      */
-    toJSON(){
-
+    toJSON() {
 
         return {
+            deckNumber:
+                this.deckNumber,
 
-            deckNumber:this.deckNumber,
-
-            cards:this.cards
-
+            cards:
+                this.cards.map(
+                    card =>
+                        card.toJSON()
+                )
         };
-
 
     }
 
-
-
     /**
-     * JSON恢復
+     * JSON 還原
      */
-    static fromJSON(data){
+    static fromJSON(data) {
 
+        if (!data) {
+            throw new Error(
+                "Deck data is required."
+            );
+        }
 
-        const deck = new Deck(
+        if (
+            !Array.isArray(data.cards)
+        ) {
+            throw new Error(
+                "Deck cards data is required."
+            );
+        }
 
-            data.deckNumber
+        const deck =
+            new Deck(
+                data.deckNumber
+            );
 
-        );
-
-
-        deck.cards = data.cards.map(
-
-            card => Card.fromJSON(card)
-
-        );
-
+        deck.cards =
+            data.cards.map(
+                card =>
+                    Card.fromJSON(card)
+            );
 
         return deck;
 
-
     }
 
-
-}                 // 一副牌
+}
