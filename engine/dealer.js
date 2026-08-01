@@ -209,7 +209,7 @@ export default class Dealer {
 
             playerMustDraw(
 
-                this.round.playerScore
+                this.round.player
 
             )
 
@@ -253,7 +253,7 @@ export default class Dealer {
 
             bankerMustDraw(
 
-                this.round.bankerScore,
+                this.round.banker,
 
                 this.playerThirdCard
 
