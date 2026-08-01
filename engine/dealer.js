@@ -279,21 +279,35 @@ export default class Dealer {
 
     /**
      * 完成牌局
+     *
+     * 回傳 RoundResult
      */
     finish() {
 
-        if (!this.canFinish()) {
+        if (!this.round) {
 
-            return this.round;
+            throw new Error(
+                "Round not found."
+            );
 
         }
 
-        this.round.finish();
+        if (
+            this.state ===
+            DealerState.FINISHED
+        ) {
+
+            return this.round.result;
+
+        }
+
+        const result =
+            this.round.finish();
 
         this.state =
             DealerState.FINISHED;
 
-        return this.round;
+        return result;
 
     }
 
