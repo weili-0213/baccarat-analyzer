@@ -65,7 +65,7 @@ function assertThrows(
 
 
 /**
- * 建立測試資料
+ * 建立測試用珠盤路資料
  */
 function entry(
     winner,
@@ -220,13 +220,6 @@ export default async function beadRoadTest() {
     /*
      * 測試 2：
      * 加入前六局
-     *
-     * 位置應為：
-     *
-     * index 0 → row 0, column 0
-     * index 1 → row 1, column 0
-     * ...
-     * index 5 → row 5, column 0
      */
     const firstSix = [
 
@@ -389,7 +382,9 @@ export default async function beadRoadTest() {
 
     assertThrows(
         () => {
+
             beadRoad.getPosition(-1);
+
         },
         "負數 index 應丟出錯誤"
     );
@@ -506,9 +501,6 @@ export default async function beadRoadTest() {
     /*
      * 測試 7：
      * toMatrix()
-     *
-     * 第一層為 row，
-     * 第二層為 column。
      */
     const matrix =
         beadRoad.toMatrix();
@@ -546,9 +538,6 @@ export default async function beadRoadTest() {
         "matrix[1][1] 應為空"
     );
 
-    /*
-     * 確認矩陣中的物件是副本。
-     */
     assert(
         matrix[0][0] !==
             beadRoad.get(0),
@@ -563,10 +552,6 @@ export default async function beadRoadTest() {
     /*
      * 測試 8：
      * 統計
-     *
-     * Player：3
-     * Banker：3
-     * Tie：1
      */
     assert(
         beadRoad.playerCount === 3,
@@ -631,9 +616,6 @@ export default async function beadRoadTest() {
     /*
      * 測試 9：
      * normalizeEntry()
-     *
-     * 未傳入的布林值應為 false，
-     * margin 應為 0。
      */
     const normalizedRoad =
         new BeadRoad();
@@ -684,9 +666,6 @@ export default async function beadRoadTest() {
         "陣列 build() 第三筆應為 Tie"
     );
 
-    /*
-     * build() 應先清除舊資料。
-     */
     arrayRoad.build([
         entry("Banker")
     ]);
@@ -897,48 +876,60 @@ export default async function beadRoadTest() {
      */
     assertThrows(
         () => {
+
             new BeadRoad({
                 rows: 0
             });
+
         },
         "rows = 0 應丟出錯誤"
     );
 
     assertThrows(
         () => {
+
             beadRoad.add({
                 winner: "Unknown"
             });
+
         },
         "非法 winner 應丟出錯誤"
     );
 
     assertThrows(
         () => {
+
             beadRoad.add(null);
+
         },
         "null entry 應丟出錯誤"
     );
 
     assertThrows(
         () => {
+
             beadRoad.addAll({});
+
         },
         "addAll() 非陣列應丟出錯誤"
     );
 
     assertThrows(
         () => {
+
             beadRoad.build({});
+
         },
         "不支援的 build source 應丟出錯誤"
     );
 
     assertThrows(
         () => {
+
             BeadRoad.fromJSON({
                 rows: 6
             });
+
         },
         "缺少 JSON entries 應丟出錯誤"
     );
@@ -946,6 +937,18 @@ export default async function beadRoadTest() {
     details.push(
         "非法資料驗證：PASS"
     );
+
+
+    /*
+     * 在 clear() 前保存最終統計。
+     *
+     * 避免清除後輸出全部變成 0。
+     */
+    const finalSummary = {
+
+        ...beadRoad.summary
+
+    };
 
 
     /*
@@ -1005,21 +1008,21 @@ export default async function beadRoadTest() {
 
         "",
 
-        `總局數：${beadRoad.count}`,
+        `總局數：${finalSummary.rounds}`,
 
-        `欄數：${beadRoad.columns}`,
+        `欄數：${finalSummary.columns}`,
 
-        `Player：${beadRoad.playerCount}`,
+        `Player：${finalSummary.player}`,
 
-        `Banker：${beadRoad.bankerCount}`,
+        `Banker：${finalSummary.banker}`,
 
-        `Tie：${beadRoad.tieCount}`,
+        `Tie：${finalSummary.tie}`,
 
-        `Player Pair：${beadRoad.playerPairCount}`,
+        `Player Pair：${finalSummary.playerPair}`,
 
-        `Banker Pair：${beadRoad.bankerPairCount}`,
+        `Banker Pair：${finalSummary.bankerPair}`,
 
-        `Super 6：${beadRoad.super6Count}`
+        `Super 6：${finalSummary.super6}`
 
     ].join("\n");
 
