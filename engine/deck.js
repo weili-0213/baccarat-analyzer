@@ -202,6 +202,3 @@ export default class Deck {
 
 
 }                 // 一副牌
-
-    }
-
