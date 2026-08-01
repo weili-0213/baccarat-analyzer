@@ -4,12 +4,25 @@
  *
  * Dealer
  *
- * 百家樂發牌引擎 (Dealer v3)
+ * 百家樂發牌引擎（Dealer v3）
  *
+ * 負責：
+ * 1. 建立一局
+ * 2. 發初始四張牌
+ * 3. 判斷 Natural
+ * 4. 執行閒家補牌
+ * 5. 執行莊家補牌
+ * 6. 完成牌局
+ *
+ * 不負責：
+ * - 勝負計算細節
+ * - 機率分析
+ * - EV
+ * - History
  */
 
-import Round from "./round.js";
 import Card from "./card.js";
+import Round from "./round.js";
 
 import {
     playerMustDraw
@@ -39,6 +52,14 @@ export default class Dealer {
 
     constructor(shoe) {
 
+        if (!shoe) {
+
+            throw new Error(
+                "Shoe is required."
+            );
+
+        }
+
         this.shoe = shoe;
 
         this.reset();
@@ -48,6 +69,8 @@ export default class Dealer {
 
     /**
      * 重置 Dealer
+     *
+     * 不會重置 Shoe。
      */
     reset() {
 
@@ -55,7 +78,10 @@ export default class Dealer {
 
         this.playerThirdCard = null;
 
-        this.state = DealerState.READY;
+        this.bankerThirdCard = null;
+
+        this.state =
+            DealerState.READY;
 
         return this;
 
@@ -67,11 +93,35 @@ export default class Dealer {
      */
     newRound() {
 
-        this.round = new Round();
+        this.round =
+            new Round();
 
-        this.playerThirdCard = null;
+        this.playerThirdCard =
+            null;
 
-        this.state = DealerState.READY;
+        this.bankerThirdCard =
+            null;
+
+        this.state =
+            DealerState.READY;
+
+        return this.round;
+
+    }
+
+
+    /**
+     * 驗證目前有 Round
+     */
+    requireRound() {
+
+        if (!this.round) {
+
+            throw new Error(
+                "Round not found."
+            );
+
+        }
 
         return this.round;
 
@@ -94,7 +144,7 @@ export default class Dealer {
         const card =
             this.shoe.draw();
 
-        if (!card) {
+        if (!(card instanceof Card)) {
 
             throw new Error(
                 "No cards remaining in shoe."
@@ -112,27 +162,36 @@ export default class Dealer {
      */
     canDealInitial() {
 
-        return this.state === DealerState.READY;
+        return (
+            this.state ===
+            DealerState.READY
+        );
 
     }
 
 
     /**
-     * 是否可玩家補牌
+     * 是否可處理閒家第三張
      */
     canPlayerDraw() {
 
-        return this.state === DealerState.INITIAL_DEALT;
+        return (
+            this.state ===
+            DealerState.INITIAL_DEALT
+        );
 
     }
 
 
     /**
-     * 是否可莊家補牌
+     * 是否可處理莊家第三張
      */
     canBankerDraw() {
 
-        return this.state === DealerState.PLAYER_THIRD;
+        return (
+            this.state ===
+            DealerState.PLAYER_THIRD
+        );
 
     }
 
@@ -142,20 +201,29 @@ export default class Dealer {
      */
     canFinish() {
 
-        return this.state !== DealerState.FINISHED;
+        return (
+            this.state !==
+            DealerState.FINISHED
+        );
 
     }
 
 
     /**
-     * 發初始四張
+     * 發初始四張牌
+     *
+     * 順序：
+     * Player 1
+     * Banker 1
+     * Player 2
+     * Banker 2
      */
     dealInitial() {
 
         if (!this.canDealInitial()) {
 
             throw new Error(
-                "Invalid dealer state."
+                `Invalid dealer state: ${this.state}`
             );
 
         }
@@ -199,43 +267,48 @@ export default class Dealer {
      */
     checkNatural() {
 
-        return this.round.isNatural;
+        const round =
+            this.requireRound();
+
+        return round.isNatural;
 
     }
 
 
     /**
-     * 玩家第三張
+     * 處理閒家第三張牌
+     *
+     * 回傳：
+     * Card 或 null
      */
     playPlayerThirdCard() {
 
         if (!this.canPlayerDraw()) {
 
             throw new Error(
-                "Invalid dealer state."
+                `Invalid dealer state: ${this.state}`
             );
 
         }
 
+        const round =
+            this.requireRound();
+
+        this.playerThirdCard =
+            null;
+
         if (
-
             playerMustDraw(
-
-                this.round.player
-
+                round.player
             )
-
         ) {
 
             this.playerThirdCard =
                 this.draw();
 
-            this.round.deal(
-
+            round.deal(
                 "player",
-
                 this.playerThirdCard
-
             );
 
         }
@@ -249,36 +322,40 @@ export default class Dealer {
 
 
     /**
-     * 莊家第三張
+     * 處理莊家第三張牌
+     *
+     * 回傳：
+     * Card 或 null
      */
     playBankerThirdCard() {
 
         if (!this.canBankerDraw()) {
 
             throw new Error(
-                "Invalid dealer state."
+                `Invalid dealer state: ${this.state}`
             );
 
         }
 
+        const round =
+            this.requireRound();
+
+        this.bankerThirdCard =
+            null;
+
         if (
-
             bankerMustDraw(
-
-                this.round.banker,
-
+                round.banker,
                 this.playerThirdCard
-
             )
-
         ) {
 
-            this.round.deal(
+            this.bankerThirdCard =
+                this.draw();
 
+            round.deal(
                 "banker",
-
-                this.draw()
-
+                this.bankerThirdCard
             );
 
         }
@@ -286,35 +363,54 @@ export default class Dealer {
         this.state =
             DealerState.BANKER_THIRD;
 
+        return this.bankerThirdCard;
+
     }
 
 
     /**
      * 完成牌局
      *
-     * 回傳 RoundResult
+     * 回傳 RoundResult。
      */
     finish() {
 
-        if (!this.round) {
-
-            throw new Error(
-                "Round not found."
-            );
-
-        }
+        const round =
+            this.requireRound();
 
         if (
             this.state ===
             DealerState.FINISHED
         ) {
 
-            return this.round.result;
+            return (
+                round.result ??
+                null
+            );
+
+        }
+
+        if (
+            this.state ===
+            DealerState.READY
+        ) {
+
+            throw new Error(
+                "Cannot finish before initial deal."
+            );
 
         }
 
         const result =
-            this.round.finish();
+            round.finish();
+
+        if (!result) {
+
+            throw new Error(
+                "Round did not return a result."
+            );
+
+        }
 
         this.state =
             DealerState.FINISHED;
@@ -326,6 +422,8 @@ export default class Dealer {
 
     /**
      * 一鍵完成一局
+     *
+     * 回傳 RoundResult。
      */
     play() {
 
@@ -333,10 +431,12 @@ export default class Dealer {
 
         this.dealInitial();
 
+        /**
+         * 任一方 Natural，
+         * 直接完成牌局。
+         */
         if (
-
             this.checkNatural()
-
         ) {
 
             return this.finish();
@@ -357,7 +457,10 @@ export default class Dealer {
      */
     get finished() {
 
-        return this.state === DealerState.FINISHED;
+        return (
+            this.state ===
+            DealerState.FINISHED
+        );
 
     }
 
@@ -367,7 +470,23 @@ export default class Dealer {
      */
     get currentRound() {
 
-        return this.round;
+        return (
+            this.round ??
+            null
+        );
+
+    }
+
+
+    /**
+     * RoundResult
+     */
+    get result() {
+
+        return (
+            this.round?.result ??
+            null
+        );
 
     }
 
@@ -377,7 +496,10 @@ export default class Dealer {
      */
     get playerHand() {
 
-        return this.round?.player ?? null;
+        return (
+            this.round?.player ??
+            null
+        );
 
     }
 
@@ -387,7 +509,10 @@ export default class Dealer {
      */
     get bankerHand() {
 
-        return this.round?.banker ?? null;
+        return (
+            this.round?.banker ??
+            null
+        );
 
     }
 
@@ -397,7 +522,10 @@ export default class Dealer {
      */
     get playerScore() {
 
-        return this.round?.playerScore ?? null;
+        return (
+            this.round?.playerScore ??
+            null
+        );
 
     }
 
@@ -407,18 +535,21 @@ export default class Dealer {
      */
     get bankerScore() {
 
-        return this.round?.bankerScore ?? null;
+        return (
+            this.round?.bankerScore ??
+            null
+        );
 
     }
 
 
     /**
-     * Winner
+     * 勝方
      */
     get winner() {
 
         return (
-            this.round?.result?.winner ??
+            this.result?.winner ??
             null
         );
 
@@ -432,11 +563,19 @@ export default class Dealer {
 
         return {
 
-            state: this.state,
+            state:
+                this.state,
 
             playerThirdCard:
                 this.playerThirdCard
-                    ? this.playerThirdCard.toJSON()
+                    ? this.playerThirdCard
+                        .toJSON()
+                    : null,
+
+            bankerThirdCard:
+                this.bankerThirdCard
+                    ? this.bankerThirdCard
+                        .toJSON()
                     : null,
 
             round:
@@ -450,9 +589,12 @@ export default class Dealer {
 
 
     /**
-     * JSON還原
+     * JSON 還原
      */
-    static fromJSON(data, shoe) {
+    static fromJSON(
+        data,
+        shoe
+    ) {
 
         if (!data) {
 
@@ -470,26 +612,46 @@ export default class Dealer {
 
         }
 
+        const state =
+            data.state ??
+            DealerState.READY;
+
+        if (
+            !Object.values(
+                DealerState
+            ).includes(state)
+        ) {
+
+            throw new Error(
+                `Invalid dealer state: ${state}`
+            );
+
+        }
+
         const dealer =
             new Dealer(shoe);
 
         dealer.state =
-            data.state ??
-            DealerState.READY;
+            state;
 
-        if (data.round) {
-
-            dealer.round =
-                Round.fromJSON(
+        dealer.round =
+            data.round
+                ? Round.fromJSON(
                     data.round
-                );
-
-        }
+                )
+                : null;
 
         dealer.playerThirdCard =
             data.playerThirdCard
                 ? Card.fromJSON(
                     data.playerThirdCard
+                )
+                : null;
+
+        dealer.bankerThirdCard =
+            data.bankerThirdCard
+                ? Card.fromJSON(
+                    data.bankerThirdCard
                 )
                 : null;
 
