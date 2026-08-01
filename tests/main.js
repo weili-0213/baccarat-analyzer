@@ -16,6 +16,9 @@
 import dealerTest
     from "./dealer.test.js";
 
+import roundTest
+    from "./round.test.js";
+
 
 /**
  * 新增測試時，只需：
@@ -29,6 +32,12 @@ const TESTS = [
         id: "dealer",
         name: "Dealer",
         run: dealerTest
+    },
+
+    {
+        id: "round",
+        name: "Round",
+        run: roundTest
     }
 
 ];
