@@ -9,6 +9,7 @@
  */
 
 import Round from "./round.js";
+import Card from "./card.js";
 
 import {
     playerMustDraw
@@ -90,7 +91,18 @@ export default class Dealer {
 
         }
 
-        return this.shoe.draw();
+        const card =
+            this.shoe.draw();
+
+        if (!card) {
+
+            throw new Error(
+                "No cards remaining in shoe."
+            );
+
+        }
+
+        return card;
 
     }
 
@@ -405,7 +417,10 @@ export default class Dealer {
      */
     get winner() {
 
-        return this.round?.winner ?? null;
+        return (
+            this.round?.result?.winner ??
+            null
+        );
 
     }
 
@@ -439,9 +454,28 @@ export default class Dealer {
      */
     static fromJSON(data, shoe) {
 
-        const dealer = new Dealer(shoe);
+        if (!data) {
 
-        dealer.state = data.state;
+            throw new Error(
+                "Dealer data is required."
+            );
+
+        }
+
+        if (!shoe) {
+
+            throw new Error(
+                "Shoe is required."
+            );
+
+        }
+
+        const dealer =
+            new Dealer(shoe);
+
+        dealer.state =
+            data.state ??
+            DealerState.READY;
 
         if (data.round) {
 
@@ -451,6 +485,13 @@ export default class Dealer {
                 );
 
         }
+
+        dealer.playerThirdCard =
+            data.playerThirdCard
+                ? Card.fromJSON(
+                    data.playerThirdCard
+                )
+                : null;
 
         return dealer;
 
