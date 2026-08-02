@@ -216,7 +216,52 @@ export default class Analyzer {
      */
     constructor(context = {}) {
 
-        this.setContext(context);
+        this.context = {};
+
+        this.options = {
+
+            ...DEFAULT_OPTIONS,
+
+            monteCarlo: {
+
+                ...DEFAULT_OPTIONS.monteCarlo
+
+            },
+
+            exact: {
+
+                ...DEFAULT_OPTIONS.exact
+
+            }
+
+        };
+
+        this.monteCarlo = null;
+
+        this.exact = null;
+
+        this.ev = null;
+
+        this.kelly = null;
+
+        this.risk = null;
+
+        this.confidence = null;
+
+        this.ranking = null;
+
+        this.recommendation = null;
+
+        if (
+            context &&
+            Object.keys(context).length > 0
+        ) {
+
+            this.setContext(
+                context
+            );
+
+        }
 
     }
 
@@ -410,7 +455,7 @@ export default class Analyzer {
     }
 
     /**
-     * Game v4 正式分析入口
+     * Game v5 正式分析入口
      *
      * engine/game.js 會把完整遊戲環境傳入這裡。
      *
@@ -500,8 +545,12 @@ export default class Analyzer {
             monteCarloOptions: {
 
                 ...(
-                    context.monteCarloOptions ??
                     analyzerOptions.monteCarlo ??
+                    {}
+                ),
+
+                ...(
+                    context.monteCarloOptions ??
                     {}
                 ),
 
@@ -515,8 +564,12 @@ export default class Analyzer {
             exactOptions: {
 
                 ...(
-                    context.exactOptions ??
                     analyzerOptions.exact ??
+                    {}
+                ),
+
+                ...(
+                    context.exactOptions ??
                     {}
                 ),
 
