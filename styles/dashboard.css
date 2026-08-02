@@ -1290,3 +1290,136 @@
         text-align: left;
     }
 }
+
+
+/* =====================================
+   Baccarat Analyzer V3.4 Recommendation
+   ===================================== */
+
+.v34RecommendationStats {
+    display: grid;
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    margin-top: 8px;
+}
+
+.v34RecommendationStats > div {
+    min-width: 0;
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    border-radius: 9px;
+    padding: 6px 4px;
+    background:
+        rgba(255,255,255,.05);
+}
+
+.v34RecommendationStats span {
+    color: var(--muted);
+    font-size: .61rem;
+}
+
+.v34RecommendationStats strong {
+    font-size: .76rem;
+}
+
+.v34CandidateList {
+    display: grid;
+    gap: 4px;
+    margin-top: 9px;
+}
+
+.v34CandidateHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--muted);
+    font-size: .64rem;
+}
+
+.v34CandidateItem {
+    min-height: 34px;
+    display: grid;
+    grid-template-columns:
+        24px
+        minmax(0, 1fr)
+        max-content
+        minmax(48px, max-content);
+    align-items: center;
+    gap: 6px;
+    border-radius: 9px;
+    padding: 5px 7px;
+    background:
+        rgba(255,255,255,.045);
+}
+
+.v34CandidateItem.best {
+    border: 1px solid
+        rgba(59,209,124,.28);
+    background:
+        rgba(59,209,124,.08);
+}
+
+.v34CandidateRank {
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background:
+        rgba(255,255,255,.08);
+    color: var(--muted);
+    font-size: .62rem;
+    font-weight: 900;
+}
+
+.v34CandidateItem.best
+.v34CandidateRank {
+    background: var(--green);
+    color: #062b19;
+}
+
+.v34CandidateItem > strong {
+    overflow: hidden;
+    font-size: .72rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.v34CandidateEV {
+    color: #82f3ad;
+    font-size: .68rem;
+    font-weight: 900;
+}
+
+.v34CandidateAmount {
+    color: var(--yellow);
+    font-size: .68rem;
+    font-weight: 900;
+    text-align: right;
+}
+
+.v34SkipStrategy {
+    display: grid;
+    gap: 3px;
+    margin-top: 9px;
+    border: 1px dashed
+        rgba(244,206,97,.32);
+    border-radius: 10px;
+    padding: 8px 9px;
+    background:
+        rgba(244,206,97,.07);
+}
+
+.v34SkipStrategy strong {
+    color: var(--yellow);
+    font-size: .72rem;
+}
+
+.v34SkipStrategy span {
+    color: var(--muted);
+    font-size: .65rem;
+    line-height: 1.4;
+}
