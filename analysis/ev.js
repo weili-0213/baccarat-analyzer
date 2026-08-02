@@ -1,36 +1,84 @@
 /**
  * Baccarat Analyzer
  * -----------------------------------------
+ *
+ * analysis/ev.js
+ *
  * Expected Value Engine
  *
- * 將各下注機率轉換成 EV
+ * 主注與一般固定賠率下注：
  *
- * EV = Win × Odds - Lose
+ * EV = Win × Net Odds - Lose
+ *
+ * Dragon Bonus 是分級賠率下注，不能用單一 30 倍賠率
+ * 搭配一個總中獎機率計算。若尚未提供完整分差機率分布，
+ * 本引擎將 Dragon Bonus EV 回傳為 0，並標記 unavailable，
+ * 避免錯誤數值進入 Ranking 與 Recommendation。
  */
 
-const DEFAULT_PAYOUT = {
+export const EV_STATUS =
+    Object.freeze({
 
-    player: 1,
+        AVAILABLE:
+            "available",
 
-    banker: 0.95,
+        UNAVAILABLE:
+            "unavailable"
 
-    tie: 8,
+    });
 
-    playerPair: 11,
 
-    bankerPair: 11,
+export const DEFAULT_PAYOUT =
+    Object.freeze({
 
-    super6: 12,
+        player:
+            1,
 
-    playerDragonBonus: 30,
+        banker:
+            0.95,
 
-    bankerDragonBonus: 30
+        tie:
+            8,
 
-};
+        playerPair:
+            11,
+
+        bankerPair:
+            11,
+
+        super6:
+            12
+
+    });
+
+
+function assertProbability(
+    value,
+    name
+) {
+
+    if (
+        !Number.isFinite(value) ||
+        value < 0 ||
+        value > 1
+    ) {
+
+        throw new RangeError(
+            `${name} must be between 0 and 1`
+        );
+
+    }
+
+    return value;
+
+}
+
 
 export default class EV {
 
-    constructor(payout = DEFAULT_PAYOUT) {
+    constructor(
+        payout = {}
+    ) {
 
         this.payout = {
 
@@ -40,183 +88,269 @@ export default class EV {
 
         };
 
+
+        this.status = {
+
+            player:
+                EV_STATUS.AVAILABLE,
+
+            banker:
+                EV_STATUS.AVAILABLE,
+
+            tie:
+                EV_STATUS.AVAILABLE,
+
+            playerPair:
+                EV_STATUS.AVAILABLE,
+
+            bankerPair:
+                EV_STATUS.AVAILABLE,
+
+            super6:
+                EV_STATUS.AVAILABLE,
+
+            playerDragonBonus:
+                EV_STATUS.UNAVAILABLE,
+
+            bankerDragonBonus:
+                EV_STATUS.UNAVAILABLE
+
+        };
+
     }
 
-    /**
-     * 通用EV公式
-     */
-    calculate(win, lose, odds) {
 
-        return (win * odds) - lose;
+    calculate(
+        win,
+        lose,
+        odds
+    ) {
+
+        if (
+            !Number.isFinite(win) ||
+            !Number.isFinite(lose) ||
+            !Number.isFinite(odds)
+        ) {
+
+            throw new TypeError(
+                "EV values must be finite numbers"
+            );
+
+        }
+
+        return (
+            win * odds
+        ) - lose;
 
     }
 
-    /**
-     * 閒
-     */
+
     player(probability) {
 
+        const player =
+            assertProbability(
+                probability.player,
+                "probability.player"
+            );
+
+        const banker =
+            assertProbability(
+                probability.banker,
+                "probability.banker"
+            );
+
         return this.calculate(
-
-            probability.player,
-
-            probability.banker,
-
+            player,
+            banker,
             this.payout.player
-
         );
 
     }
 
-    /**
-     * 莊
-     */
+
     banker(probability) {
 
+        const banker =
+            assertProbability(
+                probability.banker,
+                "probability.banker"
+            );
+
+        const player =
+            assertProbability(
+                probability.player,
+                "probability.player"
+            );
+
         return this.calculate(
-
-            probability.banker,
-
-            probability.player,
-
+            banker,
+            player,
             this.payout.banker
-
         );
 
     }
 
-    /**
-     * 和
-     */
+
     tie(probability) {
 
+        const tie =
+            assertProbability(
+                probability.tie,
+                "probability.tie"
+            );
+
         return this.calculate(
-
-            probability.tie,
-
-            1 - probability.tie,
-
+            tie,
+            1 - tie,
             this.payout.tie
-
         );
 
     }
 
-    /**
-     * 閒對
-     */
+
     playerPair(probability) {
 
+        const value =
+            assertProbability(
+                probability.playerPair,
+                "probability.playerPair"
+            );
+
         return this.calculate(
-
-            probability.playerPair,
-
-            1 - probability.playerPair,
-
+            value,
+            1 - value,
             this.payout.playerPair
-
         );
 
     }
 
-    /**
-     * 莊對
-     */
+
     bankerPair(probability) {
 
+        const value =
+            assertProbability(
+                probability.bankerPair,
+                "probability.bankerPair"
+            );
+
         return this.calculate(
-
-            probability.bankerPair,
-
-            1 - probability.bankerPair,
-
+            value,
+            1 - value,
             this.payout.bankerPair
-
         );
 
     }
 
-    /**
-     * Super 6
-     */
+
     super6(probability) {
 
+        const value =
+            assertProbability(
+                probability.super6,
+                "probability.super6"
+            );
+
         return this.calculate(
-
-            probability.super6,
-
-            1 - probability.super6,
-
+            value,
+            1 - value,
             this.payout.super6
-
         );
 
     }
 
-    /**
-     * 閒龍寶
-     */
-    playerDragonBonus(probability) {
 
-        return this.calculate(
+    playerDragonBonus() {
 
-            probability.playerDragonBonus,
-
-            1 - probability.playerDragonBonus,
-
-            this.payout.playerDragonBonus
-
-        );
+        return 0;
 
     }
 
-    /**
-     * 莊龍寶
-     */
-    bankerDragonBonus(probability) {
 
-        return this.calculate(
+    bankerDragonBonus() {
 
-            probability.bankerDragonBonus,
-
-            1 - probability.bankerDragonBonus,
-
-            this.payout.bankerDragonBonus
-
-        );
+        return 0;
 
     }
 
-    /**
-     * 計算全部EV
-     */
+
     all(probability) {
 
         return {
 
             player:
-                this.player(probability),
+                this.player(
+                    probability
+                ),
 
             banker:
-                this.banker(probability),
+                this.banker(
+                    probability
+                ),
 
             tie:
-                this.tie(probability),
+                this.tie(
+                    probability
+                ),
 
             playerPair:
-                this.playerPair(probability),
+                this.playerPair(
+                    probability
+                ),
 
             bankerPair:
-                this.bankerPair(probability),
+                this.bankerPair(
+                    probability
+                ),
 
             super6:
-                this.super6(probability),
+                this.super6(
+                    probability
+                ),
 
             playerDragonBonus:
-                this.playerDragonBonus(probability),
+                0,
 
             bankerDragonBonus:
-                this.bankerDragonBonus(probability)
+                0
+
+        };
+
+    }
+
+
+    getStatus(name) {
+
+        return (
+            this.status[name] ??
+            EV_STATUS.UNAVAILABLE
+        );
+
+    }
+
+
+    isAvailable(name) {
+
+        return (
+            this.getStatus(name) ===
+            EV_STATUS.AVAILABLE
+        );
+
+    }
+
+
+    toJSON() {
+
+        return {
+
+            payout:
+                {
+                    ...this.payout
+                },
+
+            status:
+                {
+                    ...this.status
+                }
 
         };
 
