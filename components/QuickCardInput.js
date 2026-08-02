@@ -294,21 +294,21 @@ export class QuickCardInput {
                 rank
             )
         ) {
-
             throw new Error(
                 `Invalid rank: ${rank}`
             );
-
         }
 
-        if (
+        const remaining =
             this.getRankCount(
                 rank
-            ) <= 0
+            );
+
+        if (
+            remaining !== null &&
+            remaining <= 0
         ) {
-
             return this;
-
         }
 
         this.selectedRank =
