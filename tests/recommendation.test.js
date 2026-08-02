@@ -6,9 +6,8 @@
  *
  * Recommendation 元件瀏覽器測試。
  *
- * 此版本只使用目前公開的：
+ * 只使用目前公開的：
  *
- * - default createRecommendation
  * - named Recommendation
  *
  * 測試重點：
@@ -28,7 +27,7 @@
  * 13. destroy()
  */
 
-import createRecommendation, {
+import {
     Recommendation
 } from "../components/Recommendation.js";
 
@@ -513,7 +512,7 @@ export default function recommendationTest() {
         );
 
         const component =
-            createRecommendation({
+            new Recommendation({
 
                 root,
 
