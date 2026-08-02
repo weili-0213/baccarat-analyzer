@@ -665,6 +665,27 @@ export default async function smallRoadTest() {
     /*
      * 測試 8：
      * Tie 不直接產生小路格
+     *
+     * 原始局序：
+     *
+     * Player
+     * Player
+     * Banker
+     * Player
+     * Tie
+     * Player
+     * Banker
+     *
+     * Tie 不占大路格，因此大路 streak 為：
+     *
+     * [2, 1, 2, 1]
+     *
+     * 小路結果：
+     *
+     * 第三條 depth 2 → Red
+     * 第四條 depth 1 → Red
+     *
+     * 因此共有兩格。
      */
     const tieSource = [
 
@@ -674,7 +695,9 @@ export default async function smallRoadTest() {
         resultEntry("Banker"),
 
         resultEntry("Player"),
+
         resultEntry("Tie"),
+
         resultEntry("Player"),
 
         resultEntry("Banker")
@@ -700,6 +723,11 @@ export default async function smallRoadTest() {
     );
 
     assert(
+        tieBigRoad.tieCount === 1,
+        "來源大路應記錄一局 Tie"
+    );
+
+    assert(
         tieSmallRoad.sourceRoundCount === 7,
         "小路應保存包含 Tie 的來源局數"
     );
@@ -710,8 +738,56 @@ export default async function smallRoadTest() {
     );
 
     assert(
-        tieSmallRoad.count === 1,
-        "Tie 不應直接產生小路格"
+        tieSmallRoad.count === 2,
+        "此大路結構應產生兩個小路格"
+    );
+
+    assertColors(
+        tieSmallRoad,
+        [
+            SmallRoadColor.RED,
+            SmallRoadColor.RED
+        ],
+        "Tie 來源案例的小路顏色錯誤"
+    );
+
+    assert(
+        tieSmallRoad.get(0)
+            .sourceStreakIndex === 2,
+        "第一個小路格應來自第三條 streak"
+    );
+
+    assert(
+        tieSmallRoad.get(0)
+            .sourceDepth === 2,
+        "第一個小路格應來自第三條第二格"
+    );
+
+    assert(
+        tieSmallRoad.get(1)
+            .sourceStreakIndex === 3,
+        "第二個小路格應來自第四條 streak"
+    );
+
+    assert(
+        tieSmallRoad.get(1)
+            .sourceDepth === 1,
+        "第二個小路格應來自第四條第一格"
+    );
+
+    /*
+     * 核心驗證：
+     *
+     * Tie 本身不會形成 BigRoad entry，
+     * 所以任何小路格的來源 roundIndex
+     * 都不應指向 Tie 的原始局序 4。
+     */
+    assert(
+        tieSmallRoad.entries.every(
+            item =>
+                item.sourceRoundIndex !== 4
+        ),
+        "Tie 不應直接成為小路格的來源"
     );
 
     details.push(
