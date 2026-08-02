@@ -1,109 +1,165 @@
 /**
  * Baccarat Analyzer
  * -----------------------------------------
- * Ranking Engine v2
  *
- * 職責：
- * 1. 整合 EV、Kelly、Risk、Confidence
- * 2. 將不同尺度的指標正規化至 0～1
- * 3. 根據策略權重計算綜合分數
- * 4. 產生下注項目排名
+ * analysis/ranking.js
  *
- * 不負責：
- * - 計算機率
- * - 計算 EV
- * - 計算 Kelly
- * - 計算 Risk
- * - 計算 Confidence
- * - 最終下注建議
+ * Ranking Engine
+ *
+ * 預設只允許主注進入推薦排名：
+ *
+ * - player
+ * - banker
+ * - tie
+ *
+ * 邊注仍可顯示 EV，但不參與主推薦。
  */
 
-const STRATEGIES = Object.freeze({
+export const MAIN_RECOMMENDATION_BETS =
+    Object.freeze([
 
-    /**
-     * 保守型
-     *
-     * 偏重風險與可信度
-     */
-    conservative: Object.freeze({
-        ev: 0.25,
-        kelly: 0.15,
-        confidence: 0.30,
-        risk: 0.30
-    }),
+        "player",
 
-    /**
-     * 平衡型
-     */
-    balanced: Object.freeze({
-        ev: 0.40,
-        kelly: 0.20,
-        confidence: 0.20,
-        risk: 0.20
-    }),
+        "banker",
 
-    /**
-     * 積極型
-     *
-     * 偏重 EV 與 Kelly
-     */
-    aggressive: Object.freeze({
-        ev: 0.50,
-        kelly: 0.30,
-        confidence: 0.10,
-        risk: 0.10
-    })
+        "tie"
 
-});
+    ]);
 
-const DEFAULT_OPTIONS = Object.freeze({
 
-    strategy: "balanced",
+export const SIDE_BETS =
+    Object.freeze([
 
-    /**
-     * 最低 EV 門檻
-     *
-     * 0 代表必須是正 EV
-     */
-    minimumEV: 0,
+        "playerPair",
 
-    /**
-     * 最低可信度
-     */
-    minimumConfidence: 0,
+        "bankerPair",
 
-    /**
-     * 是否要求 Kelly 大於 0
-     */
-    requirePositiveKelly: true
+        "super6",
 
-});
+        "playerDragonBonus",
 
-export {
-    STRATEGIES
-};
+        "bankerDragonBonus"
+
+    ]);
+
+
+export const STRATEGIES =
+    Object.freeze({
+
+        conservative:
+            Object.freeze({
+
+                ev:
+                    0.25,
+
+                kelly:
+                    0.15,
+
+                confidence:
+                    0.30,
+
+                risk:
+                    0.30
+
+            }),
+
+        balanced:
+            Object.freeze({
+
+                ev:
+                    0.40,
+
+                kelly:
+                    0.20,
+
+                confidence:
+                    0.20,
+
+                risk:
+                    0.20
+
+            }),
+
+        aggressive:
+            Object.freeze({
+
+                ev:
+                    0.50,
+
+                kelly:
+                    0.30,
+
+                confidence:
+                    0.10,
+
+                risk:
+                    0.10
+
+            })
+
+    });
+
+
+const DEFAULT_OPTIONS =
+    Object.freeze({
+
+        strategy:
+            "balanced",
+
+        minimumEV:
+            0,
+
+        minimumConfidence:
+            0,
+
+        requirePositiveKelly:
+            true,
+
+        allowedNames:
+            MAIN_RECOMMENDATION_BETS
+
+    });
+
 
 export default class Ranking {
 
-    constructor(options = {}) {
+    constructor(
+        options = {}
+    ) {
 
         this.options = {
+
             ...DEFAULT_OPTIONS,
-            ...options
+
+            ...options,
+
+            allowedNames:
+                Array.isArray(
+                    options.allowedNames
+                )
+                    ? [
+                        ...options.allowedNames
+                    ]
+                    : [
+                        ...MAIN_RECOMMENDATION_BETS
+                    ]
+
         };
+
 
         this.customWeights =
             options.weights
-                ? { ...options.weights }
+                ? {
+                    ...options.weights
+                }
                 : null;
+
 
         this.validateOptions();
 
     }
 
-    /**
-     * 限制數值在指定範圍內
-     */
+
     clamp(
         value,
         min = 0,
@@ -112,61 +168,116 @@ export default class Ranking {
 
         return Math.min(
             max,
-            Math.max(min, value)
+            Math.max(
+                min,
+                value
+            )
         );
 
     }
 
-    /**
-     * 驗證設定
-     */
+
     validateOptions() {
 
         const {
             strategy,
             minimumEV,
             minimumConfidence,
-            requirePositiveKelly
+            requirePositiveKelly,
+            allowedNames
         } = this.options;
 
+
         if (
-            !Object.prototype.hasOwnProperty.call(
-                STRATEGIES,
-                strategy
-            ) &&
+            !Object.prototype
+                .hasOwnProperty
+                .call(
+                    STRATEGIES,
+                    strategy
+                ) &&
             !this.customWeights
         ) {
+
             throw new Error(
                 `Unknown ranking strategy: ${strategy}`
             );
+
         }
 
+
         if (
-            !Number.isFinite(minimumEV)
+            !Number.isFinite(
+                minimumEV
+            )
         ) {
+
             throw new TypeError(
                 "minimumEV must be a finite number"
             );
+
         }
 
+
         if (
-            !Number.isFinite(minimumConfidence) ||
+            !Number.isFinite(
+                minimumConfidence
+            ) ||
             minimumConfidence < 0 ||
             minimumConfidence > 1
         ) {
+
             throw new RangeError(
                 "minimumConfidence must be between 0 and 1"
             );
+
         }
+
 
         if (
             typeof requirePositiveKelly !==
-            "boolean"
+                "boolean"
         ) {
+
             throw new TypeError(
                 "requirePositiveKelly must be boolean"
             );
+
         }
+
+
+        if (
+            !Array.isArray(
+                allowedNames
+            ) ||
+            allowedNames.length === 0
+        ) {
+
+            throw new TypeError(
+                "allowedNames must be a non-empty array"
+            );
+
+        }
+
+
+        for (
+            const name of
+            allowedNames
+        ) {
+
+            if (
+                typeof name !==
+                    "string" ||
+                name.length === 0
+            ) {
+
+                throw new TypeError(
+                    "allowedNames must contain non-empty strings"
+                );
+
+            }
+
+        }
+
 
         this.validateWeights(
             this.weights
@@ -174,117 +285,154 @@ export default class Ranking {
 
     }
 
-    /**
-     * 驗證權重
-     */
+
     validateWeights(weights) {
 
-        const requiredKeys = [
+        const keys = [
+
             "ev",
+
             "kelly",
+
             "confidence",
+
             "risk"
+
         ];
 
-        for (const key of requiredKeys) {
+
+        for (
+            const key of
+            keys
+        ) {
 
             if (
-                !Number.isFinite(weights[key]) ||
+                !Number.isFinite(
+                    weights[key]
+                ) ||
                 weights[key] < 0
             ) {
+
                 throw new RangeError(
                     `Invalid ranking weight: ${key}`
                 );
+
             }
 
         }
 
+
         const total =
-            requiredKeys.reduce(
-                (sum, key) =>
-                    sum + weights[key],
+            keys.reduce(
+                (
+                    sum,
+                    key
+                ) =>
+                    sum +
+                    weights[key],
                 0
             );
 
+
         if (total <= 0) {
+
             throw new RangeError(
                 "At least one ranking weight must be greater than 0"
             );
+
         }
 
     }
 
-    /**
-     * 目前使用的原始權重
-     */
+
     get weights() {
 
-        if (this.customWeights) {
+        if (
+            this.customWeights
+        ) {
 
             return {
+
                 ...STRATEGIES.balanced,
+
                 ...this.customWeights
+
             };
 
         }
 
+
         return {
+
             ...STRATEGIES[
                 this.options.strategy
             ]
+
         };
 
     }
 
-    /**
-     * 將權重正規化，使總和為 1
-     */
+
     get normalizedWeights() {
 
         const weights =
             this.weights;
 
         const total =
-            Object.values(weights)
+            Object.values(
+                weights
+            )
                 .reduce(
-                    (sum, value) =>
-                        sum + value,
+                    (
+                        sum,
+                        value
+                    ) =>
+                        sum +
+                        value,
                     0
                 );
+
 
         return {
 
             ev:
-                weights.ev / total,
+                weights.ev /
+                total,
 
             kelly:
-                weights.kelly / total,
+                weights.kelly /
+                total,
 
             confidence:
-                weights.confidence / total,
+                weights.confidence /
+                total,
 
             risk:
-                weights.risk / total
+                weights.risk /
+                total
 
         };
 
     }
 
-    /**
-     * 更新策略
-     */
+
     setStrategy(strategy) {
 
         if (
-            !Object.prototype.hasOwnProperty.call(
-                STRATEGIES,
-                strategy
-            )
+            !Object.prototype
+                .hasOwnProperty
+                .call(
+                    STRATEGIES,
+                    strategy
+                )
         ) {
+
             throw new Error(
                 `Unknown ranking strategy: ${strategy}`
             );
+
         }
+
 
         this.options.strategy =
             strategy;
@@ -296,15 +444,17 @@ export default class Ranking {
 
     }
 
-    /**
-     * 設定自訂權重
-     */
+
     setWeights(weights) {
 
         const merged = {
+
             ...STRATEGIES.balanced,
+
             ...weights
+
         };
+
 
         this.validateWeights(
             merged
@@ -317,36 +467,89 @@ export default class Ranking {
 
     }
 
-    /**
-     * 驗證輸入項目
-     */
-    validateItem(name, item) {
+
+    setAllowedNames(names) {
+
+        if (
+            !Array.isArray(names) ||
+            names.length === 0
+        ) {
+
+            throw new TypeError(
+                "Allowed ranking names must be a non-empty array"
+            );
+
+        }
+
+
+        this.options.allowedNames =
+            [
+                ...names
+            ];
+
+        this.validateOptions();
+
+        return this;
+
+    }
+
+
+    isAllowedName(name) {
+
+        return this.options
+            .allowedNames
+            .includes(
+                name
+            );
+
+    }
+
+
+    validateItem(
+        name,
+        item
+    ) {
 
         if (
             !item ||
-            typeof item !== "object" ||
+            typeof item !==
+                "object" ||
             Array.isArray(item)
         ) {
+
             throw new TypeError(
                 `Invalid ranking item: ${name}`
             );
+
         }
 
-        const requiredValues = {
-            ev: item.ev,
-            kelly: item.kelly,
-            risk: item.risk,
-            confidence: item.confidence
-        };
 
         for (
-            const [key, value]
-            of Object.entries(
-                requiredValues
-            )
+            const [
+                key,
+                value
+            ] of Object.entries({
+
+                ev:
+                    item.ev,
+
+                kelly:
+                    item.kelly,
+
+                risk:
+                    item.risk,
+
+                confidence:
+                    item.confidence
+
+            })
         ) {
 
-            if (!Number.isFinite(value)) {
+            if (
+                !Number.isFinite(
+                    value
+                )
+            ) {
 
                 throw new TypeError(
                     `${name}.${key} must be a finite number`
@@ -356,58 +559,64 @@ export default class Ranking {
 
         }
 
+
         if (
             item.kelly < 0
         ) {
+
             throw new RangeError(
                 `${name}.kelly cannot be negative`
             );
+
         }
+
 
         if (
             item.risk < 0
         ) {
+
             throw new RangeError(
                 `${name}.risk cannot be negative`
             );
+
         }
+
 
         if (
             item.confidence < 0 ||
             item.confidence > 1
         ) {
+
             throw new RangeError(
                 `${name}.confidence must be between 0 and 1`
             );
+
         }
 
     }
 
-    /**
-     * 驗證全部排名資料
-     */
+
     validateData(data) {
 
         if (
             !data ||
-            typeof data !== "object" ||
+            typeof data !==
+                "object" ||
             Array.isArray(data)
         ) {
+
             throw new TypeError(
                 "Ranking data must be an object"
             );
+
         }
 
-        const entries =
-            Object.entries(data);
-
-        if (entries.length === 0) {
-            return;
-        }
 
         for (
-            const [name, item]
-            of entries
+            const [
+                name,
+                item
+            ] of Object.entries(data)
         ) {
 
             this.validateItem(
@@ -419,33 +628,57 @@ export default class Ranking {
 
     }
 
-    /**
-     * Min-Max 正規化
-     *
-     * higherIsBetter:
-     * true  = 數值越高越好
-     * false = 數值越低越好
-     */
+
+    filterAllowedData(data) {
+
+        return Object.fromEntries(
+
+            Object.entries(
+                data
+            )
+                .filter(
+                    ([
+                        name
+                    ]) =>
+                        this.isAllowedName(
+                            name
+                        )
+                )
+
+        );
+
+    }
+
+
     normalizeValues(
         values,
         higherIsBetter = true
     ) {
 
-        if (values.length === 0) {
+        if (
+            values.length === 0
+        ) {
+
             return [];
+
         }
 
+
         const minimum =
-            Math.min(...values);
+            Math.min(
+                ...values
+            );
 
         const maximum =
-            Math.max(...values);
+            Math.max(
+                ...values
+            );
 
-        /**
-         * 所有數值相同時，
-         * 給予中性分數 0.5。
-         */
-        if (maximum === minimum) {
+
+        if (
+            maximum ===
+            minimum
+        ) {
 
             return values.map(
                 () => 0.5
@@ -453,126 +686,167 @@ export default class Ranking {
 
         }
 
-        return values.map(value => {
 
-            const normalized =
-                (
-                    value - minimum
-                ) /
-                (
-                    maximum - minimum
-                );
+        return values.map(
+            value => {
 
-            return higherIsBetter
-                ? normalized
-                : 1 - normalized;
+                const normalized =
+                    (
+                        value -
+                        minimum
+                    ) /
+                    (
+                        maximum -
+                        minimum
+                    );
 
-        });
+                return higherIsBetter
+                    ? normalized
+                    : 1 -
+                        normalized;
+
+            }
+        );
 
     }
 
-    /**
-     * 判斷該下注是否符合基本條件
-     */
+
     isEligible(item) {
+
+        if (
+            item.recommendationEligible ===
+                false
+        ) {
+
+            return false;
+
+        }
+
 
         if (
             item.ev <=
             this.options.minimumEV
         ) {
+
             return false;
+
         }
+
 
         if (
             item.confidence <
             this.options
                 .minimumConfidence
         ) {
+
             return false;
+
         }
+
 
         if (
             this.options
                 .requirePositiveKelly &&
             item.kelly <= 0
         ) {
+
             return false;
+
         }
+
 
         return true;
 
     }
 
-    /**
-     * 建立正規化指標
-     */
+
     normalize(data) {
 
-        this.validateData(data);
+        this.validateData(
+            data
+        );
+
+
+        const filtered =
+            this.filterAllowedData(
+                data
+            );
 
         const entries =
-            Object.entries(data);
+            Object.entries(
+                filtered
+            );
 
-        if (entries.length === 0) {
+
+        if (
+            entries.length === 0
+        ) {
+
             return {};
+
         }
 
-        const evValues =
-            entries.map(
-                ([, item]) =>
-                    item.ev
-            );
-
-        const kellyValues =
-            entries.map(
-                ([, item]) =>
-                    item.kelly
-            );
-
-        const confidenceValues =
-            entries.map(
-                ([, item]) =>
-                    item.confidence
-            );
-
-        const riskValues =
-            entries.map(
-                ([, item]) =>
-                    item.risk
-            );
 
         const normalizedEV =
             this.normalizeValues(
-                evValues,
+                entries.map(
+                    ([
+                        ,
+                        item
+                    ]) =>
+                        item.ev
+                ),
                 true
             );
 
         const normalizedKelly =
             this.normalizeValues(
-                kellyValues,
+                entries.map(
+                    ([
+                        ,
+                        item
+                    ]) =>
+                        item.kelly
+                ),
                 true
             );
 
         const normalizedConfidence =
             this.normalizeValues(
-                confidenceValues,
+                entries.map(
+                    ([
+                        ,
+                        item
+                    ]) =>
+                        item.confidence
+                ),
                 true
             );
 
-        /**
-         * Risk 越低越好，
-         * 因此使用反向正規化。
-         */
         const normalizedRisk =
             this.normalizeValues(
-                riskValues,
+                entries.map(
+                    ([
+                        ,
+                        item
+                    ]) =>
+                        item.risk
+                ),
                 false
             );
 
-        const normalized = {};
+
+        const normalized =
+            {};
+
 
         entries.forEach(
-            ([name], index) => {
+            (
+                [
+                    name
+                ],
+                index
+            ) => {
 
                 normalized[name] = {
 
@@ -601,17 +875,17 @@ export default class Ranking {
             }
         );
 
+
         return normalized;
 
     }
 
-    /**
-     * 計算單一項目的綜合分數
-     */
+
     score(normalizedItem) {
 
         const weights =
             this.normalizedWeights;
+
 
         return this.clamp(
 
@@ -637,38 +911,46 @@ export default class Ranking {
 
     }
 
-    /**
-     * 計算完整排名
-     *
-     * data 格式：
-     *
-     * {
-     *   player: {
-     *     ev: 0.012,
-     *     kelly: 0.015,
-     *     risk: 0.28,
-     *     confidence: 0.95,
-     *     amount: 150
-     *   }
-     * }
-     */
+
     calculate(data) {
 
-        this.validateData(data);
+        this.validateData(
+            data
+        );
+
+
+        const filtered =
+            this.filterAllowedData(
+                data
+            );
 
         const entries =
-            Object.entries(data);
+            Object.entries(
+                filtered
+            );
 
-        if (entries.length === 0) {
+
+        if (
+            entries.length === 0
+        ) {
+
             return [];
+
         }
 
+
         const normalized =
-            this.normalize(data);
+            this.normalize(
+                filtered
+            );
+
 
         const result =
             entries.map(
-                ([name, item]) => {
+                ([
+                    name,
+                    item
+                ]) => {
 
                     const normalizedItem =
                         normalized[name];
@@ -678,20 +960,27 @@ export default class Ranking {
                             normalizedItem
                         );
 
+
                     return {
 
                         name,
 
                         ...item,
 
-                        normalized: {
-                            ...normalizedItem
-                        },
+                        recommendationEligible:
+                            item.recommendationEligible !==
+                                false,
+
+                        normalized:
+                            {
+                                ...normalizedItem
+                            },
 
                         score,
 
                         scorePercent:
-                            score * 100,
+                            score *
+                            100,
 
                         eligible:
                             this.isEligible(
@@ -699,92 +988,108 @@ export default class Ranking {
                             ),
 
                         positiveEV:
-                            item.ev > 0
+                            item.ev >
+                            0
 
                     };
 
                 }
             );
 
-        /**
-         * 排序規則：
-         *
-         * 1. 可下注項目排前面
-         * 2. 綜合分數由高到低
-         * 3. 分數相同時 EV 高者優先
-         * 4. EV 相同時 Risk 低者優先
-         */
-        result.sort((a, b) => {
 
-            if (
-                a.eligible !==
-                b.eligible
-            ) {
-                return (
-                    Number(b.eligible) -
-                    Number(a.eligible)
-                );
-            }
+        result.sort(
+            (
+                a,
+                b
+            ) => {
 
-            if (
-                b.score !==
-                a.score
-            ) {
-                return (
-                    b.score -
+                if (
+                    a.eligible !==
+                    b.eligible
+                ) {
+
+                    return (
+                        Number(
+                            b.eligible
+                        ) -
+                        Number(
+                            a.eligible
+                        )
+                    );
+
+                }
+
+
+                if (
+                    b.score !==
                     a.score
+                ) {
+
+                    return (
+                        b.score -
+                        a.score
+                    );
+
+                }
+
+
+                if (
+                    b.ev !==
+                    a.ev
+                ) {
+
+                    return (
+                        b.ev -
+                        a.ev
+                    );
+
+                }
+
+
+                return (
+                    a.risk -
+                    b.risk
                 );
-            }
-
-            if (
-                b.ev !==
-                a.ev
-            ) {
-                return b.ev - a.ev;
-            }
-
-            return a.risk - b.risk;
-
-        });
-
-        result.forEach(
-            (item, index) => {
-
-                item.rank =
-                    index + 1;
 
             }
         );
+
+
+        result.forEach(
+            (
+                item,
+                index
+            ) => {
+
+                item.rank =
+                    index +
+                    1;
+
+            }
+        );
+
 
         return result;
 
     }
 
-    /**
-     * 最佳可下注項目
-     *
-     * 若所有項目都是負 EV，
-     * 或未通過其他門檻，
-     * 回傳 null。
-     */
+
     best(data) {
 
-        const result =
-            this.calculate(data);
-
         return (
-            result.find(
-                item =>
-                    item.eligible
-            ) ??
+            this.calculate(
+                data
+            )
+                .find(
+                    item =>
+                        item.eligible
+                ) ??
             null
         );
 
     }
 
-    /**
-     * 前 N 名
-     */
+
     top(
         data,
         count = 3,
@@ -792,22 +1097,33 @@ export default class Ranking {
     ) {
 
         if (
-            !Number.isInteger(count) ||
+            !Number.isInteger(
+                count
+            ) ||
             count < 1
         ) {
+
             throw new RangeError(
                 "count must be a positive integer"
             );
+
         }
+
 
         const {
             eligibleOnly = true
         } = options;
 
-        let result =
-            this.calculate(data);
 
-        if (eligibleOnly) {
+        let result =
+            this.calculate(
+                data
+            );
+
+
+        if (
+            eligibleOnly
+        ) {
 
             result =
                 result.filter(
@@ -817,6 +1133,7 @@ export default class Ranking {
 
         }
 
+
         return result.slice(
             0,
             count
@@ -824,12 +1141,12 @@ export default class Ranking {
 
     }
 
-    /**
-     * 不符合下注條件的項目
-     */
+
     rejected(data) {
 
-        return this.calculate(data)
+        return this.calculate(
+            data
+        )
             .filter(
                 item =>
                     !item.eligible
@@ -837,22 +1154,21 @@ export default class Ranking {
 
     }
 
-    /**
-     * 只有正 EV 的項目
-     */
+
     positiveEV(data) {
 
-        return this.calculate(data)
+        return this.calculate(
+            data
+        )
             .filter(
                 item =>
-                    item.ev > 0
+                    item.ev >
+                    0
             );
 
     }
 
-    /**
-     * 輸出目前設定
-     */
+
     toJSON() {
 
         return {
@@ -872,15 +1188,19 @@ export default class Ranking {
 
             requirePositiveKelly:
                 this.options
-                    .requirePositiveKelly
+                    .requirePositiveKelly,
+
+            allowedNames:
+                [
+                    ...this.options
+                        .allowedNames
+                ]
 
         };
 
     }
 
-    /**
-     * 複製 Ranking 引擎
-     */
+
     clone() {
 
         return new Ranking({
@@ -904,7 +1224,13 @@ export default class Ranking {
 
             requirePositiveKelly:
                 this.options
-                    .requirePositiveKelly
+                    .requirePositiveKelly,
+
+            allowedNames:
+                [
+                    ...this.options
+                        .allowedNames
+                ]
 
         });
 
