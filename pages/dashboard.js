@@ -2,114 +2,108 @@
  * Baccarat Analyzer
  * -----------------------------------------
  *
- * Dashboard
+ * pages/dashboard.js
  *
  * 真人百家樂主要操作頁面。
  *
- * 流程：
+ * 目標：
  *
- * 1. 開始新牌靴
- * 2. 手動輸入燒牌指示牌
- * 3. 分析第一局
- * 4. 開始輸入荷官已發出的牌
- * 5. 依提示輸入 Player / Banker
- * 6. 確認本局
- * 7. 更新 History 與五種路單
- * 8. 分析下一局
- *
- * Dashboard 只負責：
- *
- * - UI
- * - 使用者操作
- * - 呼叫 Game
- * - 顯示 Game / Analyzer / Roadmap 結果
- *
- * 不負責：
- *
- * - 發牌規則
- * - 勝負計算
- * - 機率計算
- * - EV 計算
- * - 路單演算法
+ * - 點數牌卡 + 四個花色牌卡快速輸入
+ * - 選完花色後立即加入目前所需牌面
+ * - 主注分析與邊注分析分離
+ * - Recommendation 只顯示主注
+ * - 保留既有 Dashboard 公開方法與測試相容性
  */
 
 import Game, {
     GameState,
-    ManualRoundState,
-    HandSide,
-    AnalysisState
+    ManualRoundState
 } from "../engine/game.js";
 
 import createQuickCardInput
     from "../components/QuickCardInput.js";
 
 
-const RANKS = Object.freeze([
+const RANKS =
+    Object.freeze([
 
-    "A",
+        "A",
 
-    "2",
+        "2",
 
-    "3",
+        "3",
 
-    "4",
+        "4",
 
-    "5",
+        "5",
 
-    "6",
+        "6",
 
-    "7",
+        "7",
 
-    "8",
+        "8",
 
-    "9",
+        "9",
 
-    "10",
+        "10",
 
-    "J",
+        "J",
 
-    "Q",
+        "Q",
 
-    "K"
+        "K"
 
-]);
+    ]);
 
 
-const SUITS = Object.freeze([
+const SUITS =
+    Object.freeze([
 
-    {
-        value:
-            "S",
+        {
+            value:
+                "S",
 
-        label:
-            "♠ 黑桃"
-    },
+            symbol:
+                "♠",
 
-    {
-        value:
-            "H",
+            label:
+                "黑桃"
+        },
 
-        label:
-            "♥ 紅心"
-    },
+        {
+            value:
+                "H",
 
-    {
-        value:
-            "D",
+            symbol:
+                "♥",
 
-        label:
-            "♦ 方塊"
-    },
+            label:
+                "紅心"
+        },
 
-    {
-        value:
-            "C",
+        {
+            value:
+                "D",
 
-        label:
-            "♣ 梅花"
-    }
+            symbol:
+                "♦",
 
-]);
+            label:
+                "方塊"
+        },
+
+        {
+            value:
+                "C",
+
+            symbol:
+                "♣",
+
+            label:
+                "梅花"
+        }
+
+    ]);
 
 
 const ROAD_LABELS =
@@ -129,6 +123,36 @@ const ROAD_LABELS =
 
         cockroachRoad:
             "曱甴路"
+
+    });
+
+
+const BET_LABELS =
+    Object.freeze({
+
+        player:
+            "閒",
+
+        banker:
+            "莊",
+
+        tie:
+            "和",
+
+        playerPair:
+            "閒對",
+
+        bankerPair:
+            "莊對",
+
+        super6:
+            "幸運 6",
+
+        playerDragonBonus:
+            "閒龍寶",
+
+        bankerDragonBonus:
+            "莊龍寶"
 
     });
 
@@ -193,8 +217,11 @@ function formatPercent(
     }
 
     return `${(
-        value * 100
-    ).toFixed(digits)}%`;
+        value *
+        100
+    ).toFixed(
+        digits
+    )}%`;
 
 }
 
@@ -234,7 +261,7 @@ function formatMoney(value) {
             "zh-TW",
             {
                 maximumFractionDigits:
-                    2
+                    0
             }
         )
         .format(value);
@@ -250,10 +277,25 @@ function cardText(card) {
 
     }
 
-    return (
-        card.toString?.() ??
-        `${card.rank ?? ""}${card.suit ?? ""}`
-    );
+    if (
+        typeof card.toString ===
+            "function"
+    ) {
+
+        return card.toString();
+
+    }
+
+    const symbol =
+        SUITS.find(
+            item =>
+                item.value ===
+                card.suit
+        )?.symbol ??
+        card.suit ??
+        "";
+
+    return `${card.rank ?? ""}${symbol}`;
 
 }
 
@@ -308,6 +350,53 @@ function getWinnerClass(winner) {
 }
 
 
+function getManualCards(game) {
+
+    return Array.isArray(
+        game?.manualCards
+    )
+        ? game.manualCards
+        : [];
+
+}
+
+
+function getHistoryRounds(
+    game,
+    limit
+) {
+
+    if (
+        typeof game?.history
+            ?.lastRounds ===
+            "function"
+    ) {
+
+        return game.history
+            .lastRounds(
+                limit
+            );
+
+    }
+
+    if (
+        Array.isArray(
+            game?.history?.items
+        )
+    ) {
+
+        return game.history.items
+            .slice(
+                -limit
+            );
+
+    }
+
+    return [];
+
+}
+
+
 export class Dashboard {
 
     constructor({
@@ -326,7 +415,7 @@ export class Dashboard {
             root !== null &&
             !(
                 root instanceof
-                Element
+                    Element
             ) &&
             typeof root !==
                 "string"
@@ -339,7 +428,9 @@ export class Dashboard {
         }
 
         if (
-            !isObject(gameOptions)
+            !isObject(
+                gameOptions
+            )
         ) {
 
             throw new TypeError(
@@ -382,7 +473,18 @@ export class Dashboard {
                 20,
 
             activeRoad:
-                "beadRoad"
+                "beadRoad",
+
+            analysisExpanded:
+                false
+
+        };
+
+
+        this.components = {
+
+            quickCardInput:
+                null
 
         };
 
@@ -396,6 +498,12 @@ export class Dashboard {
         this.boundChange =
             event =>
                 this.handleChange(
+                    event
+                );
+
+        this.boundQuickCardSelect =
+            event =>
+                this.handleQuickCardSelect(
                     event
                 );
 
@@ -415,7 +523,8 @@ export class Dashboard {
     resolveRoot(root) {
 
         if (
-            root instanceof Element
+            root instanceof
+                Element
         ) {
 
             return root;
@@ -488,6 +597,11 @@ export class Dashboard {
             this.boundChange
         );
 
+        this.root.addEventListener(
+            "quick-card:select",
+            this.boundQuickCardSelect
+        );
+
         this.render();
 
         return this;
@@ -512,6 +626,19 @@ export class Dashboard {
             "change",
             this.boundChange
         );
+
+        this.root.removeEventListener(
+            "quick-card:select",
+            this.boundQuickCardSelect
+        );
+
+        this.components
+            .quickCardInput
+            ?.destroy();
+
+        this.components
+            .quickCardInput =
+            null;
 
         return this;
 
@@ -585,7 +712,9 @@ export class Dashboard {
 
         }
 
-        if (this.ui.busy) {
+        if (
+            this.ui.busy
+        ) {
 
             return null;
 
@@ -596,7 +725,9 @@ export class Dashboard {
 
         this.clearMessage();
 
-        if (renderBefore) {
+        if (
+            renderBefore
+        ) {
 
             this.render();
 
@@ -607,7 +738,9 @@ export class Dashboard {
             const result =
                 await callback();
 
-            if (successMessage) {
+            if (
+                successMessage
+            ) {
 
                 this.setMessage(
                     successMessage,
@@ -749,6 +882,17 @@ export class Dashboard {
                 break;
 
 
+            case "toggle-analysis":
+
+                this.ui.analysisExpanded =
+                    !this.ui
+                        .analysisExpanded;
+
+                this.render();
+
+                break;
+
+
             default:
 
                 console.warn(
@@ -775,7 +919,9 @@ export class Dashboard {
         }
 
 
-        switch (target.name) {
+        switch (
+            target.name
+        ) {
 
             case "card-rank":
 
@@ -798,7 +944,8 @@ export class Dashboard {
                 this.ui.historyLimit =
                     Number(
                         target.value
-                    ) || 20;
+                    ) ||
+                    20;
 
                 this.render();
 
@@ -809,9 +956,38 @@ export class Dashboard {
     }
 
 
+    async handleQuickCardSelect(event) {
+
+        const {
+            rank,
+            suit
+        } =
+            event.detail ??
+            {};
+
+        if (
+            !rank ||
+            !suit
+        ) {
+
+            return;
+
+        }
+
+        await this.addSelectedCard({
+
+            rank,
+
+            suit
+
+        });
+
+    }
+
+
     async startNewShoe() {
 
-        await this.runAction(
+        return this.runAction(
             async () => {
 
                 this.game
@@ -837,7 +1013,7 @@ export class Dashboard {
 
     async confirmBurn() {
 
-        await this.runAction(
+        return this.runAction(
             async () => {
 
                 const info =
@@ -855,10 +1031,6 @@ export class Dashboard {
                         });
 
 
-                /**
-                 * Game 可能已自動啟動分析。
-                 * 若沒有，Dashboard 主動執行一次。
-                 */
                 if (
                     !this.game
                         .isAnalyzing &&
@@ -891,7 +1063,7 @@ export class Dashboard {
 
     async analyze() {
 
-        await this.runAction(
+        return this.runAction(
             async () => {
 
                 await this.game
@@ -909,7 +1081,7 @@ export class Dashboard {
 
     async startRound() {
 
-        await this.runAction(
+        return this.runAction(
             async () => {
 
                 this.game
@@ -925,9 +1097,15 @@ export class Dashboard {
     }
 
 
-    async addCurrentCard() {
+    async addSelectedCard({
 
-        await this.runAction(
+        rank,
+
+        suit
+
+    }) {
+
+        return this.runAction(
             async () => {
 
                 const side =
@@ -948,26 +1126,41 @@ export class Dashboard {
                         side,
 
                         {
-                            rank:
-                                this.ui
-                                    .selectedRank,
+                            rank,
 
-                            suit:
-                                this.ui
-                                    .selectedSuit
+                            suit
                         }
 
                     );
 
+            },
+            {
+                renderBefore:
+                    false
             }
         );
 
     }
 
 
+    async addCurrentCard() {
+
+        return this.addSelectedCard({
+
+            rank:
+                this.ui.selectedRank,
+
+            suit:
+                this.ui.selectedSuit
+
+        });
+
+    }
+
+
     async undoCard() {
 
-        await this.runAction(
+        return this.runAction(
             async () => {
 
                 const removed =
@@ -994,7 +1187,7 @@ export class Dashboard {
 
     async cancelRound() {
 
-        await this.runAction(
+        return this.runAction(
             async () => {
 
                 this.game
@@ -1012,7 +1205,7 @@ export class Dashboard {
 
     async finishRound() {
 
-        await this.runAction(
+        return this.runAction(
             async () => {
 
                 await this.game
@@ -1041,6 +1234,15 @@ export class Dashboard {
 
         }
 
+        this.components
+            .quickCardInput
+            ?.destroy();
+
+        this.components
+            .quickCardInput =
+            null;
+
+
         this.root.innerHTML = `
 
             <main class="dashboardPage">
@@ -1049,13 +1251,11 @@ export class Dashboard {
 
                 ${this.renderMessage()}
 
+                ${this.renderStatusBanner()}
+
                 <div class="dashboardGrid">
 
                     <section class="dashboardMain">
-
-                        ${this.renderShoePanel()}
-
-                        ${this.renderBurnPanel()}
 
                         ${this.renderRoundPanel()}
 
@@ -1066,8 +1266,6 @@ export class Dashboard {
                     <aside class="dashboardSide">
 
                         ${this.renderRecommendationPanel()}
-
-                        ${this.renderShoeStatusPanel()}
 
                         ${this.renderHistoryPanel()}
 
@@ -1081,15 +1279,51 @@ export class Dashboard {
 
         `;
 
+
+        this.mountQuickCardInput();
+
+        return this;
+
+    }
+
+
+    mountQuickCardInput() {
+
+        const inputRoot =
+            this.root?.querySelector(
+                "[data-quick-card-root]"
+            );
+
+        if (!inputRoot) {
+
+            return this;
+
+        }
+
+        this.components.quickCardInput =
+            createQuickCardInput({
+
+                root:
+                    inputRoot,
+
+                shoe:
+                    this.game.shoe,
+
+                disabled:
+                    this.ui.busy ||
+                    !this.game
+                        .isManualRoundActive ||
+                    this.game
+                        .canFinishManualRound
+
+            });
+
         return this;
 
     }
 
 
     renderHeader() {
-
-        const state =
-            this.game.state;
 
         return `
 
@@ -1105,16 +1339,14 @@ export class Dashboard {
                         百家樂分析儀
                     </h1>
 
-                    <p class="dashboardSubtitle">
-                        手動輸入荷官已發出的牌，系統更新牌靴、路單與下一局分析。
-                    </p>
-
                 </div>
 
                 <div class="dashboardHeaderActions">
 
                     <span class="stateBadge">
-                        ${escapeHTML(state)}
+                        ${escapeHTML(
+                            this.game.state
+                        )}
                     </span>
 
                     <button
@@ -1125,7 +1357,7 @@ export class Dashboard {
                             ? "disabled"
                             : ""}
                     >
-                        開始新牌靴
+                        新牌靴
                     </button>
 
                 </div>
@@ -1139,7 +1371,9 @@ export class Dashboard {
 
     renderMessage() {
 
-        if (!this.ui.message) {
+        if (
+            !this.ui.message
+        ) {
 
             return "";
 
@@ -1176,96 +1410,102 @@ export class Dashboard {
     }
 
 
-    renderShoePanel() {
+    renderStatusBanner() {
 
-        const shoe =
-            this.game.shoe;
+        const info =
+            this.game.burnInfo;
 
         return `
 
-            <section class="dashboardCard shoePanel">
+            <section class="dashboardCard dashboardStatusBanner">
 
-                <div class="sectionHeader">
+                <div class="statusBannerItem">
 
-                    <div>
-
-                        <p class="sectionEyebrow">
-                            SHOE
-                        </p>
-
-                        <h2>
-                            牌靴
-                        </h2>
-
-                    </div>
-
-                    <span class="sectionValue">
-                        #${this.game.shoeNumber}
+                    <span>
+                        牌靴
                     </span>
+
+                    <strong>
+                        #${escapeHTML(
+                            this.game.shoeNumber ??
+                            0
+                        )}
+                    </strong>
 
                 </div>
 
-                <div class="metricGrid">
+                <div class="statusBannerItem">
 
-                    ${this.renderMetric(
-                        "總牌數",
-                        shoe?.total ?? 0
-                    )}
+                    <span>
+                        可觀察
+                    </span>
 
-                    ${this.renderMetric(
-                        "可觀察牌",
-                        this.game
-                            .observableRemainingCards
-                    )}
+                    <strong>
+                        ${escapeHTML(
+                            this.game
+                                .observableRemainingCards ??
+                            this.game.shoe
+                                ?.observableRemaining ??
+                            this.game.shoe
+                                ?.remaining ??
+                            0
+                        )}
+                    </strong>
 
-                    ${this.renderMetric(
-                        "物理剩餘",
-                        this.game.remainingCards
-                    )}
+                </div>
 
-                    ${this.renderMetric(
-                        "未知燒牌",
-                        this.game
-                            .unknownBurnedCount
-                    )}
+                <div class="statusBannerItem">
 
-                    ${this.renderMetric(
-                        "已知移除",
-                        this.game.usedCards
-                    )}
+                    <span>
+                        物理剩餘
+                    </span>
 
-                    ${this.renderMetric(
-                        "已完成局數",
-                        this.game.roundCount
-                    )}
+                    <strong>
+                        ${escapeHTML(
+                            this.game
+                                .remainingCards ??
+                            this.game.shoe
+                                ?.physicalRemaining ??
+                            0
+                        )}
+                    </strong>
+
+                </div>
+
+                <div class="statusBannerItem">
+
+                    <span>
+                        燒牌
+                    </span>
+
+                    <strong>
+                        ${escapeHTML(
+                            this.game.burnConfirmed
+                                ? cardText(
+                                    info?.indicator
+                                )
+                                : "未確認"
+                        )}
+                    </strong>
+
+                </div>
+
+                <div class="statusBannerItem">
+
+                    <span>
+                        局數
+                    </span>
+
+                    <strong>
+                        ${escapeHTML(
+                            this.game.roundCount ??
+                            0
+                        )}
+                    </strong>
 
                 </div>
 
             </section>
-
-        `;
-
-    }
-
-
-    renderMetric(
-        label,
-        value
-    ) {
-
-        return `
-
-            <div class="metric">
-
-                <span class="metricLabel">
-                    ${escapeHTML(label)}
-                </span>
-
-                <strong class="metricValue">
-                    ${escapeHTML(value)}
-                </strong>
-
-            </div>
 
         `;
 
@@ -1286,7 +1526,7 @@ export class Dashboard {
 
             return `
 
-                <section class="dashboardCard burnPanel">
+                <section class="dashboardCard burnPanel compactPanel">
 
                     <div class="sectionHeader">
 
@@ -1297,49 +1537,18 @@ export class Dashboard {
                             </p>
 
                             <h2>
-                                燒牌
+                                燒牌已確認
                             </h2>
 
                         </div>
 
                         <span class="statusBadge success">
-                            已確認
+                            ${escapeHTML(
+                                cardText(
+                                    info?.indicator
+                                )
+                            )}
                         </span>
-
-                    </div>
-
-                    <div class="burnSummary">
-
-                        <div>
-                            <span>指示牌</span>
-                            <strong>
-                                ${escapeHTML(
-                                    cardText(
-                                        info?.indicator
-                                    )
-                                )}
-                            </strong>
-                        </div>
-
-                        <div>
-                            <span>隱藏燒牌</span>
-                            <strong>
-                                ${escapeHTML(
-                                    info?.hiddenCount ??
-                                    0
-                                )}
-                            </strong>
-                        </div>
-
-                        <div>
-                            <span>總移除</span>
-                            <strong>
-                                ${escapeHTML(
-                                    info?.totalRemoved ??
-                                    0
-                                )}
-                            </strong>
-                        </div>
 
                     </div>
 
@@ -1387,10 +1596,6 @@ export class Dashboard {
                     確認燒牌
                 </button>
 
-                <p class="helperText">
-                    公開指示牌會從已知牌池移除；其餘燒牌只登記未知張數。
-                </p>
-
             </section>
 
         `;
@@ -1429,6 +1634,7 @@ export class Dashboard {
                                 ? "selected"
                                 : ""}
                     >
+                        ${suit.symbol}
                         ${suit.label}
                     </option>
 
@@ -1488,7 +1694,7 @@ export class Dashboard {
                                 suit =>
                                     suit.value ===
                                     this.ui.selectedSuit
-                            )?.label.split(" ")[0] ??
+                            )?.symbol ??
                             this.ui.selectedSuit
                         )}
                     </span>
@@ -1510,27 +1716,9 @@ export class Dashboard {
 
             return `
 
-                <section class="dashboardCard roundPanel disabledPanel">
+                <section class="dashboardCard roundPanel">
 
-                    <div class="sectionHeader">
-
-                        <div>
-
-                            <p class="sectionEyebrow">
-                                ROUND
-                            </p>
-
-                            <h2>
-                                本局輸入
-                            </h2>
-
-                        </div>
-
-                    </div>
-
-                    <p class="emptyText">
-                        請先輸入燒牌指示牌。
-                    </p>
+                    ${this.renderBurnPanel()}
 
                 </section>
 
@@ -1559,20 +1747,16 @@ export class Dashboard {
                             </p>
 
                             <h2>
-                                荷官發牌
+                                等待下一局
                             </h2>
 
                         </div>
 
                         <span class="statusBadge">
-                            等待下一局
+                            READY
                         </span>
 
                     </div>
-
-                    <p class="helperText">
-                        荷官開始發牌後，按下按鈕並依序輸入已發出的牌。
-                    </p>
 
                     <button
                         type="button"
@@ -1675,7 +1859,12 @@ export class Dashboard {
                         </p>
 
                         <h2>
-                            手動輸入牌面
+                            ${ready
+                                ? "本局牌面完成"
+                                : escapeHTML(
+                                    next?.label ??
+                                    "手動輸入牌面"
+                                )}
                         </h2>
 
                     </div>
@@ -1684,11 +1873,8 @@ export class Dashboard {
                         ? "success"
                         : "warning"}">
                         ${ready
-                            ? "可確認本局"
-                            : escapeHTML(
-                                next?.label ??
-                                "等待"
-                            )}
+                            ? "可確認"
+                            : "輸入中"}
                     </span>
 
                 </div>
@@ -1697,7 +1883,12 @@ export class Dashboard {
 
                 ${ready
                     ? ""
-                    : this.renderCardSelector()}
+                    : `
+                        <div
+                            class="quickCardMount"
+                            data-quick-card-root
+                        ></div>
+                    `}
 
                 <div class="roundActions">
 
@@ -1714,21 +1905,7 @@ export class Dashboard {
                                 確認本局
                             </button>
                         `
-                        : `
-                            <button
-                                type="button"
-                                class="button primary"
-                                data-action="add-card"
-                                ${this.ui.busy
-                                    ? "disabled"
-                                    : ""}
-                            >
-                                加入${escapeHTML(
-                                    next?.label ??
-                                    "下一張"
-                                )}
-                            </button>
-                        `}
+                        : ""}
 
                     <button
                         type="button"
@@ -1736,9 +1913,10 @@ export class Dashboard {
                         data-action="undo-card"
                         ${(
                             this.ui.busy ||
-                            this.game
-                                .manualCards
-                                .length === 0
+                            getManualCards(
+                                this.game
+                            ).length ===
+                                0
                         )
                             ? "disabled"
                             : ""}
@@ -1770,7 +1948,20 @@ export class Dashboard {
 
         const progress =
             this.game
-                .manualProgress;
+                .manualProgress ??
+            {
+                playerCards:
+                    [],
+
+                bankerCards:
+                    [],
+
+                playerScore:
+                    0,
+
+                bankerScore:
+                    0
+            };
 
 
         return `
@@ -1780,14 +1971,16 @@ export class Dashboard {
                 ${this.renderHand(
                     "Player",
                     "閒家",
-                    progress.playerCards,
+                    progress.playerCards ??
+                        [],
                     progress.playerScore
                 )}
 
                 ${this.renderHand(
                     "Banker",
                     "莊家",
-                    progress.bankerCards,
+                    progress.bankerCards ??
+                        [],
                     progress.bankerScore
                 )}
 
@@ -1805,38 +1998,39 @@ export class Dashboard {
         score
     ) {
 
-        const cells = [
+        const cells =
+            [
+                0,
+                1,
+                2
+            ]
+                .map(
+                    index => {
 
-            0,
+                        const card =
+                            cards[index];
 
-            1,
+                        return `
 
-            2
+                            <div class="handCard ${card
+                                ? "filled"
+                                : "empty"}">
 
-        ].map(
-            index => {
+                                ${card
+                                    ? escapeHTML(
+                                        cardText(
+                                            card
+                                        )
+                                    )
+                                    : "—"}
 
-                const card =
-                    cards[index];
+                            </div>
 
-                return `
+                        `;
 
-                    <div class="handCard ${card
-                        ? "filled"
-                        : "empty"}">
-
-                        ${card
-                            ? escapeHTML(
-                                cardText(card)
-                            )
-                            : "—"}
-
-                    </div>
-
-                `;
-
-            }
-        ).join("");
+                    }
+                )
+                .join("");
 
 
         return `
@@ -1846,11 +2040,16 @@ export class Dashboard {
                 <div class="handHeader">
 
                     <strong>
-                        ${escapeHTML(label)}
+                        ${escapeHTML(
+                            label
+                        )}
                     </strong>
 
                     <span>
-                        ${score === null
+                        ${score ===
+                            null ||
+                        score ===
+                            undefined
                             ? "—"
                             : `${score} 點`}
                     </span>
@@ -1876,9 +2075,11 @@ export class Dashboard {
 
         if (
             this.game.isAnalyzing ||
-            this.ui.busy &&
-            this.game.state ===
-                GameState.ANALYZING
+            (
+                this.ui.busy &&
+                this.game.state ===
+                    GameState.ANALYZING
+            )
         ) {
 
             return `
@@ -1894,7 +2095,7 @@ export class Dashboard {
                             </p>
 
                             <h2>
-                                正在分析下一局
+                                正在分析
                             </h2>
 
                         </div>
@@ -1903,11 +2104,6 @@ export class Dashboard {
                             計算中
                         </span>
 
-                    </div>
-
-                    <div class="analysisLoading">
-                        <div class="spinner"></div>
-                        <p>正在計算機率、EV 與下注建議…</p>
                     </div>
 
                 </section>
@@ -1940,7 +2136,7 @@ export class Dashboard {
                     </div>
 
                     <p class="emptyText">
-                        完成燒牌後即可分析第一局。
+                        尚未產生分析。
                     </p>
 
                     <button
@@ -1965,6 +2161,15 @@ export class Dashboard {
         }
 
 
+        const probability =
+            analysis.probability ??
+            {};
+
+        const ev =
+            analysis.ev ??
+            {};
+
+
         return `
 
             <section class="dashboardCard analysisPanel">
@@ -1978,41 +2183,58 @@ export class Dashboard {
                         </p>
 
                         <h2>
-                            下一局下注分析
+                            下一局分析
                         </h2>
 
                     </div>
 
-                    <div class="analysisMeta">
-
-                        <span>
-                            ${escapeHTML(
-                                analysis.method ??
-                                "analysis"
-                            )}
-                        </span>
-
-                        <span>
-                            第 ${escapeHTML(
-                                analysis
-                                    .generatedAfterRound ??
-                                this.game.roundCount
-                            )} 局後
-                        </span>
-
-                    </div>
+                    <span class="analysisMeta">
+                        第 ${escapeHTML(
+                            analysis
+                                .generatedAfterRound ??
+                            this.game.roundCount ??
+                            0
+                        )} 局後
+                    </span>
 
                 </div>
 
-                ${this.renderProbabilityTable(
-                    analysis.probability
-                )}
 
-                ${this.renderEVTable(
-                    analysis.ev
-                )}
+                <div class="analysisHorizontal">
+
+                    ${this.renderAnalysisMetric(
+                        "閒",
+                        probability.player,
+                        ev.player
+                    )}
+
+                    ${this.renderAnalysisMetric(
+                        "莊",
+                        probability.banker,
+                        ev.banker
+                    )}
+
+                    ${this.renderAnalysisMetric(
+                        "和",
+                        probability.tie,
+                        ev.tie
+                    )}
+
+                </div>
+
 
                 <div class="analysisFooter">
+
+                    <button
+                        type="button"
+                        class="button secondary"
+                        data-action="toggle-analysis"
+                    >
+                        ${this.ui
+                            .analysisExpanded
+                                ? "收合完整分析"
+                                : "展開完整分析"}
+                    </button>
 
                     <button
                         type="button"
@@ -2025,19 +2247,65 @@ export class Dashboard {
                         重新分析
                     </button>
 
-                    <span>
-                        物理剩餘：
-                        ${escapeHTML(
-                            analysis
-                                .physicalRemaining ??
-                            this.game
-                                .remainingCards
-                        )}
-                    </span>
-
                 </div>
 
+
+                ${this.ui.analysisExpanded
+                    ? `
+                        ${this.renderProbabilityTable(
+                            probability
+                        )}
+
+                        ${this.renderEVTable(
+                            ev,
+                            analysis.evStatus
+                        )}
+
+                        ${this.renderSideBetTable(
+                            analysis.sideBetAnalysis
+                        )}
+                    `
+                    : ""}
+
             </section>
+
+        `;
+
+    }
+
+
+    renderAnalysisMetric(
+        label,
+        probability,
+        ev
+    ) {
+
+        return `
+
+            <div class="analysisMetric">
+
+                <span>
+                    ${escapeHTML(
+                        label
+                    )}
+                </span>
+
+                <strong>
+                    ${formatPercent(
+                        probability
+                    )}
+                </strong>
+
+                <small class="${Number(ev) >=
+                    0
+                    ? "positive"
+                    : "negative"}">
+                    EV ${formatNumber(
+                        ev
+                    )}
+                </small>
+
+            </div>
 
         `;
 
@@ -2048,59 +2316,33 @@ export class Dashboard {
         probability = {}
     ) {
 
-        const rows = [
-
+        const rows =
             [
-                "Player",
-                "閒",
-                probability.player
-            ],
-
-            [
-                "Banker",
-                "莊",
-                probability.banker
-            ],
-
-            [
-                "Tie",
-                "和",
-                probability.tie
-            ],
-
-            [
-                "Player Pair",
-                "閒對",
-                probability.playerPair
-            ],
-
-            [
-                "Banker Pair",
-                "莊對",
-                probability.bankerPair
-            ],
-
-            [
-                "Super 6",
-                "幸運 6",
-                probability.super6
-            ],
-
-            [
-                "Player Dragon",
-                "閒龍寶",
-                probability
-                    .playerDragonBonus
-            ],
-
-            [
-                "Banker Dragon",
-                "莊龍寶",
-                probability
-                    .bankerDragonBonus
-            ]
-
-        ];
+                [
+                    "player",
+                    "閒"
+                ],
+                [
+                    "banker",
+                    "莊"
+                ],
+                [
+                    "tie",
+                    "和"
+                ],
+                [
+                    "playerPair",
+                    "閒對"
+                ],
+                [
+                    "bankerPair",
+                    "莊對"
+                ],
+                [
+                    "super6",
+                    "幸運 6"
+                ]
+            ];
 
 
         return `
@@ -2116,18 +2358,21 @@ export class Dashboard {
                     ${rows.map(
                         ([
                             key,
-                            label,
-                            value
+                            label
                         ]) => `
 
                             <div class="dataRow">
 
                                 <span>
-                                    ${escapeHTML(label)}
+                                    ${escapeHTML(
+                                        label
+                                    )}
                                 </span>
 
                                 <strong>
-                                    ${formatPercent(value)}
+                                    ${formatPercent(
+                                        probability[key]
+                                    )}
                                 </strong>
 
                             </div>
@@ -2144,36 +2389,20 @@ export class Dashboard {
     }
 
 
-    renderEVTable(ev = {}) {
+    renderEVTable(
+        ev = {},
+        evStatus = {}
+    ) {
 
-        const entries =
-            Object.entries(
-                ev ??
-                {}
-            );
-
-
-        if (
-            entries.length === 0
-        ) {
-
-            return `
-
-                <div class="analysisSection">
-
-                    <h3>
-                        EV
-                    </h3>
-
-                    <p class="emptyText">
-                        暫無 EV 資料。
-                    </p>
-
-                </div>
-
-            `;
-
-        }
+        const names =
+            [
+                "player",
+                "banker",
+                "tie",
+                "playerPair",
+                "bankerPair",
+                "super6"
+            ];
 
 
         return `
@@ -2186,24 +2415,109 @@ export class Dashboard {
 
                 <div class="dataTable">
 
+                    ${names.map(
+                        name => {
+
+                            const available =
+                                evStatus[name] !==
+                                    "unavailable";
+
+                            const value =
+                                available
+                                    ? Number(
+                                        ev[name]
+                                    )
+                                    : NaN;
+
+                            return `
+
+                                <div class="dataRow">
+
+                                    <span>
+                                        ${escapeHTML(
+                                            BET_LABELS[
+                                                name
+                                            ] ??
+                                            name
+                                        )}
+                                    </span>
+
+                                    <strong class="${Number.isFinite(value) &&
+                                        value >= 0
+                                        ? "positive"
+                                        : "negative"}">
+                                        ${available
+                                            ? formatNumber(
+                                                value
+                                            )
+                                            : "尚未提供"}
+                                    </strong>
+
+                                </div>
+
+                            `;
+
+                        }
+                    ).join("")}
+
+                </div>
+
+            </div>
+
+        `;
+
+    }
+
+
+    renderSideBetTable(
+        sideBetAnalysis = {}
+    ) {
+
+        const entries =
+            Object.values(
+                sideBetAnalysis ??
+                {}
+            );
+
+
+        if (
+            entries.length ===
+                0
+        ) {
+
+            return "";
+
+        }
+
+
+        return `
+
+            <div class="analysisSection">
+
+                <h3>
+                    邊注參考
+                </h3>
+
+                <div class="dataTable">
+
                     ${entries.map(
-                        ([
-                            name,
-                            value
-                        ]) => `
+                        item => `
 
                             <div class="dataRow">
 
                                 <span>
-                                    ${escapeHTML(name)}
+                                    ${escapeHTML(
+                                        item.label ??
+                                        item.name
+                                    )}
                                 </span>
 
-                                <strong class="${Number(value) >= 0
-                                    ? "positive"
-                                    : "negative"}">
-                                    ${formatNumber(
-                                        Number(value)
-                                    )}
+                                <strong>
+                                    ${item.available
+                                        ? formatNumber(
+                                            item.ev
+                                        )
+                                        : "暫不可用"}
                                 </strong>
 
                             </div>
@@ -2256,7 +2570,6 @@ export class Dashboard {
 
         const best =
             analysis.best ??
-            analysis.ranking?.[0] ??
             null;
 
         const shouldBet =
@@ -2269,26 +2582,34 @@ export class Dashboard {
 
         const betName =
 
-            recommendation?.bet ??
+            shouldBet
 
-            recommendation?.name ??
+                ? (
+                    recommendation?.label ??
+                    BET_LABELS[
+                        recommendation?.bet
+                    ] ??
+                    best?.label ??
+                    BET_LABELS[
+                        best?.name
+                    ] ??
+                    "主注"
+                )
 
-            best?.name ??
-
-            "不下注";
+                : "不下注";
 
         const reason =
 
-            recommendation?.reason ??
-
             recommendation?.message ??
+
+            recommendation?.reason ??
 
             (
                 shouldBet
 
-                    ? "目前排名最高的下注選項。"
+                    ? "此主注通過目前的 EV、可信度與風險條件。"
 
-                    : "目前沒有符合條件的正期望下注。"
+                    : "目前沒有符合條件的正期望主注。"
             );
 
 
@@ -2316,7 +2637,8 @@ export class Dashboard {
                     )}
                 </p>
 
-                ${Number.isFinite(
+                ${shouldBet &&
+                Number.isFinite(
                     recommendation?.amount
                 )
                     ? `
@@ -2328,8 +2650,14 @@ export class Dashboard {
 
                             <strong>
                                 ${formatMoney(
-                                    recommendation
-                                        .amount
+                                    Math.min(
+                                        10000,
+                                        Math.max(
+                                            100,
+                                            recommendation
+                                                .amount
+                                        )
+                                    )
                                 )}
                             </strong>
 
@@ -2388,101 +2716,106 @@ export class Dashboard {
 
     renderShoeStatusPanel() {
 
-    const analysis =
-        this.game.analysisSummary ??
-        {
-            state:
-                AnalysisState.IDLE
-        };
+        const analysis =
+            this.game.analysisSummary ??
+            {};
 
-    const consistency =
-        this.game
-            .validateConsistency?.() ??
-        {
-            valid:
-                true
-        };
+        const consistency =
+            typeof this.game
+                .validateConsistency ===
+                "function"
+                ? this.game
+                    .validateConsistency()
+                : {
+                    valid:
+                        true
+                };
 
 
-    return `
+        return `
 
-        <section class="dashboardCard statusPanel">
+            <section class="dashboardCard statusPanel">
 
-            <div class="sectionHeader">
+                <div class="statusList">
 
-                <div>
+                    <div>
 
-                    <p class="sectionEyebrow">
-                        STATUS
-                    </p>
+                        <span>
+                            牌靴
+                        </span>
 
-                    <h2>
-                        系統狀態
-                    </h2>
+                        <strong>
+                            ${escapeHTML(
+                                this.game.state
+                            )}
+                        </strong>
+
+                    </div>
+
+                    <div>
+
+                        <span>
+                            輸入
+                        </span>
+
+                        <strong>
+                            ${escapeHTML(
+                                this.game
+                                    .manualState
+                            )}
+                        </strong>
+
+                    </div>
+
+                    <div>
+
+                        <span>
+                            分析
+                        </span>
+
+                        <strong>
+                            ${escapeHTML(
+                                analysis.state ??
+                                this.game
+                                    .analysisState ??
+                                "—"
+                            )}
+                        </strong>
+
+                    </div>
+
+                    <div>
+
+                        <span>
+                            一致性
+                        </span>
+
+                        <strong class="${consistency.valid
+                            ? "positive"
+                            : "negative"}">
+                            ${consistency.valid
+                                ? "正常"
+                                : "異常"}
+                        </strong>
+
+                    </div>
 
                 </div>
 
-            </div>
+            </section>
 
-            <div class="statusList">
+        `;
 
-                <div>
-                    <span>牌靴狀態</span>
-                    <strong>
-                        ${escapeHTML(
-                            this.game.state ??
-                            GameState.READY
-                        )}
-                    </strong>
-                </div>
-
-                <div>
-                    <span>牌局輸入</span>
-                    <strong>
-                        ${escapeHTML(
-                            this.game.manualState ??
-                            ManualRoundState.IDLE
-                        )}
-                    </strong>
-                </div>
-
-                <div>
-                    <span>分析狀態</span>
-                    <strong>
-                        ${escapeHTML(
-                            analysis.state ??
-                            AnalysisState.IDLE
-                        )}
-                    </strong>
-                </div>
-
-                <div>
-                    <span>一致性</span>
-                    <strong class="${consistency.valid
-                        ? "positive"
-                        : "negative"}">
-                        ${consistency.valid
-                            ? "正常"
-                            : "異常"}
-                    </strong>
-                </div>
-
-            </div>
-
-        </section>
-
-    `;
-
-}
+    }
 
 
     renderHistoryPanel() {
 
         const rounds =
-            this.game.history
-                .lastRounds(
-                    this.ui.historyLimit
-                );
+            getHistoryRounds(
+                this.game,
+                this.ui.historyLimit
+            );
 
 
         return `
@@ -2522,7 +2855,7 @@ export class Dashboard {
                                             ? "selected"
                                             : ""}
                                 >
-                                    ${value} 局
+                                    ${value}
                                 </option>
 
                             `
@@ -2532,7 +2865,8 @@ export class Dashboard {
 
                 </div>
 
-                ${rounds.length === 0
+                ${rounds.length ===
+                    0
                     ? `
                         <p class="emptyText">
                             尚無牌局紀錄。
@@ -2542,19 +2876,12 @@ export class Dashboard {
                         <div class="historyRoad">
 
                             ${rounds.map(
-                                (
-                                    result,
-                                    index
-                                ) => `
+                                result => `
 
                                     <div
                                         class="historyItem ${getWinnerClass(
                                             result.winner
                                         )}"
-                                        title="第 ${this.game.roundCount -
-                                            rounds.length +
-                                            index +
-                                            1} 局"
                                     >
 
                                         <strong>
@@ -2573,7 +2900,8 @@ export class Dashboard {
                                                 ? "<span>B</span>"
                                                 : ""}
 
-                                            ${result.super6
+                                            ${result.super6 ||
+                                            result.super
                                                 ? "<span>6</span>"
                                                 : ""}
 
@@ -2596,14 +2924,18 @@ export class Dashboard {
 
     renderRoadmapPanel() {
 
-        const viewModel =
-            this.game
-                .roadmapViewModel;
-
         const roads =
-            viewModel?.roads ??
-            viewModel ??
+            this.game.roadmapViewModel
+                ?.roads ??
+            this.game.roadMatrices ??
             {};
+
+        const active =
+            this.ui.activeRoad;
+
+        const matrix =
+            roads[active] ??
+            [];
 
 
         return `
@@ -2619,14 +2951,10 @@ export class Dashboard {
                         </p>
 
                         <h2>
-                            五種路單
+                            路單
                         </h2>
 
                     </div>
-
-                    <span class="sectionValue">
-                        ${this.game.roundCount} 局
-                    </span>
 
                 </div>
 
@@ -2642,10 +2970,10 @@ export class Dashboard {
 
                             <button
                                 type="button"
-                                class="roadTab ${this.ui.activeRoad ===
-                                    key
-                                        ? "active"
-                                        : ""}"
+                                class="roadTab ${key ===
+                                    active
+                                    ? "active"
+                                    : ""}"
                                 data-action="select-road"
                                 data-road="${key}"
                             >
@@ -2657,16 +2985,9 @@ export class Dashboard {
 
                 </div>
 
-                ${this.renderRoad(
-                    roads[
-                        this.ui.activeRoad
-                    ] ??
-                    this.game
-                        .roadMatrices[
-                            this.ui.activeRoad
-                        ] ??
-                    null,
-                    this.ui.activeRoad
+                ${this.renderRoadMatrix(
+                    matrix,
+                    active
                 )}
 
             </section>
@@ -2676,37 +2997,82 @@ export class Dashboard {
     }
 
 
-    renderRoad(
-        road,
+    renderRoadMatrix(
+        matrix,
         roadName
     ) {
 
-        const matrix =
-
-            road?.matrix ??
-
-            road?.grid ??
-
-            road;
-
-
         if (
-            !Array.isArray(matrix) ||
-            matrix.length === 0
+            !Array.isArray(
+                matrix
+            ) ||
+            matrix.length ===
+                0
         ) {
 
             return `
 
-                <div class="roadEmpty">
-                    尚無${escapeHTML(
+                <p class="emptyText">
+                    ${escapeHTML(
                         ROAD_LABELS[
                             roadName
                         ] ??
-                        "路單"
-                    )}資料。
-                </div>
+                        roadName
+                    )}尚無資料。
+                </p>
 
             `;
+
+        }
+
+
+        const rows =
+            matrix.length;
+
+        const columns =
+            Math.max(
+                0,
+                ...matrix.map(
+                    row =>
+                        Array.isArray(
+                            row
+                        )
+                            ? row.length
+                            : 0
+                )
+            );
+
+
+        const cells =
+            [];
+
+        for (
+            let column = 0;
+            column < columns;
+            column++
+        ) {
+
+            for (
+                let row = 0;
+                row < rows;
+                row++
+            ) {
+
+                const cell =
+                    matrix[row]?.[
+                        column
+                    ] ??
+                    null;
+
+                cells.push(
+                    this.renderRoadCell(
+                        cell,
+                        row,
+                        column
+                    )
+                );
+
+            }
 
         }
 
@@ -2716,49 +3082,13 @@ export class Dashboard {
             <div class="roadViewport">
 
                 <div
-                    class="roadGrid"
+                    class="roadMatrix"
                     style="
-                        --road-columns: ${Math.max(
-                            ...matrix.map(
-                                row =>
-                                    Array.isArray(row)
-                                        ? row.length
-                                        : 0
-                            ),
-                            1
-                        )};
+                        --road-rows: ${rows};
+                        --road-columns: ${columns};
                     "
                 >
-
-                    ${matrix.map(
-                        (
-                            row,
-                            rowIndex
-                        ) => {
-
-                            if (
-                                !Array.isArray(row)
-                            ) {
-
-                                return "";
-
-                            }
-
-                            return row.map(
-                                (
-                                    cell,
-                                    columnIndex
-                                ) =>
-                                    this.renderRoadCell(
-                                        cell,
-                                        rowIndex,
-                                        columnIndex
-                                    )
-                            ).join("");
-
-                        }
-                    ).join("")}
-
+                    ${cells.join("")}
                 </div>
 
             </div>
@@ -2789,119 +3119,63 @@ export class Dashboard {
         }
 
 
-        const value =
-
+        const winner =
             cell.winner ??
-
-            cell.color ??
-
-            cell.value ??
-
             cell.result ??
-
-            cell;
-
+            cell.value ??
+            cell.color ??
+            "";
 
         const normalized =
-            String(value)
-                .toLowerCase();
+            String(
+                winner
+            ).toLowerCase();
 
-
-        const cssClass =
-
+        const className =
             normalized.includes(
                 "player"
             ) ||
-            normalized === "p"
-
+            normalized ===
+                "p"
                 ? "player"
-
                 : normalized.includes(
                     "banker"
                 ) ||
-                normalized === "b"
-
+                normalized ===
+                    "b"
                     ? "banker"
-
                     : normalized.includes(
                         "tie"
                     ) ||
-                    normalized === "t"
-
+                    normalized ===
+                        "t"
                         ? "tie"
-
-                        : normalized.includes(
-                            "red"
-                        )
-
-                            ? "red"
-
-                            : normalized.includes(
-                                "blue"
-                            )
-
-                                ? "blue"
-
-                                : "";
-
-
-        const label =
-
-            cssClass === "player"
-
-                ? "閒"
-
-                : cssClass === "banker"
-
-                    ? "莊"
-
-                    : cssClass === "tie"
-
-                        ? "和"
-
-                        : cssClass === "red"
-
-                            ? "●"
-
-                            : cssClass === "blue"
-
-                                ? "●"
-
-                                : String(value);
+                        : "derived";
 
 
         return `
 
             <div
-                class="roadCell ${cssClass}"
+                class="roadCell ${className}"
                 data-row="${row}"
                 data-column="${column}"
                 title="${escapeHTML(
-                    String(value)
+                    getWinnerLabel(
+                        winner
+                    )
                 )}"
             >
 
                 <span>
-                    ${escapeHTML(label)}
+                    ${className ===
+                        "derived"
+                        ? ""
+                        : escapeHTML(
+                            getWinnerLabel(
+                                winner
+                            )
+                        )}
                 </span>
-
-                ${cell.playerPair
-                    ? '<i class="pairMark playerPair"></i>'
-                    : ""}
-
-                ${cell.bankerPair
-                    ? '<i class="pairMark bankerPair"></i>'
-                    : ""}
-
-                ${cell.tieCount
-                    ? `
-                        <b class="tieCount">
-                            ${escapeHTML(
-                                cell.tieCount
-                            )}
-                        </b>
-                    `
-                    : ""}
 
             </div>
 
@@ -2909,18 +3183,60 @@ export class Dashboard {
 
     }
 
+
+    get summary() {
+
+        return {
+
+            mounted:
+                Boolean(
+                    this.root
+                ),
+
+            busy:
+                this.ui.busy,
+
+            state:
+                this.game.state,
+
+            manualState:
+                this.game.manualState,
+
+            burnConfirmed:
+                Boolean(
+                    this.game
+                        .burnConfirmed
+                ),
+
+            roundCount:
+                this.game.roundCount ??
+                0,
+
+            activeRoad:
+                this.ui.activeRoad,
+
+            historyLimit:
+                this.ui.historyLimit,
+
+            hasAnalysis:
+                Boolean(
+                    this.game
+                        .nextAnalysis
+                ),
+
+            quickCardMounted:
+                Boolean(
+                    this.components
+                        .quickCardInput
+                )
+
+        };
+
+    }
+
 }
 
 
-/**
- * 預設匯出使用工廠函式。
- *
- * 可同時支援：
- *
- * dashboard({ root })
- *
- * new dashboard({ root })
- */
 export default function createDashboard(
     options = {}
 ) {
