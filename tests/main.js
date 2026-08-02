@@ -77,13 +77,13 @@ const TESTS = [
         id: "big-eye-road",
         name: "Big Eye Road",
         run: bigEyeRoadTest
-    }
+    },
 
     {
         id: "small-road",
         name: "Small Road",
         run: smallRoadTest
-    },
+    }
 
 ];
 const elements = {
