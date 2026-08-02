@@ -301,10 +301,22 @@ export class QuickCardInput {
 
         }
 
-        if (
+        const remaining =
             this.getRankCount(
                 rank
-            ) <= 0
+            );
+
+        /*
+         * 沒有提供 Shoe 計數 API 時，
+         * getRankCount() 會回傳 null。
+         *
+         * null <= 0 在 JavaScript 會被判定為 true，
+         * 因此必須先確認 remaining 不是 null，
+         * 否則測試 Mock 與簡化 Game 會無法選取點數。
+         */
+        if (
+            remaining !== null &&
+            remaining <= 0
         ) {
 
             return this;
