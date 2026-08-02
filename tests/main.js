@@ -43,6 +43,9 @@ import monteCarloTest
 import analyzerTest
     from "./analyzer.test.js";
 
+import workerAnalyzerTest
+    from "./workerAnalyzer.test.js";
+
 import beadRoadTest
     from "./beadRoad.test.js";
 
@@ -145,6 +148,17 @@ const TESTS = [
         id: "analyzer",
         name: "Analyzer",
         run: analyzerTest
+    },
+
+    {
+        id:
+            "worker-analyzer",
+
+        name:
+            "WorkerAnalyzer",
+
+        run:
+            workerAnalyzerTest
     },
 
     {
