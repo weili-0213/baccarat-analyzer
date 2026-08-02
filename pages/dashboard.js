@@ -1,12 +1,17 @@
 /**
- * Baccarat Analyzer V3
+ * Baccarat Analyzer V3.3 Final
  * pages/dashboard.js
  *
- * 單頁快速操作 Dashboard。
+ * Casino Dashboard Controller
+ *
+ * - 單頁快速操作
+ * - 手機三區切換
+ * - 自動花色／指定花色輸入
+ * - 快速／完整分析模式
+ * - History 與 Roadmap
  */
 
 import Game, {
-    GameState,
     ManualRoundState
 } from "../engine/game.js";
 
@@ -25,6 +30,8 @@ import RecommendationPanel
 import StatusPanel
     from "../components/StatusPanel.js";
 
+
+export const DASHBOARD_VERSION = "3.3.0";
 
 export const DashboardMode = AnalysisDisplayMode;
 
@@ -438,7 +445,7 @@ export class Dashboard {
 
         this.root.innerHTML = `
             <main
-                class="dashboardV3 dashboardV32"
+                class="dashboardV33"
                 data-mobile-section="${escapeHTML(this.ui.mobileSection)}"
             >
                 ${this.renderHeader()}
@@ -446,29 +453,29 @@ export class Dashboard {
                 ${this.components.statusPanel.render()}
                 ${this.renderMobileNavigation()}
 
-                <div class="v32CasinoGrid">
+                <div class="v33CasinoGrid">
                     <section
-                        class="v32InputZone"
-                        data-v32-section="input"
+                        class="v33InputZone"
+                        data-v33-section="input"
                     >
                         ${this.renderRoundPanel()}
                     </section>
 
                     <section
-                        class="v32InsightZone"
-                        data-v32-section="insight"
+                        class="v33InsightZone"
+                        data-v33-section="insight"
                     >
                         ${this.components.recommendationPanel.render()}
                         ${this.components.analysisPanel.render()}
                     </section>
 
-                    <aside class="v32HistoryZone">
+                    <aside class="v33HistoryZone">
                         ${this.renderHistoryPanel()}
                     </aside>
 
                     <section
-                        class="v32RoadZone"
-                        data-v32-section="roadmap"
+                        class="v33RoadZone"
+                        data-v33-section="roadmap"
                     >
                         ${this.renderRoadmapPanel()}
                     </section>
@@ -500,7 +507,7 @@ export class Dashboard {
         ];
 
         return `
-            <nav class="v32MobileNav" aria-label="手機 Dashboard 區域">
+            <nav class="v33MobileNav" aria-label="手機 Dashboard 區域">
                 ${items.map(item => `
                     <button
                         type="button"
@@ -537,7 +544,7 @@ export class Dashboard {
         return `
             <header class="v3Header dashboardCard">
                 <div>
-                    <small>BACCARAT ANALYZER V3</small>
+                    <small>BACCARAT ANALYZER V3.3</small>
                     <h1>百家樂分析儀</h1>
                 </div>
 
@@ -863,6 +870,7 @@ export class Dashboard {
             fastInput: true,
             keyboardShortcuts: true,
             autoSuit: this.ui.quickInputMode === QuickInputMode.AUTO,
+            version: DASHBOARD_VERSION,
             casinoLayout: true,
             mobileSection: this.ui.mobileSection
         };
