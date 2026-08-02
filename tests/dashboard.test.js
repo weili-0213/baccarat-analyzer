@@ -69,7 +69,19 @@ function selectBurn(root, rank, suit) {
     suitSelect.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-async function addQuickCard(root, dashboard, rank, suit) {
+async function addQuickCard(root, dashboard, rank) {
+    const rankButton = root.querySelector(`[data-quick-rank="${rank}"]`);
+    assert(rankButton, `缺少點數牌卡：${rank}`);
+
+    rankButton.click();
+    await waitReady(dashboard);
+}
+
+async function addPreciseCard(root, dashboard, rank, suit) {
+    const preciseButton = root.querySelector('[data-quick-mode="precise"]');
+    assert(preciseButton, "缺少指定花色模式按鈕");
+    preciseButton.click();
+
     const rankButton = root.querySelector(`[data-quick-rank="${rank}"]`);
     assert(rankButton, `缺少點數牌卡：${rank}`);
     rankButton.click();
@@ -156,57 +168,53 @@ export default async function dashboardTest() {
         messages.push("✓ QuickCardInput 掛載正確");
 
         /*
-         * V3.1 鍵盤快速輸牌：
-         * 9 → H 應自動加入 9♥。
+         * V3.3 鍵盤一鍵輸牌：
+         * 按 9 應自動選花色並立即加入。
          */
         window.dispatchEvent(new KeyboardEvent("keydown", {
             key: "9",
             bubbles: true
         }));
 
-        await nextTick();
-
-        assert(
-            dashboard.components.quickCardInput?.selectedRank === "9",
-            "鍵盤 9 應選取點數 9"
-        );
-
-        window.dispatchEvent(new KeyboardEvent("keydown", {
-            key: "h",
-            bubbles: true
-        }));
-
         await waitReady(dashboard);
 
-        assert(game.calls.addManualCard === 1, "鍵盤選完花色後未自動加入");
+        assert(game.calls.addManualCard === 1, "鍵盤 9 未自動加入");
         assert(game.manualCards[0]?.card.rank === "9", "鍵盤加入 Rank 錯誤");
-        assert(game.manualCards[0]?.card.suit === "H", "鍵盤加入 Suit 錯誤");
-        messages.push("✓ V3.1 鍵盤快速輸牌正確");
+        assert(game.manualCards[0]?.card.suit, "自動花色未產生");
+        messages.push("✓ V3.3 鍵盤一鍵輸牌正確");
 
         await clickAction(root, dashboard, "undo-card");
 
         const clickInputCallsBefore =
             game.calls.addManualCard;
 
-        await addQuickCard(root, dashboard, "9", "H");
+        await addQuickCard(root, dashboard, "9");
 
         assert(
             game.calls.addManualCard ===
                 clickInputCallsBefore + 1,
-            "選完花色後未自動加入"
+            "點數牌卡未一鍵自動加入"
         );
 
         assert(game.manualCards.length === 1, "牌面未加入");
-        assert(root.textContent.includes("9♥"), "加入牌面未顯示");
-        messages.push("✓ 點數＋花色自動加入正確");
+        assert(game.manualCards[0]?.card.rank === "9", "一鍵加入點數錯誤");
+        messages.push("✓ 點數一鍵自動花色正確");
+
+        await clickAction(root, dashboard, "undo-card");
+
+        await addPreciseCard(root, dashboard, "8", "D");
+
+        assert(game.manualCards[0]?.card.rank === "8", "指定花色 Rank 錯誤");
+        assert(game.manualCards[0]?.card.suit === "D", "指定花色 Suit 錯誤");
+        messages.push("✓ 指定花色模式正確");
 
         await clickAction(root, dashboard, "undo-card");
         assert(game.manualCards.length === 0, "復原失敗");
 
-        await addQuickCard(root, dashboard, "9", "H");
-        await addQuickCard(root, dashboard, "5", "D");
-        await addQuickCard(root, dashboard, "K", "C");
-        await addQuickCard(root, dashboard, "2", "S");
+        await addQuickCard(root, dashboard, "9");
+        await addQuickCard(root, dashboard, "5");
+        await addQuickCard(root, dashboard, "K");
+        await addQuickCard(root, dashboard, "2");
 
         assert(game.canFinishManualRound === true, "四張牌後應可確認");
         assert(dashboard.components.quickCardInput === null, "完成輸牌後應卸載 QuickCardInput");
@@ -227,6 +235,7 @@ export default async function dashboardTest() {
         assert(summary.mounted === true, "summary.mounted 錯誤");
         assert(summary.roundCount === 1, "summary.roundCount 錯誤");
         assert(summary.hasAnalysis === true, "summary.hasAnalysis 錯誤");
+        assert(summary.autoSuit === true, "summary.autoSuit 錯誤");
         assert(summary.casinoLayout === true, "summary.casinoLayout 錯誤");
         assert(summary.mobileSection === "input", "summary.mobileSection 錯誤");
         messages.push("✓ summary 正確");
@@ -246,7 +255,9 @@ Dashboard V3 測試完成
 4 花色牌卡：通過
 自動加入：通過
 單頁版面：通過
-鍵盤快速輸牌：通過
+鍵盤一鍵輸牌：通過
+自動花色：通過
+指定花色模式：通過
 Casino Grid：通過
 手機三區切換：通過
 `;
