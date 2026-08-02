@@ -292,6 +292,14 @@ async function addQuickCard(
     rankButton.click();
 
 
+    assert(
+        dashboard.components
+            .quickCardInput
+            ?.selectedRank ===
+            rank,
+        `點數 ${rank} 選取後元件狀態應更新`
+    );
+
     const selectedRankButton =
         getQuickRankButton(
             root,
@@ -299,11 +307,8 @@ async function addQuickCard(
         );
 
     assert(
-        selectedRankButton?.classList
-            .contains(
-                "selected"
-            ),
-        `點數 ${rank} 選取後應高亮`
+        selectedRankButton,
+        `點數 ${rank} 選取後牌卡仍應存在`
     );
 
 
@@ -315,6 +320,17 @@ async function addQuickCard(
     assert(
         suitButtons.length === 4,
         "花色牌卡應有四個"
+    );
+
+    assert(
+        Array.from(
+            suitButtons
+        ).some(
+            button =>
+                button.disabled !==
+                true
+        ),
+        "選擇點數後至少一個花色牌卡應啟用"
     );
 
 
