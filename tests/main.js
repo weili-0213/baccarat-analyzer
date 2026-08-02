@@ -28,6 +28,9 @@ import beadRoadTest
 import bigRoadTest
     from "./bigRoad.test.js";
 
+import bigEyeRoadTest
+    from "./bigEyeRoad.test.js";
+
 
 /**
  * 新增測試時，只需：
@@ -65,10 +68,15 @@ const TESTS = [
         id: "big-road",
         name: "Big Road",
         run: bigRoadTest
+    },
+
+    {
+        id: "big-eye-road",
+        name: "Big Eye Road",
+        run: bigEyeRoadTest
     }
 
 ];
-
 const elements = {
 
     results:
