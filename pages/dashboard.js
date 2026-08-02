@@ -2385,82 +2385,92 @@ export class Dashboard {
 
     renderShoeStatusPanel() {
 
-        const analysis =
-            this.game.analysisSummary;
+    const analysis =
+        this.game.analysisSummary ??
+        {
+            state:
+                AnalysisState.IDLE
+        };
+
+    const consistency =
+        this.game
+            .validateConsistency?.() ??
+        {
+            valid:
+                true
+        };
 
 
-        return `
+    return `
 
-            <section class="dashboardCard statusPanel">
+        <section class="dashboardCard statusPanel">
 
-                <div class="sectionHeader">
+            <div class="sectionHeader">
 
-                    <div>
+                <div>
 
-                        <p class="sectionEyebrow">
-                            STATUS
-                        </p>
+                    <p class="sectionEyebrow">
+                        STATUS
+                    </p>
 
-                        <h2>
-                            系統狀態
-                        </h2>
-
-                    </div>
-
-                </div>
-
-                <div class="statusList">
-
-                    <div>
-                        <span>牌靴狀態</span>
-                        <strong>
-                            ${escapeHTML(
-                                this.game.state
-                            )}
-                        </strong>
-                    </div>
-
-                    <div>
-                        <span>牌局輸入</span>
-                        <strong>
-                            ${escapeHTML(
-                                this.game
-                                    .manualState
-                            )}
-                        </strong>
-                    </div>
-
-                    <div>
-                        <span>分析狀態</span>
-                        <strong>
-                            ${escapeHTML(
-                                analysis.state
-                            )}
-                        </strong>
-                    </div>
-
-                    <div>
-                        <span>一致性</span>
-                        <strong class="${this.game
-                            .validateConsistency()
-                            .valid
-                                ? "positive"
-                                : "negative"}">
-                            ${this.game
-                                .validateConsistency()
-                                .valid
-                                    ? "正常"
-                                    : "異常"}
-                        </strong>
-                    </div>
+                    <h2>
+                        系統狀態
+                    </h2>
 
                 </div>
 
-            </section>
+            </div>
 
-        `;
+            <div class="statusList">
 
-    }
+                <div>
+                    <span>牌靴狀態</span>
+                    <strong>
+                        ${escapeHTML(
+                            this.game.state ??
+                            GameState.READY
+                        )}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>牌局輸入</span>
+                    <strong>
+                        ${escapeHTML(
+                            this.game.manualState ??
+                            ManualRoundState.IDLE
+                        )}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>分析狀態</span>
+                    <strong>
+                        ${escapeHTML(
+                            analysis.state ??
+                            AnalysisState.IDLE
+                        )}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>一致性</span>
+                    <strong class="${consistency.valid
+                        ? "positive"
+                        : "negative"}">
+                        ${consistency.valid
+                            ? "正常"
+                            : "異常"}
+                    </strong>
+                </div>
+
+            </div>
+
+        </section>
+
+    `;
+
+}
 
 
     renderHistoryPanel() {
