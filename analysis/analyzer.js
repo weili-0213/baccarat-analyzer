@@ -2089,9 +2089,23 @@ export default class Analyzer {
                 shoe.remaining,
 
             /**
-             * 實體牌靴剩餘數量。
+             * 舊版相容
+             */
+            remainingCards:
+                shoe.observableRemaining ??
+                shoe.remaining,
+
+            /**
+             * 實體牌數
              */
             physicalRemaining:
+                shoe.physicalRemaining ??
+                shoe.remaining,
+
+            /**
+             * 舊版相容
+             */
+            remainingPhysicalCards:
                 shoe.physicalRemaining ??
                 shoe.remaining,
 
@@ -2101,8 +2115,15 @@ export default class Analyzer {
 
             roundCount:
                 this.context.roundCount ??
-                this.context.history
-                    ?.count ??
+                this.context.history?.count ??
+                0,
+
+            /**
+             * 舊版相容
+             */
+            rounds:
+                this.context.roundCount ??
+                this.context.history?.count ??
                 0,
 
             durationMs:
@@ -2417,6 +2438,25 @@ export default class Analyzer {
                 this.context.history
                     ?.count ??
                 0
+
+            remainingCards:
+                this.context.shoe
+                    ?.observableRemaining ??
+                this.context.shoe
+                    ?.remaining ??
+                0,
+
+            remainingPhysicalCards:
+                this.context.shoe
+                    ?.physicalRemaining ??
+                this.context.shoe
+                    ?.remaining ??
+                0,
+
+            rounds:
+                this.context.history
+                    ?.count ??
+                0,
 
         };
 
