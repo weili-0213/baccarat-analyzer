@@ -43,6 +43,9 @@ import roadmapAnalyzerTest
 import gameTest
     from "./game.test.js";
 
+import roadmapComponentTest
+    from "./roadmapComponent.test.js";
+
 
 /**
  * 新增測試時，只需：
@@ -110,6 +113,12 @@ const TESTS = [
         id: "roadmap-analyzer",
         name: "Roadmap Analyzer",
         run: roadmapAnalyzerTest
+    },
+
+    {
+        id: "roadmap-component",
+        name: "Roadmap Component",
+        run: roadmapComponentTest
     }
 
 ];
