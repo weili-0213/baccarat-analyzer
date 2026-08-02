@@ -40,6 +40,9 @@ import Game, {
     AnalysisState
 } from "../engine/game.js";
 
+import createQuickCardInput
+    from "../components/QuickCardInput.js";
+
 
 const RANKS = Object.freeze([
 
