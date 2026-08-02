@@ -13,6 +13,9 @@
  * - 顯示錯誤訊息
  */
 
+import cardTest
+    from "./card.test.js";
+
 import burnTest
     from "./burn.test.js";
 
@@ -66,6 +69,12 @@ import roadmapComponentTest
  * 2. 加入 TESTS 陣列
  */
 const TESTS = [
+
+    {
+        id: "card",
+        name: "Card",
+        run: cardTest
+    },
 
     {
         id: "burn",
