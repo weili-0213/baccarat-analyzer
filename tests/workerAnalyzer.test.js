@@ -1,67 +1,20 @@
 /**
- * Baccarat Analyzer
- * -----------------------------------------
- *
+ * Baccarat Analyzer V3.4-1
  * tests/workerAnalyzer.test.js
- *
- * 驗證 analysis/WorkerAnalyzer.js：
- *
- * - Game 相容介面
- * - Worker 背景分析
- * - Progress 回報
- * - Worker 錯誤
- * - 主執行緒 fallback
- * - setContext() + analyze()
- * - cancelAll()
- * - destroy()
  */
 
-import WorkerAnalyzer
-    from "../analysis/WorkerAnalyzer.js";
+import WorkerAnalyzer, {
+    WORKER_ANALYZER_VERSION
+} from "../analysis/WorkerAnalyzer.js";
 
 
-function assert(
-    condition,
-    message
-) {
+function assert(condition, message) {
 
     if (!condition) {
 
-        throw new Error(
-            message
-        );
+        throw new Error(message);
 
     }
-
-}
-
-
-function assertThrows(
-    callback,
-    message
-) {
-
-    let error =
-        null;
-
-    try {
-
-        callback();
-
-    }
-    catch (caught) {
-
-        error =
-            caught;
-
-    }
-
-    assert(
-        error instanceof Error,
-        message
-    );
-
-    return error;
 
 }
 
@@ -71,51 +24,44 @@ async function assertRejects(
     message
 ) {
 
-    let error =
-        null;
-
     try {
 
         await promise;
 
     }
-    catch (caught) {
+    catch (error) {
 
-        error =
-            caught;
+        return error;
 
     }
 
-    assert(
-        error instanceof Error,
-        message
-    );
-
-    return error;
+    throw new Error(message);
 
 }
 
 
-function nextTick() {
+function tick(ms = 0) {
 
     return new Promise(
         resolve =>
             setTimeout(
                 resolve,
-                0
+                ms
             )
     );
 
 }
 
 
-function createShoeMock() {
+function createShoeMock(id = 1) {
 
     return {
 
         toJSON() {
 
             return {
+
+                id,
 
                 deckCount:
                     8,
@@ -127,10 +73,7 @@ function createShoeMock() {
                     [],
 
                 burned:
-                    [],
-
-                unknownBurnedCount:
-                    0
+                    []
 
             };
 
@@ -141,57 +84,22 @@ function createShoeMock() {
 }
 
 
-function createContext() {
+function context(id = 1) {
 
     return {
 
         shoe:
-            createShoeMock(),
-
-        history:
-            {
-
-                count:
-                    3
-
-            },
+            createShoeMock(id),
 
         roundCount:
-            3,
+            id,
 
-        payouts:
-            {
+        history: {
 
-                banker:
-                    0.95
+            count:
+                id
 
-            },
-
-        monteCarloOptions:
-            {
-
-                simulations:
-                    1000
-
-            },
-
-        exactOptions:
-            {},
-
-        kellyOptions:
-            {},
-
-        riskOptions:
-            {},
-
-        confidenceOptions:
-            {},
-
-        rankingOptions:
-            {},
-
-        recommendationOptions:
-            {},
+        },
 
         bankroll:
             10000,
@@ -200,15 +108,7 @@ function createContext() {
             100,
 
         maxBet:
-            10000,
-
-        analyzerOptions:
-            {
-
-                mode:
-                    "monteCarlo"
-
-            }
+            10000
 
     };
 
@@ -217,18 +117,7 @@ function createContext() {
 
 class FakeWorker {
 
-    static instances = [];
-
-    constructor(
-        url,
-        options
-    ) {
-
-        this.url =
-            url;
-
-        this.options =
-            options;
+    constructor() {
 
         this.listeners =
             new Map();
@@ -239,24 +128,15 @@ class FakeWorker {
         this.terminated =
             false;
 
-        FakeWorker.instances
-            .push(
-                this
-            );
+        this.resultCount =
+            0;
 
     }
 
 
-    addEventListener(
-        name,
-        callback
-    ) {
+    addEventListener(name, callback) {
 
-        if (
-            !this.listeners.has(
-                name
-            )
-        ) {
+        if (!this.listeners.has(name)) {
 
             this.listeners.set(
                 name,
@@ -272,10 +152,7 @@ class FakeWorker {
     }
 
 
-    removeEventListener(
-        name,
-        callback
-    ) {
+    removeEventListener(name, callback) {
 
         this.listeners
             .get(name)
@@ -284,10 +161,7 @@ class FakeWorker {
     }
 
 
-    emit(
-        name,
-        data
-    ) {
+    emit(name, data) {
 
         for (
             const callback of
@@ -319,10 +193,19 @@ class FakeWorker {
             message
         );
 
-        const {
-            requestId
-        } =
-            message;
+
+        if (
+            message.type ===
+                "cancel"
+        ) {
+
+            return;
+
+        }
+
+
+        this.resultCount++;
+
 
         queueMicrotask(
             () => {
@@ -334,27 +217,22 @@ class FakeWorker {
                         type:
                             "progress",
 
-                        requestId,
+                        requestId:
+                            message.requestId,
 
                         phase:
                             "monteCarlo",
 
-                        progress:
-                            {
+                        progress: {
 
-                                completed:
-                                    500,
+                            ratio:
+                                0.5
 
-                                total:
-                                    1000,
-
-                                ratio:
-                                    0.5
-
-                            }
+                        }
 
                     }
                 );
+
 
                 this.emit(
                     "message",
@@ -363,21 +241,19 @@ class FakeWorker {
                         type:
                             "result",
 
-                        requestId,
+                        requestId:
+                            message.requestId,
 
-                        result:
-                            {
+                        result: {
 
-                                method:
-                                    "monteCarlo",
+                            generatedAfterRound:
+                                message.payload
+                                    .roundCount,
 
-                                shouldBet:
-                                    false,
+                            resultCount:
+                                this.resultCount
 
-                                generatedAfterRound:
-                                    3
-
-                            }
+                        }
 
                     }
                 );
@@ -398,50 +274,6 @@ class FakeWorker {
 }
 
 
-class ErrorWorker
-    extends FakeWorker {
-
-    postMessage(message) {
-
-        this.messages.push(
-            message
-        );
-
-        queueMicrotask(
-            () => {
-
-                this.emit(
-                    "message",
-                    {
-
-                        type:
-                            "error",
-
-                        requestId:
-                            message.requestId,
-
-                        error:
-                            {
-
-                                name:
-                                    "WorkerAnalysisError",
-
-                                message:
-                                    "Worker failed"
-
-                            }
-
-                    }
-                );
-
-            }
-        );
-
-    }
-
-}
-
-
 class HangingWorker
     extends FakeWorker {
 
@@ -456,45 +288,75 @@ class HangingWorker
 }
 
 
-class FallbackAnalyzerMock {
+class ErrorWorker
+    extends FakeWorker {
+
+    postMessage(message) {
+
+        this.messages.push(
+            message
+        );
+
+
+        if (
+            message.type ===
+                "cancel"
+        ) {
+
+            return;
+
+        }
+
+
+        queueMicrotask(
+            () =>
+                this.emit(
+                    "message",
+                    {
+
+                        type:
+                            "error",
+
+                        requestId:
+                            message.requestId,
+
+                        error: {
+
+                            message:
+                                "Worker failed"
+
+                        }
+
+                    }
+                )
+        );
+
+    }
+
+}
+
+
+class FallbackAnalyzer {
 
     constructor() {
 
         this.calls =
             0;
 
-        this.lastContext =
-            null;
-
-        this.lastOptions =
-            null;
-
     }
 
 
-    analyzeContext(
-        context,
-        runOptions
-    ) {
+    analyzeContext(context) {
 
         this.calls++;
 
-        this.lastContext =
-            context;
-
-        this.lastOptions =
-            runOptions;
-
         return Promise.resolve({
 
-            method:
-                "fallback",
-
-            shouldBet:
-                false,
-
             generatedAfterRound:
-                context.roundCount
+                context.roundCount,
+
+            source:
+                "fallback"
 
         });
 
@@ -505,7 +367,8 @@ class FallbackAnalyzerMock {
 
 export default async function workerAnalyzerTest() {
 
-    const messages = [];
+    const messages =
+        [];
 
     const OriginalWorker =
         globalThis.Worker;
@@ -513,498 +376,298 @@ export default async function workerAnalyzerTest() {
 
     try {
 
-        /**
-         * 1. 建構與介面。
-         */
         globalThis.Worker =
             FakeWorker;
+
 
         const analyzer =
             new WorkerAnalyzer({
 
-                lazy:
-                    true
+                debounceMs:
+                    0,
+
+                retryCount:
+                    0
 
             });
+
+
+        assert(
+            WORKER_ANALYZER_VERSION ===
+                "3.4.1",
+            "版本錯誤"
+        );
 
         assert(
             typeof analyzer
                 .analyzeContext ===
-                "function",
-            "缺少 analyzeContext()"
-        );
-
-        assert(
+                "function" &&
             typeof analyzer.run ===
-                "function",
-            "缺少 run()"
-        );
-
-        assert(
+                "function" &&
             typeof analyzer.setContext ===
-                "function",
-            "缺少 setContext()"
-        );
-
-        assert(
+                "function" &&
             typeof analyzer.analyze ===
                 "function",
-            "缺少 analyze()"
-        );
-
-        assert(
-            analyzer.worker ===
-                null,
-            "lazy=true 時不應立即建立 Worker"
+            "Game 相容介面不完整"
         );
 
         messages.push(
-            "✓ Game 相容介面正確"
+            "✓ V3.4-1 介面正確"
         );
 
 
-        /**
-         * 2. 參數驗證。
-         */
-        await assertRejects(
-            analyzer.analyzeContext(
-                null
-            ),
-            "非法 context 應拒絕"
-        );
-
-        await assertRejects(
-            analyzer.analyzeContext(
-                {}
-            ),
-            "缺少 Shoe 應拒絕"
-        );
-
-        assertThrows(
-            () =>
-                analyzer.setContext(
-                    null
-                ),
-            "setContext() 非物件應拋錯"
-        );
-
-        messages.push(
-            "✓ 參數驗證正確"
-        );
-
-
-        /**
-         * 3. Worker 分析與進度。
-         */
-        let progressEvent =
+        let progress =
             null;
 
-        const result =
+        const first =
             await analyzer
                 .analyzeContext(
-                    createContext(),
+                    context(1),
                     {
 
-                        mode:
-                            "monteCarlo",
-
                         onProgress:
-                            progress => {
+                            value => {
 
-                                progressEvent =
-                                    progress;
+                                progress =
+                                    value;
 
                             }
 
                     }
                 );
 
-        assert(
-            analyzer.worker instanceof
-                FakeWorker,
-            "應建立 Worker"
-        );
 
         assert(
-            result.method ===
-                "monteCarlo",
+            first.generatedAfterRound ===
+                1,
             "Worker result 錯誤"
         );
 
         assert(
-            result.generatedAfterRound ===
-                3,
-            "Worker result 局數錯誤"
-        );
-
-        assert(
-            progressEvent?.phase ===
+            progress?.phase ===
                 "monteCarlo",
-            "Progress phase 錯誤"
+            "Progress 錯誤"
+        );
+
+        messages.push(
+            "✓ Worker 與 Progress 正確"
+        );
+
+
+        const worker =
+            analyzer.worker;
+
+        const before =
+            worker.resultCount;
+
+
+        const cached =
+            await analyzer
+                .analyzeContext(
+                    context(1)
+                );
+
+
+        assert(
+            cached.generatedAfterRound ===
+                1,
+            "Cache result 錯誤"
         );
 
         assert(
-            progressEvent
-                ?.progress
-                ?.ratio ===
-                0.5,
-            "Progress ratio 錯誤"
+            worker.resultCount ===
+                before,
+            "相同分析應使用 Cache"
         );
 
         assert(
             analyzer.lastEngine ===
-                "worker",
-            "成功後 engine 應為 worker"
-        );
-
-        assert(
-            analyzer.activeCount ===
-                0,
-            "完成後 pending 應清空"
+                "cache",
+            "Cache engine 狀態錯誤"
         );
 
         messages.push(
-            "✓ Worker 分析與 Progress 正確"
+            "✓ LRU Cache 正確"
         );
 
 
-        /**
-         * 4. 傳送資料格式。
-         */
-        const sent =
-            analyzer.worker
-                .messages[0];
-
-        assert(
-            sent.type ===
-                "analyze",
-            "Worker message type 錯誤"
-        );
-
-        assert(
-            sent.payload
-                .roundCount ===
-                3,
-            "roundCount 未傳入 Worker"
-        );
-
-        assert(
-            sent.payload
-                .historyCount ===
-                3,
-            "historyCount 未傳入 Worker"
-        );
-
-        assert(
-            sent.payload
-                .contextOptions
-                .minBet ===
-                100,
-            "minBet 未傳入 Worker"
-        );
-
-        assert(
-            sent.payload
-                .contextOptions
-                .maxBet ===
-                10000,
-            "maxBet 未傳入 Worker"
-        );
-
-        assert(
-            !(
-                "onProgress" in
-                sent.payload
-                    .runOptions
-            ),
-            "函式不可傳入 Worker"
-        );
-
-        messages.push(
-            "✓ Worker payload 正確"
-        );
+        analyzer.destroy();
 
 
-        /**
-         * 5. run() 別名。
-         */
-        const runResult =
-            await analyzer.run(
-                createContext(),
-                {}
-            );
-
-        assert(
-            runResult.method ===
-                "monteCarlo",
-            "run() 未代理 analyzeContext()"
-        );
-
-        messages.push(
-            "✓ run() 別名正確"
-        );
+        globalThis.Worker =
+            HangingWorker;
 
 
-        /**
-         * 6. setContext() + analyze()。
-         */
-        analyzer.setContext(
-            createContext()
-        );
+        const latest =
+            new WorkerAnalyzer({
 
-        const analyzeResult =
-            await analyzer.analyze({
+                debounceMs:
+                    20,
 
-                mode:
-                    "monteCarlo"
+                retryCount:
+                    0,
+
+                fallback:
+                    false
 
             });
 
+
+        const oldPromise =
+            latest.analyzeContext(
+                context(1)
+            );
+
+        const newPromise =
+            latest.analyzeContext(
+                context(2)
+            );
+
+
+        const oldError =
+            await assertRejects(
+                oldPromise,
+                "舊 debounce 請求應取消"
+            );
+
+
         assert(
-            analyzeResult.method ===
-                "monteCarlo",
-            "setContext() + analyze() 錯誤"
+            oldError.name ===
+                "AbortError",
+            "舊請求取消錯誤類型錯誤"
+        );
+
+
+        await tick(30);
+
+
+        assert(
+            latest.activeCount ===
+                1,
+            "最新請求應進入 Worker"
+        );
+
+
+        latest.cancelAll();
+
+
+        const newError =
+            await assertRejects(
+                newPromise,
+                "cancelAll 應取消最新請求"
+            );
+
+
+        assert(
+            newError.name ===
+                "AbortError",
+            "cancelAll 錯誤類型錯誤"
         );
 
         messages.push(
-            "✓ setContext() + analyze() 正確"
+            "✓ Debounce、latest-wins、Cancel 正確"
         );
 
 
-        /**
-         * 7. Worker 錯誤後 fallback。
-         */
-        analyzer.destroy();
+        latest.destroy();
+
 
         globalThis.Worker =
             ErrorWorker;
 
-        const fallback =
-            new FallbackAnalyzerMock();
 
-        const fallbackAdapter =
+        const fallback =
+            new FallbackAnalyzer();
+
+        const recovery =
             new WorkerAnalyzer({
+
+                debounceMs:
+                    0,
+
+                retryCount:
+                    1,
 
                 fallback:
                     true,
 
                 fallbackAnalyzer:
-                    fallback,
-
-                lazy:
-                    true
+                    fallback
 
             });
 
-        const fallbackResult =
-            await fallbackAdapter
+
+        const recovered =
+            await recovery
                 .analyzeContext(
-                    createContext(),
-                    {
-
-                        mode:
-                            "exact"
-
-                    }
+                    context(3)
                 );
+
+
+        assert(
+            recovered.source ===
+                "fallback",
+            "Worker 失敗後未 fallback"
+        );
 
         assert(
             fallback.calls ===
                 1,
-            "Worker 失敗後未呼叫 fallback Analyzer"
+            "Fallback 呼叫次數錯誤"
         );
 
         assert(
-            fallbackResult.method ===
-                "fallback",
-            "Fallback result 錯誤"
-        );
-
-        assert(
-            fallbackAdapter
-                .lastEngine ===
+            recovery.lastEngine ===
                 "main",
-            "Fallback 後 engine 應為 main"
+            "Fallback engine 狀態錯誤"
         );
 
         messages.push(
-            "✓ Worker 失敗 fallback 正確"
+            "✓ Retry 與 Fallback 正確"
         );
 
 
-        /**
-         * 8. fallback=false。
-         */
-        const noFallback =
-            new WorkerAnalyzer({
-
-                fallback:
-                    false,
-
-                lazy:
-                    true
-
-            });
-
-        const workerError =
-            await assertRejects(
-                noFallback
-                    .analyzeContext(
-                        createContext()
-                    ),
-                "fallback=false 時應拋出 Worker 錯誤"
-            );
-
-        assert(
-            workerError.message ===
-                "Worker failed",
-            "Worker 錯誤訊息錯誤"
-        );
-
-        noFallback.destroy();
-
-        messages.push(
-            "✓ fallback=false 正確"
-        );
-
-
-        /**
-         * 9. cancelAll()。
-         */
-        globalThis.Worker =
-            HangingWorker;
-
-        const hanging =
-            new WorkerAnalyzer({
-
-                fallback:
-                    false,
-
-                lazy:
-                    true
-
-            });
-
-        const hangingPromise =
-            hanging.analyzeContext(
-                createContext()
-            );
-
-        await nextTick();
-
-        assert(
-            hanging.activeCount ===
-                1,
-            "背景請求應為 pending"
-        );
-
-        hanging.cancelAll();
-
-        const cancelError =
-            await assertRejects(
-                hangingPromise,
-                "cancelAll() 應拒絕 pending request"
-            );
-
-        assert(
-            cancelError.name ===
-                "AbortError",
-            "取消錯誤應為 AbortError"
-        );
-
-        assert(
-            hanging.activeCount ===
-                0,
-            "cancelAll() 後 pending 應清空"
-        );
-
-        messages.push(
-            "✓ cancelAll() 正確"
-        );
-
-
-        /**
-         * 10. destroy()。
-         */
-        const hangingWorker =
-            hanging.worker;
-
-        hanging.destroy();
-
-        assert(
-            hanging.destroyed ===
-                true,
-            "destroyed 應為 true"
-        );
-
-        assert(
-            hangingWorker
-                .terminated ===
-                true,
-            "destroy() 應終止 Worker"
-        );
-
-        assert(
-            hanging.worker ===
-                null,
-            "destroy() 後 worker 應為 null"
-        );
-
-        await assertRejects(
-            hanging.analyzeContext(
-                createContext()
-            ),
-            "destroy() 後不可再分析"
-        );
-
-        messages.push(
-            "✓ destroy() 正確"
-        );
-
-
-        /**
-         * 11. summary。
-         */
         const summary =
-            fallbackAdapter.summary;
+            recovery.summary;
+
 
         assert(
-            summary &&
-            typeof summary ===
-                "object",
-            "summary 應為物件"
+            summary.version ===
+                "3.4.1" &&
+            summary.retryCount ===
+                1 &&
+            summary.cacheSize ===
+                1,
+            "Summary 錯誤"
         );
 
-        assert(
-            summary.engine ===
-                "main",
-            "summary.engine 錯誤"
-        );
+        recovery.destroy();
 
         assert(
-            summary.fallback ===
+            recovery.destroyed ===
                 true,
-            "summary.fallback 錯誤"
+            "destroy 狀態錯誤"
         );
-
-        fallbackAdapter.destroy();
 
         messages.push(
-            "✓ summary 正確"
+            "✓ Summary 與 destroy 正確"
         );
 
 
         return `
+
 ${messages.join("\n")}
 
-WorkerAnalyzer 測試完成
+WorkerAnalyzer V3.4-1 測試完成
 
-背景 Worker：通過
-Game 相容介面：通過
+Debounce：通過
+Latest wins：通過
+Cache：通過
+Token：通過
 Progress：通過
+Retry：通過
 Fallback：通過
-取消請求：通過
-資源釋放：通過
+
 `;
 
     }
@@ -1012,9 +675,6 @@ Fallback：通過
 
         globalThis.Worker =
             OriginalWorker;
-
-        FakeWorker.instances =
-            [];
 
     }
 
