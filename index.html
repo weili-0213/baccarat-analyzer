@@ -1,4 +1,181 @@
-<link
-    rel="stylesheet"
-    href="./styles/home.css"
->
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, viewport-fit=cover"
+    >
+
+    <meta
+        name="theme-color"
+        content="#0b1320"
+    >
+
+    <meta
+        name="color-scheme"
+        content="light dark"
+    >
+
+    <meta
+        name="description"
+        content="Baccarat Analyzer：牌靴管理、機率分析、EV、下注建議與百家樂路單工具。"
+    >
+
+    <meta
+        name="application-name"
+        content="Baccarat Analyzer"
+    >
+
+    <meta
+        name="apple-mobile-web-app-capable"
+        content="yes"
+    >
+
+    <meta
+        name="apple-mobile-web-app-status-bar-style"
+        content="black-translucent"
+    >
+
+    <meta
+        name="apple-mobile-web-app-title"
+        content="Baccarat Analyzer"
+    >
+
+    <title>
+        Baccarat Analyzer
+    </title>
+
+    <link
+        rel="icon"
+        href="./favicon.ico"
+        sizes="any"
+    >
+
+    <link
+        rel="manifest"
+        href="./manifest.json"
+    >
+
+    <!-- 共用設計變數 -->
+    <link
+        rel="stylesheet"
+        href="./styles/variables.css"
+    >
+
+    <!-- 全站基礎樣式 -->
+    <link
+        rel="stylesheet"
+        href="./styles/main.css"
+    >
+
+    <!-- 共用元件樣式 -->
+    <link
+        rel="stylesheet"
+        href="./styles/components.css"
+    >
+
+    <!-- 首頁樣式 -->
+    <link
+        rel="stylesheet"
+        href="./styles/home.css"
+    >
+
+    <!-- 手機與小尺寸畫面 -->
+    <link
+        rel="stylesheet"
+        href="./styles/mobile.css"
+    >
+
+</head>
+
+<body>
+
+    <div
+        id="app"
+        class="appRoot"
+        aria-live="polite"
+    >
+
+        <div class="appBootScreen">
+
+            <div
+                class="appBootLogo"
+                aria-hidden="true"
+            >
+                BA
+            </div>
+
+            <h1>
+                Baccarat Analyzer
+            </h1>
+
+            <p>
+                正在載入應用程式…
+            </p>
+
+        </div>
+
+    </div>
+
+    <noscript>
+
+        <section class="noScriptMessage">
+
+            <h1>
+                需要啟用 JavaScript
+            </h1>
+
+            <p>
+                Baccarat Analyzer 必須啟用 JavaScript 才能運作。
+            </p>
+
+        </section>
+
+    </noscript>
+
+    <!-- 應用程式入口 -->
+    <script
+        type="module"
+        src="./app/app.js"
+    ></script>
+
+    <!-- PWA Service Worker -->
+    <script>
+
+        if (
+            "serviceWorker" in navigator
+        ) {
+
+            window.addEventListener(
+                "load",
+                () => {
+
+                    navigator.serviceWorker
+                        .register(
+                            "./service-worker.js"
+                        )
+                        .catch(
+                            error => {
+
+                                console.warn(
+                                    "Service Worker registration failed:",
+                                    error
+                                );
+
+                            }
+                        );
+
+                }
+            );
+
+        }
+
+    </script>
+
+</body>
+
+</html>
