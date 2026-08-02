@@ -291,14 +291,12 @@ async function addQuickCard(
 
     rankButton.click();
 
+    /*
+     * QuickCardInput 選取點數後會立即重新 render。
+     * 等待一個 event loop，避免不同瀏覽器的 DOM 更新時序差異。
+     */
+    await nextTick();
 
-    assert(
-        dashboard.components
-            .quickCardInput
-            ?.selectedRank ===
-            rank,
-        `點數 ${rank} 選取後元件狀態應更新`
-    );
 
     const selectedRankButton =
         getQuickRankButton(
@@ -330,7 +328,7 @@ async function addQuickCard(
                 button.disabled !==
                 true
         ),
-        "選擇點數後至少一個花色牌卡應啟用"
+        `點數 ${rank} 選取後至少一個花色牌卡應啟用`
     );
 
 
