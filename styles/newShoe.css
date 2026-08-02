@@ -1,1 +1,426 @@
+/**
+ * Baccarat Analyzer
+ * -----------------------------------------
+ *
+ * styles/newShoe.css
+ *
+ * 建立新牌靴精靈：
+ *
+ * - Mobile-first
+ * - 單手操作
+ * - 桌面雙欄
+ */
 
+.newShoePage {
+    min-height: 100vh;
+    background: #f4f7fb;
+    color: #182231;
+    padding-bottom: 96px;
+}
+
+.newShoeHeader {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding:
+        max(22px, env(safe-area-inset-top))
+        16px
+        26px;
+    background:
+        linear-gradient(
+            145deg,
+            #0b1320,
+            #17283e
+        );
+    color: #fff;
+}
+
+.newShoeBackButton {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    font-size: 1.25rem;
+    cursor: pointer;
+}
+
+.newShoeEyebrow {
+    margin: 0 0 6px;
+    color: inherit;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    opacity: 0.66;
+}
+
+.newShoeHeader h1 {
+    margin: 0;
+    font-size: clamp(1.8rem, 7vw, 3.2rem);
+    letter-spacing: -0.04em;
+}
+
+.newShoeHeader p:last-child {
+    margin: 8px 0 0;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.55;
+}
+
+.newShoeLayout {
+    width: min(100% - 20px, 980px);
+    margin: 14px auto 0;
+    display: grid;
+    gap: 14px;
+}
+
+.newShoeFormCard,
+.newShoeSummaryCard {
+    background: #fff;
+    border: 1px solid rgba(24, 34, 49, 0.08);
+    border-radius: 20px;
+    box-shadow: 0 12px 32px rgba(28, 44, 64, 0.08);
+}
+
+.newShoeFormCard {
+    padding: 16px;
+}
+
+.newShoeSummaryCard {
+    padding: 18px;
+}
+
+.newShoeSection + .newShoeSection {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid #e7ecf2;
+}
+
+.newShoeSectionHeader {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 12px;
+    align-items: start;
+    margin-bottom: 16px;
+}
+
+.newShoeStep {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: #1c3554;
+    color: #fff;
+    font-weight: 900;
+}
+
+.newShoeSectionHeader h2,
+.newShoeSummaryHeader h2 {
+    margin: 0;
+    font-size: 1.12rem;
+}
+
+.newShoeSectionHeader p {
+    margin: 5px 0 0;
+    color: #6f7d90;
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.newShoeDeckOptions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.newShoeDeckOption {
+    position: relative;
+    cursor: pointer;
+}
+
+.newShoeDeckOption input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.newShoeDeckOption span {
+    min-height: 78px;
+    display: grid;
+    place-items: center;
+    gap: 4px;
+    border: 2px solid #e1e7ef;
+    border-radius: 16px;
+    background: #f8fafc;
+    text-align: center;
+    transition:
+        border-color 150ms ease,
+        background 150ms ease,
+        transform 150ms ease;
+}
+
+.newShoeDeckOption small {
+    color: #748195;
+}
+
+.newShoeDeckOption input:checked + span {
+    border-color: #d7ad54;
+    background: #fff9e9;
+    color: #6b4b0c;
+}
+
+.newShoeDeckOption:active span {
+    transform: scale(0.98);
+}
+
+.newShoeBurnGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.newShoeBurnGrid label {
+    display: grid;
+    gap: 7px;
+}
+
+.newShoeBurnGrid label > span {
+    color: #667387;
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.newShoeBurnGrid select {
+    width: 100%;
+    min-height: 50px;
+    border: 1px solid #dbe3ed;
+    border-radius: 14px;
+    background: #fff;
+    color: #182231;
+    padding: 0 13px;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.newShoeCardPreview {
+    display: grid;
+    grid-template-columns: 66px 1fr;
+    align-items: center;
+    gap: 14px;
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 16px;
+    background:
+        linear-gradient(
+            145deg,
+            #f6f8fb,
+            #edf2f7
+        );
+}
+
+.newShoeCardPreview > span {
+    width: 66px;
+    height: 88px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #d9e0e9;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 8px 18px rgba(30, 43, 60, 0.08);
+    font-size: 1.45rem;
+    font-weight: 900;
+}
+
+.newShoeCardPreview > span.red {
+    color: #c92e42;
+}
+
+.newShoeCardPreview div {
+    display: grid;
+    gap: 5px;
+}
+
+.newShoeCardPreview small {
+    color: #6f7d90;
+}
+
+.newShoeSummaryHeader {
+    margin-bottom: 14px;
+}
+
+.newShoeSummaryHeader .newShoeEyebrow {
+    color: #6e7b8d;
+}
+
+.newShoeSummaryList {
+    margin: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.newShoeSummaryList > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid #eef2f6;
+}
+
+.newShoeSummaryList dt {
+    color: #6c7889;
+}
+
+.newShoeSummaryList dd {
+    margin: 0;
+    font-weight: 900;
+}
+
+.newShoeSummaryList .emphasis {
+    margin-top: 6px;
+    padding: 14px;
+    border: 0;
+    border-radius: 14px;
+    background: #edf6ff;
+    color: #1c5688;
+}
+
+.newShoeNotice {
+    margin-top: 16px;
+    border-radius: 14px;
+    padding: 14px;
+    background: #fff8e7;
+    color: #765612;
+}
+
+.newShoeNotice p {
+    margin: 6px 0 0;
+    font-size: 0.86rem;
+    line-height: 1.55;
+}
+
+.newShoeError {
+    margin-top: 16px;
+    border: 1px solid #efb4bc;
+    border-radius: 14px;
+    background: #fff1f3;
+    color: #a62336;
+    padding: 12px 14px;
+    font-weight: 800;
+}
+
+.newShoeActions {
+    position: fixed;
+    z-index: 30;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: minmax(100px, 0.8fr) minmax(180px, 1.4fr);
+    gap: 10px;
+    padding:
+        10px
+        12px
+        max(10px, env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(24, 34, 49, 0.1);
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(14px);
+}
+
+.newShoeButton {
+    min-height: 52px;
+    border: 0;
+    border-radius: 15px;
+    font-size: 0.94rem;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.newShoeButton.primary {
+    background:
+        linear-gradient(
+            145deg,
+            #d3a748,
+            #efd17f
+        );
+    color: #1b2430;
+}
+
+.newShoeButton.secondary {
+    background: #edf1f6;
+    color: #344256;
+}
+
+.newShoeButton:disabled {
+    opacity: 0.55;
+    cursor: wait;
+}
+
+@media (min-width: 760px) {
+
+    .newShoePage {
+        padding-bottom: 40px;
+    }
+
+    .newShoeHeader {
+        padding: 40px 24px 54px;
+    }
+
+    .newShoeHeader {
+        justify-content: center;
+    }
+
+    .newShoeHeader > * {
+        max-width: 980px;
+    }
+
+    .newShoeLayout {
+        grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+        align-items: start;
+        margin-top: -26px;
+        gap: 20px;
+    }
+
+    .newShoeFormCard,
+    .newShoeSummaryCard {
+        padding: 24px;
+    }
+
+    .newShoeSummaryCard {
+        position: sticky;
+        top: 20px;
+    }
+
+    .newShoeActions {
+        position: static;
+        width: min(100% - 20px, 980px);
+        margin: 20px auto 0;
+        grid-template-columns: 160px 240px;
+        justify-content: end;
+        border: 0;
+        background: transparent;
+        backdrop-filter: none;
+        padding: 0;
+    }
+
+}
+
+@media (max-width: 420px) {
+
+    .newShoeLayout {
+        width: min(100% - 14px, 980px);
+    }
+
+    .newShoeFormCard,
+    .newShoeSummaryCard {
+        border-radius: 16px;
+    }
+
+    .newShoeBurnGrid {
+        grid-template-columns: 1fr;
+    }
+
+}
