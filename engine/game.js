@@ -2,35 +2,36 @@
  * Baccarat Analyzer
  * -----------------------------------------
  *
- * Game v4
+ * Game Controller v2
  *
- * 百家樂遊戲主控制器
+ * 真人百家樂主控制器
  *
- * 正式操作流程：
+ * 正式流程：
  *
  * 1. 建立新牌靴
  * 2. 等待手動輸入燒牌指示牌
- * 3. 記錄未知燒牌張數
- * 4. 手動輸入荷官已發出的牌
- * 5. 完成本局
- * 6. 更新 History
- * 7. 更新 Roadmap
- * 8. 分析下一局概率、EV 與下注建議
+ * 3. 扣除公開指示牌並記錄未知燒牌張數
+ * 4. 開始輸入荷官已發出的牌
+ * 5. 依規則提示 Player / Banker 第三張
+ * 6. 確認本局
+ * 7. 更新 History
+ * 8. 更新五種路單
+ * 9. 分析下一局所有下注選項
+ * 10. 顯示概率、EV 與下注建議
  *
  * 注意：
  *
- * - 不自動判斷停牌卡
- * - 不自動更換牌靴
- * - 不自動替荷官發牌
- * - 未知燒牌只記錄張數，不虛構牌面
+ * - 不自動發牌
+ * - 不自動偵測停牌卡
+ * - 看到停牌卡後，由使用者按「開始新牌靴」
+ * - 隱藏燒牌只記錄數量，不虛構牌面
  */
 
 import Shoe
     from "./shoe.js";
 
-import Burn, {
-    BurnState
-} from "./burn.js";
+import Burn
+    from "./burn.js";
 
 import Dealer
     from "./dealer.js";
@@ -63,52 +64,28 @@ import Analyzer
 
 
 /**
- * 遊戲整體狀態
+ * Game 整體狀態
  */
 export const GameState =
     Object.freeze({
 
-        /**
-         * 尚未建立牌靴。
-         */
         READY:
             "READY",
 
-        /**
-         * 新牌靴已建立，
-         * 等待輸入燒牌指示牌。
-         */
         WAITING_BURN_INDICATOR:
             "WAITING_BURN_INDICATOR",
 
-        /**
-         * 燒牌程序已確認，
-         * 可以開始輸入牌局。
-         */
         SHOE_ACTIVE:
             "SHOE_ACTIVE",
 
-        /**
-         * 正在輸入荷官已發出的牌。
-         */
         ROUND_INPUT:
             "ROUND_INPUT",
 
-        /**
-         * 本局已完成，
-         * 正在分析下一局。
-         */
         ANALYZING:
             "ANALYZING",
 
-        /**
-         * 發生無法繼續使用的狀態。
-         *
-         * 一般情況不會自動進入，
-         * 停牌卡仍由使用者手動開始新牌靴。
-         */
-        SHOE_FINISHED:
-            "SHOE_FINISHED"
+        ERROR:
+            "ERROR"
 
     });
 
@@ -156,7 +133,7 @@ export const HandSide =
 
 
 /**
- * 下一局分析狀態
+ * 分析狀態
  */
 export const AnalysisState =
     Object.freeze({
@@ -179,51 +156,39 @@ export const AnalysisState =
 const DEFAULT_OPTIONS =
     Object.freeze({
 
-        deckCount: 8,
+        deckCount:
+            8,
+
+        autoShuffle:
+            true,
 
         /**
-         * 新牌靴建立後是否洗牌。
-         *
-         * 正式使用建議為 true。
+         * 燒牌完成後是否先分析第一局。
          */
-        autoShuffle: true,
+        analyzeAfterBurn:
+            true,
 
         /**
-         * 是否在完成一局後自動分析下一局。
+         * 每局完成後是否自動分析下一局。
          */
-        autoAnalyze: true,
+        analyzeAfterRound:
+            true,
 
-        /**
-         * 若分析失敗，
-         * 是否仍保留已完成的牌局。
-         */
-        preserveRoundOnAnalysisError: true,
+        beadRows:
+            6,
 
-        beadRows: 6,
+        bigRoadRows:
+            6,
 
-        bigRoadRows: 6,
+        derivedRows:
+            6,
 
-        derivedRows: 6,
-
-        /**
-         * 實體安全限制。
-         *
-         * 不用來判斷停牌卡，
-         * 只防止牌靴真的沒有牌時仍輸入。
-         */
-        minimumPhysicalCards: 1,
-
-        /**
-         * 傳給 Analyzer 的額外設定。
-         */
-        analyzerOptions: {}
+        analyzerOptions:
+            Object.freeze({})
 
     });
 
 
-/**
- * 判斷一般物件
- */
 function isObject(value) {
 
     return (
@@ -240,9 +205,6 @@ function isObject(value) {
 }
 
 
-/**
- * 深度複製可序列化資料
- */
 function clonePlainData(value) {
 
     if (
@@ -256,7 +218,7 @@ function clonePlainData(value) {
 
     if (
         typeof structuredClone ===
-        "function"
+            "function"
     ) {
 
         try {
@@ -268,7 +230,7 @@ function clonePlainData(value) {
         }
         catch {
 
-            // 繼續使用 JSON 備援。
+            // 使用 JSON 備援。
         }
 
     }
@@ -292,6 +254,14 @@ function clonePlainData(value) {
 export default class Game {
 
     constructor(options = {}) {
+
+        if (!isObject(options)) {
+
+            throw new TypeError(
+                "Game options must be an object."
+            );
+
+        }
 
         this.options = {
 
@@ -334,12 +304,13 @@ export default class Game {
 
         this.analyzer =
             this.createAnalyzer(
-                options.analyzer
+                options.analyzer ??
+                null
             );
 
 
         /**
-         * 遊戲狀態
+         * Game 狀態
          */
         this.state =
             GameState.READY;
@@ -350,11 +321,11 @@ export default class Game {
 
         this.lastRoundAt = null;
 
-        this.lastResult = null;
+        this.lastError = null;
 
 
         /**
-         * 手動牌局
+         * 本局狀態
          */
         this.manualRound = null;
 
@@ -365,24 +336,26 @@ export default class Game {
 
         this.manualResult = null;
 
+        this.lastResult = null;
+
 
         /**
-         * 下一局分析
+         * 分析狀態
          */
         this.analysisState =
             AnalysisState.IDLE;
 
-        this.nextAnalysis = null;
+        this.analysisPromise = null;
 
         this.analysisError = null;
 
-        this.analysisPromise = null;
+        this.nextAnalysis = null;
 
         this.lastAnalysisAt = null;
 
 
         /**
-         * 建立第一個牌靴。
+         * 自動建立第一個牌靴。
          */
         this.startNewShoe();
 
@@ -394,9 +367,6 @@ export default class Game {
        ===================================== */
 
 
-    /**
-     * 驗證 Game 設定
-     */
     validateOptions() {
 
         if (
@@ -412,37 +382,13 @@ export default class Game {
 
         }
 
-
-        if (
-            !Number.isInteger(
-                this.options
-                    .minimumPhysicalCards
-            ) ||
-            this.options
-                .minimumPhysicalCards < 1
-        ) {
-
-            throw new RangeError(
-                "minimumPhysicalCards must be a positive integer."
-            );
-
-        }
-
-
-        const rowFields = [
-
-            "beadRows",
-
-            "bigRoadRows",
-
-            "derivedRows"
-
-        ];
-
-
         for (
             const field of
-            rowFields
+            [
+                "beadRows",
+                "bigRoadRows",
+                "derivedRows"
+            ]
         ) {
 
             if (
@@ -460,6 +406,27 @@ export default class Game {
 
         }
 
+        for (
+            const field of
+            [
+                "autoShuffle",
+                "analyzeAfterBurn",
+                "analyzeAfterRound"
+            ]
+        ) {
+
+            if (
+                typeof this.options[field] !==
+                "boolean"
+            ) {
+
+                throw new TypeError(
+                    `${field} must be boolean.`
+                );
+
+            }
+
+        }
 
         if (
             !isObject(
@@ -474,12 +441,11 @@ export default class Game {
 
         }
 
+        return true;
+
     }
 
 
-    /**
-     * 建立 Roadmap Analyzer
-     */
     createRoadmapAnalyzer() {
 
         return new RoadmapAnalyzer({
@@ -488,82 +454,62 @@ export default class Game {
                 this.options.beadRows,
 
             bigRoadRows:
-                this.options
-                    .bigRoadRows,
+                this.options.bigRoadRows,
 
             derivedRows:
-                this.options
-                    .derivedRows
+                this.options.derivedRows
 
         });
 
     }
 
 
-    /**
-     * 建立 Analyzer
-     *
-     * 可由外部傳入 Analyzer 實例，
-     * 方便測試或替換分析策略。
-     */
-    createAnalyzer(customAnalyzer) {
+    createAnalyzer(customAnalyzer = null) {
 
         if (customAnalyzer) {
+
+            const valid =
+
+                typeof customAnalyzer
+                    .analyzeContext ===
+                    "function" ||
+
+                typeof customAnalyzer
+                    .run ===
+                    "function" ||
+
+                (
+                    typeof customAnalyzer
+                        .setContext ===
+                        "function" &&
+
+                    typeof customAnalyzer
+                        .analyze ===
+                        "function"
+                );
+
+            if (!valid) {
+
+                throw new TypeError(
+                    "Custom analyzer must provide analyzeContext(), run(), or setContext() + analyze()."
+                );
+
+            }
 
             return customAnalyzer;
 
         }
 
-
-        try {
-
-            return new Analyzer(
-                this.options
-                    .analyzerOptions
-            );
-
-        }
-        catch {
-
-            /**
-             * 若目前 Analyzer 採用純函式形式，
-             * 或 constructor 不接受 options，
-             * 嘗試不帶參數建立。
-             */
-            try {
-
-                return new Analyzer();
-
-            }
-            catch {
-
-                /**
-                 * 若 import 本身就是可呼叫分析函式，
-                 * 保留原值供 invokeAnalyzer() 處理。
-                 */
-                return Analyzer;
-
-            }
-
-        }
+        return new Analyzer();
 
     }
 
 
     /* =====================================
-       新牌靴與燒牌
+       新牌靴
        ===================================== */
 
 
-    /**
-     * 建立新牌靴
-     *
-     * 注意：
-     *
-     * - 不會自動抽燒牌指示牌
-     * - 不會自動產生隱藏燒牌
-     * - 建立後必須先呼叫 confirmBurnIndicator()
-     */
     startNewShoe({
 
         clearHistory = true,
@@ -573,14 +519,9 @@ export default class Game {
 
     } = {}) {
 
-        /**
-         * 若有尚未完成的牌局，
-         * 新牌靴會直接放棄該局。
-         *
-         * 不需要把牌放回舊牌靴，
-         * 因為整個牌靴即將被替換。
-         */
         this.resetManualRound();
+
+        this.clearAnalysis();
 
 
         const shoe =
@@ -589,10 +530,6 @@ export default class Game {
             );
 
 
-        /**
-         * 相容 constructor 未自動 create()
-         * 的 Shoe 實作。
-         */
         if (
             shoe.remaining === 0 &&
             typeof shoe.create ===
@@ -631,16 +568,18 @@ export default class Game {
 
         if (clearHistory) {
 
-            this.clearHistory();
+            this.history.clear();
+
+            this.roadmapAnalyzer.clear();
 
         }
 
 
-        this.clearAnalysis();
-
         this.lastResult = null;
 
         this.lastRoundAt = null;
+
+        this.lastError = null;
 
         this.shoeNumber++;
 
@@ -656,9 +595,6 @@ export default class Game {
     }
 
 
-    /**
-     * newShoe() 別名
-     */
     newShoe(options = {}) {
 
         return this.startNewShoe(
@@ -668,9 +604,6 @@ export default class Game {
     }
 
 
-    /**
-     * 是否等待輸入燒牌指示牌
-     */
     get isWaitingBurnIndicator() {
 
         return (
@@ -688,9 +621,15 @@ export default class Game {
     }
 
 
-    /**
-     * 確認燒牌指示牌
-     */
+    get burnConfirmed() {
+
+        return Boolean(
+            this.burn?.isConfirmed
+        );
+
+    }
+
+
     confirmBurnIndicator(input) {
 
         if (!this.shoe) {
@@ -742,17 +681,20 @@ export default class Game {
             GameState.SHOE_ACTIVE;
 
 
-        /**
-         * 燒牌完成後即可先分析第一局。
-         *
-         * 不阻塞 confirmBurnIndicator()；
-         * UI 可透過 waitForAnalysis() 等待完成。
-         */
         if (
-            this.options.autoAnalyze
+            this.options
+                .analyzeAfterBurn
         ) {
 
-            this.runNextAnalysis();
+            this.runNextAnalysis()
+                .catch(
+                    error => {
+
+                        this.lastError =
+                            error;
+
+                    }
+                );
 
         }
 
@@ -762,61 +704,37 @@ export default class Game {
     }
 
 
-    /**
-     * 燒牌資訊
-     */
     get burnInfo() {
 
-        if (!this.burn) {
-
-            return null;
-
-        }
-
-        return this.burn.info;
-
-    }
-
-
-    /**
-     * 是否已完成燒牌程序
-     */
-    get burnConfirmed() {
-
-        return Boolean(
-            this.burn?.isConfirmed
+        return (
+            this.burn?.info ??
+            null
         );
 
     }
 
 
     /* =====================================
-       手動輸入牌局
+       手動牌局
        ===================================== */
 
 
-    /**
-     * 重置手動牌局資料
-     */
     resetManualRound() {
 
         this.manualRound = null;
 
+        this.manualState =
+            ManualRoundState.IDLE;
+
         this.manualCards = [];
 
         this.manualResult = null;
-
-        this.manualState =
-            ManualRoundState.IDLE;
 
         return this;
 
     }
 
 
-    /**
-     * 是否正在輸入牌局
-     */
     get isManualRoundActive() {
 
         return [
@@ -837,9 +755,6 @@ export default class Game {
     }
 
 
-    /**
-     * 是否可開始新局
-     */
     get canStartManualRound() {
 
         return (
@@ -848,23 +763,21 @@ export default class Game {
 
             this.shoe !== null &&
 
-            this.shoe.physicalRemaining >=
-                this.options
-                    .minimumPhysicalCards &&
+            this.shoe
+                .physicalRemaining >= 4 &&
 
             !this.isManualRoundActive &&
 
-            this.state !==
-                GameState.SHOE_FINISHED
+            !this.isAnalyzing &&
+
+            this.state ===
+                GameState.SHOE_ACTIVE
 
         );
 
     }
 
 
-    /**
-     * 開始輸入一局
-     */
     startManualRound() {
 
         if (!this.burnConfirmed) {
@@ -875,19 +788,33 @@ export default class Game {
 
         }
 
-
-        if (!this.canStartManualRound) {
-
-            if (this.isManualRoundActive) {
-
-                throw new Error(
-                    "A manual round is already active."
-                );
-
-            }
+        if (
+            this.isAnalyzing
+        ) {
 
             throw new Error(
-                "A new manual round cannot be started."
+                "Cannot start a round while analysis is running."
+            );
+
+        }
+
+        if (
+            this.isManualRoundActive
+        ) {
+
+            throw new Error(
+                "A manual round is already active."
+            );
+
+        }
+
+        if (
+            this.shoe
+                .physicalRemaining < 4
+        ) {
+
+            throw new Error(
+                "Not enough physical cards remain to start a round."
             );
 
         }
@@ -911,9 +838,6 @@ export default class Game {
     }
 
 
-    /**
-     * 驗證 Player / Banker
-     */
     validateSide(side) {
 
         if (
@@ -933,9 +857,6 @@ export default class Game {
     }
 
 
-    /**
-     * 取得下一張應輸入哪一方
-     */
     get nextManualSide() {
 
         if (!this.manualRound) {
@@ -944,19 +865,10 @@ export default class Game {
 
         }
 
-
         const total =
             this.manualCards.length;
 
 
-        /**
-         * 初始四張固定順序：
-         *
-         * Player 1
-         * Banker 1
-         * Player 2
-         * Banker 2
-         */
         if (total === 0) {
 
             return HandSide.PLAYER;
@@ -1001,15 +913,11 @@ export default class Game {
 
         }
 
-
         return null;
 
     }
 
 
-    /**
-     * 下一張輸入提示
-     */
     get nextManualInput() {
 
         const side =
@@ -1026,13 +934,13 @@ export default class Game {
 
             side === HandSide.PLAYER
 
-                ? this.manualRound?.player
+                ? this.manualRound.player
 
-                : this.manualRound?.banker;
+                : this.manualRound.banker;
 
 
         const cardNumber =
-            (hand?.count ?? 0) + 1;
+            hand.count + 1;
 
 
         return {
@@ -1042,8 +950,11 @@ export default class Game {
             cardNumber,
 
             label:
+
                 side === HandSide.PLAYER
+
                     ? `Player 第 ${cardNumber} 張`
+
                     : `Banker 第 ${cardNumber} 張`
 
         };
@@ -1051,9 +962,6 @@ export default class Game {
     }
 
 
-    /**
-     * 從 Shoe 解析實際存在的牌
-     */
     resolveManualCard(input) {
 
         if (!this.shoe) {
@@ -1064,36 +972,24 @@ export default class Game {
 
         }
 
-
         if (
-            typeof this.shoe.resolveCard ===
+            typeof this.shoe.resolveCard !==
                 "function"
         ) {
 
-            return this.shoe.resolveCard(
-                input
+            throw new Error(
+                "Shoe does not support resolveCard()."
             );
 
         }
 
-
-        if (input instanceof Card) {
-
-            return input;
-
-        }
-
-
-        throw new Error(
-            "Shoe does not support manual card resolution."
+        return this.shoe.resolveCard(
+            input
         );
 
     }
 
 
-    /**
-     * 新增荷官已發出的牌
-     */
     addManualCard(
         side,
         input
@@ -1106,7 +1002,6 @@ export default class Game {
             );
 
         }
-
 
         if (
             this.manualState ===
@@ -1126,25 +1021,37 @@ export default class Game {
         );
 
 
-        const expectedSide =
+        const expected =
             this.nextManualSide;
 
 
-        if (!expectedSide) {
+        if (!expected) {
 
             throw new Error(
-                "No more cards are required for this round."
+                "No more cards are required."
             );
 
         }
 
 
         if (
-            side !== expectedSide
+            side !== expected
         ) {
 
             throw new Error(
-                `Expected ${expectedSide}, received ${side}.`
+                `Expected ${expected}, received ${side}.`
+            );
+
+        }
+
+
+        if (
+            this.shoe
+                .physicalRemaining <= 0
+        ) {
+
+            throw new Error(
+                "No physical cards remain in the shoe."
             );
 
         }
@@ -1157,10 +1064,8 @@ export default class Game {
 
 
         /**
-         * 先讓 Round 接受牌。
-         *
-         * 若 Round.deal() 驗證失敗，
-         * Shoe 不會被修改。
+         * 先放入 Round，再從 Shoe 移除。
+         * 若 Shoe 操作失敗，回復 Hand。
          */
         this.manualRound.deal(
             side,
@@ -1169,7 +1074,6 @@ export default class Game {
 
 
         let removedCard;
-
 
         try {
 
@@ -1181,10 +1085,6 @@ export default class Game {
         }
         catch (error) {
 
-            /**
-             * Shoe 移除失敗時，
-             * 撤回剛才加入 Hand 的牌。
-             */
             const hand =
 
                 side === HandSide.PLAYER
@@ -1194,16 +1094,9 @@ export default class Game {
                     : this.manualRound.banker;
 
 
-            if (
-                typeof hand.remove ===
-                    "function"
-            ) {
-
-                hand.remove(
-                    card
-                );
-
-            }
+            hand.remove(
+                card
+            );
 
             throw error;
 
@@ -1231,16 +1124,6 @@ export default class Game {
     }
 
 
-    /**
-     * 根據牌局規則更新輸入狀態
-     *
-     * 規則只用於：
-     *
-     * - 提示下一張應輸入哪一方
-     * - 判斷是否可以完成本局
-     *
-     * 系統不會自動抽牌。
-     */
     updateManualState() {
 
         if (!this.manualRound) {
@@ -1253,14 +1136,9 @@ export default class Game {
         }
 
 
-        const total =
-            this.manualCards.length;
-
-
-        /**
-         * 初始四張尚未完成。
-         */
-        if (total < 4) {
+        if (
+            this.manualCards.length < 4
+        ) {
 
             this.manualState =
                 ManualRoundState.INITIAL;
@@ -1270,10 +1148,9 @@ export default class Game {
         }
 
 
-        /**
-         * Natural 直接完成。
-         */
-        if (this.manualRound.isNatural) {
+        if (
+            this.manualRound.isNatural
+        ) {
 
             this.manualState =
                 ManualRoundState
@@ -1291,17 +1168,13 @@ export default class Game {
             this.manualRound.banker;
 
 
-        /**
-         * Player 是否需要第三張。
-         */
         if (
             player.count === 2 &&
             playerMustDraw(player)
         ) {
 
             this.manualState =
-                ManualRoundState
-                    .PLAYER_THIRD;
+                ManualRoundState.PLAYER_THIRD;
 
             return this.manualState;
 
@@ -1317,9 +1190,6 @@ export default class Game {
                 : null;
 
 
-        /**
-         * Banker 是否需要第三張。
-         */
         if (
             banker.count === 2 &&
             bankerMustDraw(
@@ -1329,8 +1199,7 @@ export default class Game {
         ) {
 
             this.manualState =
-                ManualRoundState
-                    .BANKER_THIRD;
+                ManualRoundState.BANKER_THIRD;
 
             return this.manualState;
 
@@ -1346,9 +1215,6 @@ export default class Game {
     }
 
 
-    /**
-     * 是否可以確認本局
-     */
     get canFinishManualRound() {
 
         return (
@@ -1364,23 +1230,11 @@ export default class Game {
     }
 
 
-    /**
-     * 完成本局
-     *
-     * 預設會：
-     *
-     * 1. 建立 RoundResult
-     * 2. 加入 History
-     * 3. 更新 Roadmap
-     * 4. 分析下一局
-     *
-     * 此方法為 async，
-     * 因為 Exact / Monte Carlo 可能是非同步運算。
-     */
     async finishManualRound({
 
         analyze =
-            this.options.autoAnalyze
+            this.options
+                .analyzeAfterRound
 
     } = {}) {
 
@@ -1392,8 +1246,9 @@ export default class Game {
 
         }
 
-
-        if (!this.canFinishManualRound) {
+        if (
+            !this.canFinishManualRound
+        ) {
 
             throw new Error(
                 "Manual round is not ready to finish."
@@ -1427,36 +1282,13 @@ export default class Game {
         );
 
 
-        /**
-         * 本局已完成，
-         * 牌靴重新進入可開始下一局狀態。
-         */
         this.state =
             GameState.SHOE_ACTIVE;
 
 
         if (analyze) {
 
-            try {
-
-                await this.runNextAnalysis();
-
-            }
-            catch (error) {
-
-                /**
-                 * 已完成的本局預設仍保留。
-                 */
-                if (
-                    !this.options
-                        .preserveRoundOnAnalysisError
-                ) {
-
-                    throw error;
-
-                }
-
-            }
+            await this.runNextAnalysis();
 
         }
 
@@ -1466,9 +1298,6 @@ export default class Game {
     }
 
 
-    /**
-     * 撤銷最後輸入的一張牌
-     */
     undoManualCard() {
 
         if (!this.manualRound) {
@@ -1476,7 +1305,6 @@ export default class Game {
             return null;
 
         }
-
 
         if (
             this.manualState ===
@@ -1502,18 +1330,6 @@ export default class Game {
         }
 
 
-        if (
-            typeof this.shoe.restore !==
-                "function"
-        ) {
-
-            throw new Error(
-                "Shoe does not support card restoration."
-            );
-
-        }
-
-
         this.shoe.restore(
             removed.card
         );
@@ -1526,9 +1342,6 @@ export default class Game {
     }
 
 
-    /**
-     * 依目前輸入紀錄重建 Round
-     */
     rebuildManualRound() {
 
         const round =
@@ -1561,11 +1374,6 @@ export default class Game {
     }
 
 
-    /**
-     * 取消目前牌局
-     *
-     * 已輸入的公開牌會放回可知牌池。
-     */
     cancelManualRound() {
 
         if (!this.manualRound) {
@@ -1573,7 +1381,6 @@ export default class Game {
             return this;
 
         }
-
 
         if (
             this.manualState ===
@@ -1614,9 +1421,6 @@ export default class Game {
     }
 
 
-    /**
-     * 手動牌局進度
-     */
     get manualProgress() {
 
         return {
@@ -1650,15 +1454,11 @@ export default class Game {
 
             playerScore:
                 this.manualRound
-                    ?.playerScore ??
-                this.manualRound
                     ?.player
                     ?.value ??
                 null,
 
             bankerScore:
-                this.manualRound
-                    ?.bankerScore ??
                 this.manualRound
                     ?.banker
                     ?.value ??
@@ -1682,9 +1482,6 @@ export default class Game {
        ===================================== */
 
 
-    /**
-     * 記錄已完成牌局
-     */
     recordResult(result) {
 
         if (!result) {
@@ -1704,6 +1501,7 @@ export default class Game {
             result
         );
 
+
         this.lastResult =
             result;
 
@@ -1715,9 +1513,6 @@ export default class Game {
     }
 
 
-    /**
-     * 匯入外部結果
-     */
     addResult(result) {
 
         return this.recordResult(
@@ -1727,9 +1522,6 @@ export default class Game {
     }
 
 
-    /**
-     * 匯入多筆結果
-     */
     addResults(results = []) {
 
         if (!Array.isArray(results)) {
@@ -1739,7 +1531,6 @@ export default class Game {
             );
 
         }
-
 
         for (
             const result of
@@ -1752,17 +1543,11 @@ export default class Game {
 
         }
 
-
         return this;
 
     }
 
 
-    /**
-     * 清除本鞋歷史與路單
-     *
-     * 不會重建 Shoe。
-     */
     clearHistory() {
 
         this.history.clear();
@@ -1780,9 +1565,6 @@ export default class Game {
     }
 
 
-    /**
-     * 依 History 重建路單
-     */
     rebuildRoadmaps() {
 
         this.roadmapAnalyzer.build(
@@ -1795,23 +1577,20 @@ export default class Game {
 
 
     /* =====================================
-       下一局分析
+       Analyzer
        ===================================== */
 
 
-    /**
-     * 清除分析狀態
-     */
     clearAnalysis() {
 
         this.analysisState =
             AnalysisState.IDLE;
 
-        this.nextAnalysis = null;
+        this.analysisPromise = null;
 
         this.analysisError = null;
 
-        this.analysisPromise = null;
+        this.nextAnalysis = null;
 
         this.lastAnalysisAt = null;
 
@@ -1820,11 +1599,6 @@ export default class Game {
     }
 
 
-    /**
-     * 建立 Analyzer 輸入資料
-     *
-     * 未知燒牌不會被當成已知牌面移除。
-     */
     createAnalysisContext() {
 
         if (!this.shoe) {
@@ -1835,23 +1609,39 @@ export default class Game {
 
         }
 
+        if (!this.burnConfirmed) {
+
+            throw new Error(
+                "Burn indicator must be confirmed before analysis."
+            );
+
+        }
+
+
+        const analyzerOptions = {
+
+            ...this.options
+                .analyzerOptions
+
+        };
+
+
+        const observableCards =
+            this.shoe.peek();
+
 
         return {
 
-            /**
-             * Analyzer 可直接使用 Shoe。
-             */
             shoe:
                 this.shoe,
 
-            /**
-             * 可知牌面池副本。
-             */
-            cards:
-                this.shoe.peek(),
+            history:
+                this.history,
 
-            observableCards:
-                this.shoe.peek(),
+            cards:
+                observableCards,
+
+            observableCards,
 
             observableRemaining:
                 this.shoe
@@ -1874,9 +1664,6 @@ export default class Game {
             burn:
                 this.burnInfo,
 
-            history:
-                this.history,
-
             historyItems:
                 this.history.getAll(),
 
@@ -1893,47 +1680,119 @@ export default class Game {
             lastResult:
                 this.lastResult,
 
-            analyzerOptions: {
+            payouts:
+                analyzerOptions
+                    .payouts ??
+                {},
 
-                ...this.options
-                    .analyzerOptions
+            monteCarloOptions: {
 
-            }
+                ...(
+                    analyzerOptions
+                        .monteCarlo ??
+                    {}
+                )
+
+            },
+
+            exactOptions: {
+
+                ...(
+                    analyzerOptions
+                        .exact ??
+                    {}
+                )
+
+            },
+
+            kellyOptions: {
+
+                ...(
+                    analyzerOptions
+                        .kelly ??
+                    {}
+                )
+
+            },
+
+            riskOptions: {
+
+                ...(
+                    analyzerOptions
+                        .risk ??
+                    {}
+                )
+
+            },
+
+            confidenceOptions: {
+
+                ...(
+                    analyzerOptions
+                        .confidence ??
+                    {}
+                )
+
+            },
+
+            rankingOptions: {
+
+                ...(
+                    analyzerOptions
+                        .ranking ??
+                    {}
+                )
+
+            },
+
+            recommendationOptions: {
+
+                ...(
+                    analyzerOptions
+                        .recommendation ??
+                    {}
+                )
+
+            },
+
+            bankroll:
+                analyzerOptions.bankroll,
+
+            fraction:
+                analyzerOptions.fraction,
+
+            minBet:
+                analyzerOptions.minBet,
+
+            maxBet:
+                analyzerOptions.maxBet,
+
+            maxBankrollRatio:
+                analyzerOptions
+                    .maxBankrollRatio,
+
+            analyzerOptions
 
         };
 
     }
 
 
-    /**
-     * 呼叫 Analyzer
-     *
-     * 支援常見介面：
-     *
-     * analyzer.analyze(context)
-     * analyzer.run(context)
-     * analyzer(context)
-     */
-    invokeAnalyzer(context) {
-
-        if (!this.analyzer) {
-
-            throw new Error(
-                "Analyzer not found."
-            );
-
-        }
-
+    invokeAnalyzer(
+        context,
+        runOptions = {}
+    ) {
 
         if (
             typeof this.analyzer
-                .analyze ===
+                .analyzeContext ===
                 "function"
         ) {
 
             return this.analyzer
-                .analyze(
-                    context
+                .analyzeContext(
+                    context,
+                    runOptions
                 );
 
         }
@@ -1945,35 +1804,44 @@ export default class Game {
         ) {
 
             return this.analyzer.run(
-                context
+                context,
+                runOptions
             );
 
         }
 
 
         if (
-            typeof this.analyzer ===
+            typeof this.analyzer
+                .setContext ===
+                "function" &&
+
+            typeof this.analyzer
+                .analyze ===
                 "function"
         ) {
 
-            return this.analyzer(
+            this.analyzer.setContext(
                 context
+            );
+
+            return this.analyzer.analyze(
+                runOptions
             );
 
         }
 
 
         throw new TypeError(
-            "Analyzer must provide analyze(), run(), or be callable."
+            "Analyzer does not provide a supported interface."
         );
 
     }
 
 
-    /**
-     * 執行下一局分析
-     */
-    runNextAnalysis() {
+    runNextAnalysis(
+        runOptions = {}
+    ) {
 
         if (!this.burnConfirmed) {
 
@@ -1985,14 +1853,23 @@ export default class Game {
 
         }
 
-
-        if (this.isManualRoundActive) {
+        if (
+            this.isManualRoundActive
+        ) {
 
             return Promise.reject(
                 new Error(
-                    "Cannot analyze the next round while a round is being entered."
+                    "Cannot analyze while a round is being entered."
                 )
             );
+
+        }
+
+        if (
+            this.analysisPromise
+        ) {
+
+            return this.analysisPromise;
 
         }
 
@@ -2010,16 +1887,25 @@ export default class Game {
             GameState.ANALYZING;
 
 
-        const analysisPromise =
+        const promise =
             Promise.resolve()
                 .then(
                     () =>
                         this.invokeAnalyzer(
-                            context
+                            context,
+                            runOptions
                         )
                 )
                 .then(
                     result => {
+
+                        if (!result) {
+
+                            throw new Error(
+                                "Analyzer returned no result."
+                            );
+
+                        }
 
                         this.nextAnalysis =
                             result;
@@ -2032,8 +1918,7 @@ export default class Game {
                             Date.now();
 
                         this.state =
-                            GameState
-                                .SHOE_ACTIVE;
+                            GameState.SHOE_ACTIVE;
 
                         return result;
 
@@ -2052,8 +1937,10 @@ export default class Game {
                             AnalysisState.FAILED;
 
                         this.state =
-                            GameState
-                                .SHOE_ACTIVE;
+                            GameState.SHOE_ACTIVE;
+
+                        this.lastError =
+                            error;
 
                         throw error;
 
@@ -2070,29 +1957,29 @@ export default class Game {
 
 
         this.analysisPromise =
-            analysisPromise;
+            promise;
 
-        return analysisPromise;
-
-    }
-
-
-    /**
-     * analyzeNextRound() 語意別名
-     */
-    analyzeNextRound() {
-
-        return this.runNextAnalysis();
+        return promise;
 
     }
 
 
-    /**
-     * 等待目前分析完成
-     */
+    analyzeNextRound(
+        options = {}
+    ) {
+
+        return this.runNextAnalysis(
+            options
+        );
+
+    }
+
+
     async waitForAnalysis() {
 
-        if (this.analysisPromise) {
+        if (
+            this.analysisPromise
+        ) {
 
             return this.analysisPromise;
 
@@ -2103,9 +1990,6 @@ export default class Game {
     }
 
 
-    /**
-     * 是否正在分析
-     */
     get isAnalyzing() {
 
         return (
@@ -2116,25 +2000,21 @@ export default class Game {
     }
 
 
-    /**
-     * 是否已有下一局分析
-     */
     get hasNextAnalysis() {
 
         return (
+
             this.analysisState ===
                 AnalysisState.COMPLETED &&
 
             this.nextAnalysis !==
                 null
+
         );
 
     }
 
 
-    /**
-     * 分析摘要
-     */
     get analysisSummary() {
 
         return {
@@ -2159,20 +2039,17 @@ export default class Game {
             generatedAfterRound:
                 this.roundCount,
 
-            physicalRemaining:
-                this.shoe
-                    ?.physicalRemaining ??
-                0,
+            remainingCards:
+                this.remainingCards,
 
             observableRemaining:
-                this.shoe
-                    ?.observableRemaining ??
-                0,
+                this.observableRemainingCards,
+
+            physicalRemaining:
+                this.remainingCards,
 
             unknownBurnedCount:
-                this.shoe
-                    ?.unknownBurnedCount ??
-                0,
+                this.unknownBurnedCount,
 
             result:
                 this.nextAnalysis
@@ -2183,250 +2060,13 @@ export default class Game {
 
 
     /* =====================================
-       模擬功能
-       ===================================== */
-
-
-    /**
-     * 自動模擬一局。
-     *
-     * 不作為正式 Dashboard 主流程。
-     */
-    simulateRound() {
-
-        if (!this.burnConfirmed) {
-
-            throw new Error(
-                "Burn indicator must be confirmed before simulation."
-            );
-
-        }
-
-
-        if (this.isManualRoundActive) {
-
-            throw new Error(
-                "Cannot simulate while a manual round is active."
-            );
-
-        }
-
-
-        const result =
-            this.dealer.play();
-
-
-        return this.recordResult(
-            result
-        );
-
-    }
-
-
-    /**
-     * 自動模擬多局。
-     */
-    simulateMany(count = 1) {
-
-        if (
-            !Number.isInteger(count) ||
-            count < 0
-        ) {
-
-            throw new RangeError(
-                "count must be a non-negative integer."
-            );
-
-        }
-
-
-        const results = [];
-
-
-        for (
-            let index = 0;
-            index < count;
-            index++
-        ) {
-
-            if (
-                this.shoe.physicalRemaining <
-                this.options
-                    .minimumPhysicalCards
-            ) {
-
-                break;
-
-            }
-
-            results.push(
-                this.simulateRound()
-            );
-
-        }
-
-
-        return results;
-
-    }
-
-
-    /**
-     * 舊版相容。
-     *
-     * 正式 UI 不應使用 play()。
-     */
-    play() {
-
-        return this.simulateRound();
-
-    }
-
-
-    /**
-     * 舊版相容。
-     */
-    playRound() {
-
-        return this.simulateRound();
-
-    }
-
-
-    /**
-     * 舊版相容。
-     */
-    playMany(count = 1) {
-
-        return this.simulateMany(
-            count
-        );
-
-    }
-
-
-    /* =====================================
-       Shoe 替換
-       ===================================== */
-
-
-    /**
-     * 替換 Shoe
-     *
-     * 主要供測試與 JSON 還原使用。
-     */
-    setShoe(
-        shoe,
-        {
-            clearHistory = true,
-
-            burn = null
-
-        } = {}
-    ) {
-
-        if (!shoe) {
-
-            throw new Error(
-                "Shoe is required."
-            );
-
-        }
-
-
-        if (
-            typeof shoe.remove !==
-                "function"
-        ) {
-
-            throw new TypeError(
-                "Invalid shoe."
-            );
-
-        }
-
-
-        this.resetManualRound();
-
-        this.shoe =
-            shoe;
-
-        this.burn =
-            burn ??
-            new Burn(
-                this.shoe
-            );
-
-        this.dealer =
-            new Dealer(
-                this.shoe
-            );
-
-
-        if (clearHistory) {
-
-            this.clearHistory();
-
-        }
-
-
-        this.clearAnalysis();
-
-        this.lastResult = null;
-
-        this.startedAt =
-            Date.now();
-
-
-        this.state =
-            this.burn.isConfirmed
-
-                ? GameState.SHOE_ACTIVE
-
-                : GameState
-                    .WAITING_BURN_INDICATOR;
-
-
-        return this;
-
-    }
-
-
-    /* =====================================
-       Getter
+       Getter 與 ViewModel
        ===================================== */
 
 
     get roundCount() {
 
         return this.history.count;
-
-    }
-
-
-    get isEmpty() {
-
-        return this.history.isEmpty;
-
-    }
-
-
-    get lastRound() {
-
-        return (
-            this.history.last ??
-            null
-        );
-
-    }
-
-
-    get winner() {
-
-        return (
-            this.lastResult?.winner ??
-            null
-        );
 
     }
 
@@ -2443,25 +2083,17 @@ export default class Game {
     }
 
 
-    /**
-     * 可知牌池剩餘數
-     */
-    get observableRemainingCards() {
+    get winner() {
 
         return (
-            this.shoe
-                ?.observableRemaining ??
-            0
+            this.lastResult
+                ?.winner ??
+            null
         );
 
     }
 
 
-    /**
-     * 實體牌靴剩餘數
-     *
-     * UI 的「剩餘牌數」應優先顯示這個值。
-     */
     get remainingCards() {
 
         return (
@@ -2473,9 +2105,17 @@ export default class Game {
     }
 
 
-    /**
-     * 未知燒牌張數
-     */
+    get observableRemainingCards() {
+
+        return (
+            this.shoe
+                ?.observableRemaining ??
+            0
+        );
+
+    }
+
+
     get unknownBurnedCount() {
 
         return (
@@ -2487,9 +2127,6 @@ export default class Game {
     }
 
 
-    /**
-     * 已知已輸入／移除牌數
-     */
     get usedCards() {
 
         return (
@@ -2509,16 +2146,6 @@ export default class Game {
             this.shoe
                 ?.physicalRemainingRatio ??
             0
-        );
-
-    }
-
-
-    get finished() {
-
-        return (
-            this.state ===
-            GameState.SHOE_FINISHED
         );
 
     }
@@ -2556,9 +2183,6 @@ export default class Game {
     }
 
 
-    /**
-     * 遊戲統計
-     */
     get statistics() {
 
         return {
@@ -2571,6 +2195,9 @@ export default class Game {
 
             rounds:
                 this.roundCount,
+
+            remainingCards:
+                this.remainingCards,
 
             observableRemaining:
                 this.observableRemainingCards,
@@ -2667,22 +2294,29 @@ export default class Game {
     }
 
 
-    /**
-     * 一致性檢查
-     */
     validateConsistency() {
 
         const errors = [];
 
 
-        const roadmapConsistency =
-            this.roadmapAnalyzer
-                .validateConsistency();
+        if (
+            typeof this.roadmapAnalyzer
+                .validateConsistency ===
+                "function"
+        ) {
 
+            const roadmap =
+                this.roadmapAnalyzer
+                    .validateConsistency();
 
-        errors.push(
-            ...roadmapConsistency.errors
-        );
+            errors.push(
+                ...(
+                    roadmap.errors ??
+                    []
+                )
+            );
+
+        }
 
 
         if (
@@ -2735,7 +2369,7 @@ export default class Game {
         ) {
 
             errors.push(
-                "Physical remaining cards exceed observable cards."
+                "Physical remaining exceeds observable remaining."
             );
 
         }
@@ -2753,9 +2387,6 @@ export default class Game {
     }
 
 
-    /**
-     * UI ViewModel
-     */
     toViewModel() {
 
         return {
@@ -2775,9 +2406,6 @@ export default class Game {
             canStartRound:
                 this.canStartManualRound,
 
-            statistics:
-                this.statistics,
-
             burn:
                 this.burnInfo,
 
@@ -2793,11 +2421,19 @@ export default class Game {
             analysis:
                 this.analysisSummary,
 
+            statistics:
+                this.statistics,
+
             roadmap:
                 this.roadmapViewModel,
 
             consistency:
-                this.validateConsistency()
+                this.validateConsistency(),
+
+            error:
+                this.lastError
+                    ?.message ??
+                null
 
         };
 
@@ -2809,14 +2445,12 @@ export default class Game {
        ===================================== */
 
 
-    /**
-     * JSON 匯出
-     */
     toJSON() {
 
         return {
 
-            version: 4,
+            version:
+                2,
 
             options: {
 
@@ -2859,7 +2493,8 @@ export default class Game {
                 null,
 
             history:
-                this.history.toJSON(),
+                this.history
+                    .toJSON(),
 
             roadmap:
                 this.roadmapAnalyzer
@@ -2917,9 +2552,6 @@ export default class Game {
     }
 
 
-    /**
-     * JSON 還原
-     */
     static fromJSON(
         data,
         {
@@ -2927,9 +2559,7 @@ export default class Game {
         } = {}
     ) {
 
-        if (
-            !isObject(data)
-        ) {
+        if (!isObject(data)) {
 
             throw new Error(
                 "Game data is required."
@@ -2937,25 +2567,10 @@ export default class Game {
 
         }
 
-
         if (!data.shoe) {
 
             throw new Error(
                 "Game shoe data is required."
-            );
-
-        }
-
-
-        if (
-            data.history !== undefined &&
-            !Array.isArray(
-                data.history
-            )
-        ) {
-
-            throw new Error(
-                "Game history must be an array."
             );
 
         }
@@ -3033,7 +2648,8 @@ export default class Game {
 
         for (
             const item of
-            data.history ?? []
+            data.history ??
+            []
         ) {
 
             const result =
@@ -3058,7 +2674,6 @@ export default class Game {
 
         game.roadmapAnalyzer =
             game.createRoadmapAnalyzer();
-
 
         game.roadmapAnalyzer.build(
             game.history
@@ -3113,28 +2728,29 @@ export default class Game {
                 : null;
 
 
+        game.lastError = null;
+
         game.lastResult =
             game.history.last;
 
 
-        /**
-         * 還原手動牌局。
-         */
         game.manualRound = null;
+
+        game.manualState =
+            ManualRoundState.IDLE;
 
         game.manualCards = [];
 
         game.manualResult = null;
 
-        game.manualState =
-            ManualRoundState.IDLE;
-
 
         if (
             Array.isArray(
-                data.manual?.cards
+                data.manual
+                    ?.cards
             ) &&
-            data.manual.cards.length > 0
+            data.manual.cards
+                .length > 0
         ) {
 
             game.manualRound =
@@ -3177,27 +2793,15 @@ export default class Game {
 
             game.updateManualState();
 
-
-            if (
-                game.isManualRoundActive
-            ) {
-
-                game.state =
-                    GameState.ROUND_INPUT;
-
-            }
+            game.state =
+                GameState.ROUND_INPUT;
 
         }
 
 
-        /**
-         * 還原分析結果。
-         *
-         * RUNNING 不會跨頁面持續，
-         * 因此還原成 IDLE。
-         */
         const savedAnalysisState =
-            data.analysis?.state;
+            data.analysis
+                ?.state;
 
 
         game.analysisState =
@@ -3215,13 +2819,13 @@ export default class Game {
                     : AnalysisState.IDLE;
 
 
-        game.nextAnalysis =
-            data.analysis?.result ??
+        game.analysisPromise =
             null;
 
 
         game.analysisError =
-            data.analysis?.error
+            data.analysis
+                ?.error
 
                 ? new Error(
                     data.analysis.error
@@ -3230,7 +2834,9 @@ export default class Game {
                 : null;
 
 
-        game.analysisPromise =
+        game.nextAnalysis =
+            data.analysis
+                ?.result ??
             null;
 
 
