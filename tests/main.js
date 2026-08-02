@@ -67,6 +67,9 @@ import roadmapComponentTest
 import cardInputTest
     from "./cardInput.test.js";
 
+import probabilityTableTest
+    from "./probabilityTable.test.js";
+
 /**
  * 新增測試時，只需：
  *
@@ -181,6 +184,12 @@ const TESTS = [
         id: "card-input",
         name: "Card Input",
         run: cardInputTest
+    },
+
+    {
+        id: "probability-table",
+        name: "Probability Table",
+        run: probabilityTableTest
     }
 
 ];
