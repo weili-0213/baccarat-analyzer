@@ -34,6 +34,9 @@ import bigEyeRoadTest
 import smallRoadTest
     from "./smallRoad.test.js";
 
+import cockroachRoadTest
+    from "./cockroachRoad.test.js";
+
 
 /**
  * 新增測試時，只需：
@@ -83,6 +86,12 @@ const TESTS = [
         id: "small-road",
         name: "Small Road",
         run: smallRoadTest
+    },
+
+    {
+        id: "cockroach-road",
+        name: "Cockroach Road",
+        run: cockroachRoadTest
     }
 
 ];
