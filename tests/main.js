@@ -13,6 +13,9 @@
  * - 顯示錯誤訊息
  */
 
+import burnTest
+    from "./burn.test.js";
+
 import dealerTest
     from "./dealer.test.js";
 
@@ -64,6 +67,12 @@ import roadmapComponentTest
  */
 const TESTS = [
 
+    {
+        id: "burn",
+        name: "Burn",
+        run: burnTest
+    },
+    
     {
         id: "dealer",
         name: "Dealer",
