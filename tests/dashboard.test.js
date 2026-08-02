@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V3.3 Final
+ * Baccarat Analyzer V3.4.2
  * tests/dashboard.test.js
  */
 
@@ -21,6 +21,18 @@ import RecommendationPanel
 
 import StatusPanel
     from "../components/StatusPanel.js";
+
+import GameController
+    from "../controllers/GameController.js";
+
+import UIController
+    from "../controllers/UIController.js";
+
+import AnalysisController
+    from "../controllers/AnalysisController.js";
+
+import InputController
+    from "../controllers/InputController.js";
 
 import createGameMock
     from "./mocks/gameMock.js";
@@ -106,11 +118,15 @@ export default async function dashboardTest() {
         const dashboard = createDashboard({ root, game });
 
         assert(dashboard instanceof Dashboard, "工廠函式應建立 Dashboard");
-        assert(DASHBOARD_VERSION === "3.3.0", "Dashboard 版本應為 3.3.0");
+        assert(DASHBOARD_VERSION === "3.4.2", "Dashboard 版本應為 3.4.2");
         assert(dashboard.components.statusPanel instanceof StatusPanel, "StatusPanel 未建立");
         assert(dashboard.components.analysisPanel instanceof AnalysisPanel, "AnalysisPanel 未建立");
         assert(dashboard.components.recommendationPanel instanceof RecommendationPanel, "RecommendationPanel 未建立");
-        messages.push("✓ V3.3 Final 元件建立正確");
+        assert(dashboard.gameController instanceof GameController, "GameController 未建立");
+        assert(dashboard.uiController instanceof UIController, "UIController 未建立");
+        assert(dashboard.analysisController instanceof AnalysisController, "AnalysisController 未建立");
+        assert(dashboard.inputController instanceof InputController, "InputController 未建立");
+        messages.push("✓ V3.4.2 元件與 Controller 建立正確");
 
         assert(root.querySelector(".dashboardV33"), "缺少 Dashboard V3.3");
         assert(root.querySelector(".v3StatusStrip"), "缺少 StatusPanel");
@@ -265,14 +281,18 @@ export default async function dashboardTest() {
         messages.push("✓ Roadmap 切換正確");
 
         const summary = dashboard.summary;
-        assert(summary.version === "3.3.0", "summary.version 錯誤");
+        assert(summary.version === "3.4.2", "summary.version 錯誤");
         assert(summary.mounted === true, "summary.mounted 錯誤");
         assert(summary.roundCount === 1, "summary.roundCount 錯誤");
         assert(summary.hasAnalysis === true, "summary.hasAnalysis 錯誤");
         assert(summary.autoSuit === true, "summary.autoSuit 錯誤");
         assert(summary.casinoLayout === true, "summary.casinoLayout 錯誤");
         assert(summary.mobileSection === "input", "summary.mobileSection 錯誤");
-        messages.push("✓ summary 正確");
+        assert(summary.controllers?.game?.version === "3.4.2", "GameController summary 錯誤");
+        assert(summary.controllers?.ui?.version === "3.4.2", "UIController summary 錯誤");
+        assert(summary.controllers?.analysis?.version === "3.4.2", "AnalysisController summary 錯誤");
+        assert(summary.controllers?.input?.version === "3.4.2", "InputController summary 錯誤");
+        messages.push("✓ Controller summary 正確");
 
         dashboard.destroy();
         assert(root.innerHTML === "", "destroy() 應清空 root");
@@ -281,7 +301,7 @@ export default async function dashboardTest() {
         return `
 ${messages.join("\n")}
 
-Dashboard V3.3 Final 測試完成
+Dashboard V3.4.2 Phase A 測試完成
 
 元件化：通過
 快速／完整模式：通過
@@ -292,7 +312,7 @@ Dashboard V3.3 Final 測試完成
 鍵盤一鍵輸牌：通過
 自動花色：通過
 指定花色模式：通過
-V3.3 Final：通過
+Controller Refactor：通過
 Casino Grid：通過
 手機三區切換：通過
 `;
