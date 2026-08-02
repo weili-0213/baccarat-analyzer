@@ -1,7 +1,9 @@
 /**
- * Baccarat Analyzer V3
+ * Baccarat Analyzer V3.3 Final
  * components/AnalysisPanel.js
  */
+
+export const ANALYSIS_PANEL_VERSION = "3.3.0";
 
 export const AnalysisDisplayMode = Object.freeze({
     QUICK: "quick",
