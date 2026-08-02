@@ -2119,6 +2119,15 @@ export default class Analyzer {
                 0,
 
             /**
+             * 產生本次分析時已完成的局數。
+             * 舊版 Dashboard 與測試相容欄位。
+             */
+            generatedAfterRound:
+                this.context.roundCount ??
+                this.context.history?.count ??
+                0,
+
+            /**
              * 舊版相容
              */
             rounds:
@@ -2402,8 +2411,30 @@ export default class Analyzer {
 
     /**
      * 取得簡化資訊。
+     *
+     * 同時保留新版與舊版欄位名稱，
+     * 讓 Dashboard、Game 與既有測試保持相容。
      */
     get summary() {
+
+        const shoe =
+            this.context.shoe;
+
+        const roundCount =
+            this.context.roundCount ??
+            this.context.history
+                ?.count ??
+            0;
+
+        const observableRemaining =
+            shoe?.observableRemaining ??
+            shoe?.remaining ??
+            0;
+
+        const physicalRemaining =
+            shoe?.physicalRemaining ??
+            shoe?.remaining ??
+            0;
 
         return {
 
@@ -2411,51 +2442,34 @@ export default class Analyzer {
                 this.options.mode,
 
             hasShoe:
-                Boolean(
-                    this.context.shoe
-                ),
+                Boolean(shoe),
 
-            observableRemaining:
-                this.context.shoe
-                    ?.observableRemaining ??
-                this.context.shoe
-                    ?.remaining ??
-                0,
+            /**
+             * 新版欄位。
+             */
+            observableRemaining,
 
-            physicalRemaining:
-                this.context.shoe
-                    ?.physicalRemaining ??
-                this.context.shoe
-                    ?.remaining ??
-                0,
+            physicalRemaining,
 
-            unknownBurnedCount:
-                this.context.shoe
-                    ?.unknownBurnedCount ??
-                0,
+            roundCount,
 
-            roundCount:
-                this.context.history
-                    ?.count ??
-                0,
-
+            /**
+             * 舊版相容欄位。
+             */
             remainingCards:
-                this.context.shoe
-                    ?.observableRemaining ??
-                this.context.shoe
-                    ?.remaining ??
-                0,
+                observableRemaining,
 
             remainingPhysicalCards:
-                this.context.shoe
-                    ?.physicalRemaining ??
-                this.context.shoe
-                    ?.remaining ??
-                0,
+                physicalRemaining,
+
+            generatedAfterRound:
+                roundCount,
 
             rounds:
-                this.context.history
-                    ?.count ??
+                roundCount,
+
+            unknownBurnedCount:
+                shoe?.unknownBurnedCount ??
                 0
 
         };
