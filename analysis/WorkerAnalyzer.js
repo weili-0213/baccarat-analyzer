@@ -1,32 +1,54 @@
 /**
- * Baccarat Analyzer
- * -----------------------------------------
- *
+ * Baccarat Analyzer V3.4-1
  * analysis/WorkerAnalyzer.js
  *
- * Game 相容的背景分析器 Adapter。
+ * Analysis Worker Pipeline
  *
- * 介面：
- *
- * - analyzeContext(context, runOptions)
- * - run(context, runOptions)
- * - setContext(context)
- * - analyze(runOptions)
- *
- * engine/game.js 不需要修改。
- *
- * Game 只要注入：
- *
- * new Game({
- *     analyzer: new WorkerAnalyzer()
- * })
- *
- * 瀏覽器無 Worker、Worker 啟動失敗或背景分析失敗時，
- * 可自動退回主執行緒 Analyzer。
+ * 功能：
+ * - Game 相容介面：analyzeContext / run / setContext / analyze
+ * - latest-wins：新分析會取消尚未送出的舊分析
+ * - debounce：合併短時間內的重複分析
+ * - request token：舊結果不可覆蓋新結果
+ * - LRU cache
+ * - progress event
+ * - Worker error recovery
+ * - retry
+ * - main-thread fallback
  */
 
 import Analyzer
     from "./analyzer.js";
+
+
+export const WORKER_ANALYZER_VERSION =
+    "3.4.1";
+
+
+const DEFAULT_OPTIONS =
+    Object.freeze({
+
+        debounceMs:
+            40,
+
+        cache:
+            true,
+
+        cacheSize:
+            24,
+
+        latestWins:
+            true,
+
+        retryCount:
+            1,
+
+        fallback:
+            true,
+
+        lazy:
+            true
+
+    });
 
 
 function isObject(value) {
@@ -51,6 +73,7 @@ function clonePlainData(value) {
 
     }
 
+
     if (
         typeof structuredClone ===
             "function"
@@ -65,47 +88,94 @@ function clonePlainData(value) {
         }
         catch {
 
-            // 改用 JSON 備援。
+            // JSON fallback
         }
 
     }
 
-    try {
 
-        return JSON.parse(
-            JSON.stringify(value)
+    return JSON.parse(
+        JSON.stringify(value)
+    );
+
+}
+
+
+function stableStringify(value) {
+
+    if (
+        value === null ||
+        typeof value !==
+            "object"
+    ) {
+
+        return JSON.stringify(
+            value
         );
 
     }
-    catch {
 
-        return value;
+
+    if (
+        Array.isArray(value)
+    ) {
+
+        return `[${value
+            .map(stableStringify)
+            .join(",")}]`;
 
     }
+
+
+    return `{${Object.keys(value)
+        .sort()
+        .map(
+            key =>
+                `${JSON.stringify(key)}:${stableStringify(value[key])}`
+        )
+        .join(",")}}`;
 
 }
 
 
 function createRequestId() {
 
+    return (
+        globalThis.crypto
+            ?.randomUUID?.() ??
+        `analysis-${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2)}`
+    );
+
+}
+
+
+function createAbortError(
+    message =
+        "Analysis aborted."
+) {
+
     if (
-        globalThis.crypto &&
-        typeof globalThis.crypto
-            .randomUUID ===
+        typeof DOMException ===
             "function"
     ) {
 
-        return globalThis.crypto
-            .randomUUID();
+        return new DOMException(
+            message,
+            "AbortError"
+        );
 
     }
 
-    return (
-        `analysis-${Date.now()}-` +
-        Math.random()
-            .toString(36)
-            .slice(2)
-    );
+
+    const error =
+        new Error(message);
+
+    error.name =
+        "AbortError";
+
+    return error;
 
 }
 
@@ -122,9 +192,7 @@ function createWorkerError(data) {
         data?.name ??
         "WorkerAnalysisError";
 
-    if (
-        data?.stack
-    ) {
+    if (data?.stack) {
 
         error.stack =
             data.stack;
@@ -152,16 +220,24 @@ export default class WorkerAnalyzer {
                     "module"
             },
 
-        fallback =
-            true,
-
         fallbackAnalyzer =
             null,
 
-        lazy =
-            true
+        ...options
 
     } = {}) {
+
+        this.options = {
+
+            ...DEFAULT_OPTIONS,
+
+            ...options
+
+        };
+
+
+        this.validateOptions();
+
 
         this.workerURL =
             workerURL;
@@ -172,28 +248,31 @@ export default class WorkerAnalyzer {
 
         };
 
-        this.fallback =
-            Boolean(
-                fallback
-            );
-
         this.fallbackAnalyzer =
             fallbackAnalyzer ??
             new Analyzer();
 
-        this.lazy =
-            Boolean(
-                lazy
-            );
 
         this.worker =
+            null;
+
+        this.context =
             null;
 
         this.pending =
             new Map();
 
-        this.context =
+        this.cache =
+            new Map();
+
+        this.debounceEntry =
             null;
+
+        this.token =
+            0;
+
+        this.latestCommittedToken =
+            0;
 
         this.destroyed =
             false;
@@ -202,6 +281,9 @@ export default class WorkerAnalyzer {
             "none";
 
         this.lastError =
+            null;
+
+        this.lastResult =
             null;
 
 
@@ -218,7 +300,7 @@ export default class WorkerAnalyzer {
                 );
 
 
-        if (!this.lazy) {
+        if (!this.options.lazy) {
 
             this.ensureWorker();
 
@@ -227,127 +309,55 @@ export default class WorkerAnalyzer {
     }
 
 
-    /**
-     * Game 相容正式入口。
-     */
-    async analyzeContext(
-        context = {},
-        runOptions = {}
-    ) {
+    validateOptions() {
 
         if (
-            !isObject(context)
+            !Number.isFinite(
+                this.options.debounceMs
+            ) ||
+            this.options.debounceMs < 0
         ) {
 
-            throw new TypeError(
-                "WorkerAnalyzer context must be an object."
+            throw new RangeError(
+                "debounceMs must be a non-negative number."
             );
 
         }
 
-        if (!context.shoe) {
-
-            throw new Error(
-                "WorkerAnalyzer context requires a Shoe."
-            );
-
-        }
 
         if (
-            !isObject(runOptions)
+            !Number.isInteger(
+                this.options.cacheSize
+            ) ||
+            this.options.cacheSize < 1
         ) {
 
-            throw new TypeError(
-                "WorkerAnalyzer runOptions must be an object."
+            throw new RangeError(
+                "cacheSize must be a positive integer."
             );
 
         }
 
 
-        this.context =
-            context;
+        if (
+            !Number.isInteger(
+                this.options.retryCount
+            ) ||
+            this.options.retryCount < 0
+        ) {
 
-        this.lastError =
-            null;
-
-
-        try {
-
-            const result =
-                await this.analyzeInWorker(
-                    context,
-                    runOptions
-                );
-
-            this.lastEngine =
-                "worker";
-
-            return result;
-
-        }
-        catch (error) {
-
-            this.lastError =
-                error;
-
-            if (
-                error?.name ===
-                    "AbortError"
-            ) {
-
-                throw error;
-
-            }
-
-            if (!this.fallback) {
-
-                throw error;
-
-            }
-
-            console.warn(
-                "Worker analysis unavailable; falling back to main-thread Analyzer.",
-                error
+            throw new RangeError(
+                "retryCount must be a non-negative integer."
             );
-
-            this.lastEngine =
-                "main";
-
-            return this
-                .analyzeOnMainThread(
-                    context,
-                    runOptions
-                );
 
         }
 
     }
 
 
-    /**
-     * Game 支援的 run() 別名。
-     */
-    run(
-        context = {},
-        runOptions = {}
-    ) {
-
-        return this.analyzeContext(
-            context,
-            runOptions
-        );
-
-    }
-
-
-    /**
-     * 支援 setContext() + analyze() 介面。
-     */
     setContext(context = {}) {
 
-        if (
-            !isObject(context)
-        ) {
+        if (!isObject(context)) {
 
             throw new TypeError(
                 "WorkerAnalyzer context must be an object."
@@ -359,6 +369,19 @@ export default class WorkerAnalyzer {
             context;
 
         return this;
+
+    }
+
+
+    run(
+        context = {},
+        runOptions = {}
+    ) {
+
+        return this.analyzeContext(
+            context,
+            runOptions
+        );
 
     }
 
@@ -383,11 +406,369 @@ export default class WorkerAnalyzer {
     }
 
 
-    ensureWorker() {
+    analyzeContext(
+        context = {},
+        runOptions = {}
+    ) {
+
+        if (this.destroyed) {
+
+            return Promise.reject(
+                new Error(
+                    "WorkerAnalyzer has been destroyed."
+                )
+            );
+
+        }
+
 
         if (
-            this.destroyed
+            !isObject(context) ||
+            !context.shoe
         ) {
+
+            return Promise.reject(
+                new TypeError(
+                    "WorkerAnalyzer context requires a Shoe."
+                )
+            );
+
+        }
+
+
+        if (!isObject(runOptions)) {
+
+            return Promise.reject(
+                new TypeError(
+                    "runOptions must be an object."
+                )
+            );
+
+        }
+
+
+        this.context =
+            context;
+
+        const token =
+            ++this.token;
+
+
+        if (
+            this.options.latestWins
+        ) {
+
+            this.cancelDebounced(
+                createAbortError(
+                    "Superseded by newer analysis."
+                )
+            );
+
+            this.cancelPending(
+                createAbortError(
+                    "Superseded by newer analysis."
+                )
+            );
+
+        }
+
+
+        return new Promise(
+            (
+                resolve,
+                reject
+            ) => {
+
+                const entry = {
+
+                    token,
+                    context,
+                    runOptions,
+                    resolve,
+                    reject,
+                    timer:
+                        null
+
+                };
+
+
+                const delay =
+                    Number(
+                        runOptions
+                            .debounceMs ??
+                        this.options
+                            .debounceMs
+                    );
+
+
+                if (delay <= 0) {
+
+                    this.executeEntry(
+                        entry
+                    );
+
+                    return;
+
+                }
+
+
+                entry.timer =
+                    setTimeout(
+                        () => {
+
+                            if (
+                                this.debounceEntry ===
+                                    entry
+                            ) {
+
+                                this.debounceEntry =
+                                    null;
+
+                            }
+
+                            this.executeEntry(
+                                entry
+                            );
+
+                        },
+                        delay
+                    );
+
+
+                this.debounceEntry =
+                    entry;
+
+            }
+        );
+
+    }
+
+
+    async executeEntry(entry) {
+
+        const {
+            token,
+            context,
+            runOptions,
+            resolve,
+            reject
+        } = entry;
+
+
+        try {
+
+            const prepared =
+                this.createWorkerPayload(
+                    context,
+                    runOptions
+                );
+
+            const cacheKey =
+                this.createCacheKey(
+                    prepared.payload
+                );
+
+
+            if (
+                this.options.cache &&
+                this.cache.has(
+                    cacheKey
+                )
+            ) {
+
+                const result =
+                    clonePlainData(
+                        this.cache.get(
+                            cacheKey
+                        )
+                    );
+
+
+                this.touchCache(
+                    cacheKey,
+                    result
+                );
+
+                this.commitResult(
+                    token,
+                    result,
+                    "cache"
+                );
+
+                resolve(
+                    result
+                );
+
+                return;
+
+            }
+
+
+            let lastError =
+                null;
+
+            const attempts =
+                this.options.retryCount +
+                1;
+
+
+            for (
+                let attempt = 0;
+                attempt < attempts;
+                attempt++
+            ) {
+
+                try {
+
+                    const result =
+                        await this
+                            .analyzeInWorker(
+                                prepared,
+                                token,
+                                attempt
+                            );
+
+
+                    if (
+                        token !==
+                        this.token
+                    ) {
+
+                        throw createAbortError(
+                            "Stale analysis result ignored."
+                        );
+
+                    }
+
+
+                    if (
+                        this.options.cache
+                    ) {
+
+                        this.setCache(
+                            cacheKey,
+                            result
+                        );
+
+                    }
+
+
+                    this.commitResult(
+                        token,
+                        result,
+                        "worker"
+                    );
+
+                    resolve(
+                        result
+                    );
+
+                    return;
+
+                }
+                catch (error) {
+
+                    lastError =
+                        error;
+
+
+                    if (
+                        error?.name ===
+                            "AbortError"
+                    ) {
+
+                        throw error;
+
+                    }
+
+
+                    this.lastError =
+                        error;
+
+                    this.releaseWorker();
+
+
+                    if (
+                        attempt <
+                        attempts -
+                            1
+                    ) {
+
+                        continue;
+
+                    }
+
+                }
+
+            }
+
+
+            if (
+                !this.options.fallback
+            ) {
+
+                throw lastError;
+
+            }
+
+
+            const result =
+                await this
+                    .analyzeOnMainThread(
+                        context,
+                        runOptions
+                    );
+
+
+            if (
+                token !==
+                this.token
+            ) {
+
+                throw createAbortError(
+                    "Stale fallback result ignored."
+                );
+
+            }
+
+
+            if (
+                this.options.cache
+            ) {
+
+                this.setCache(
+                    cacheKey,
+                    result
+                );
+
+            }
+
+
+            this.commitResult(
+                token,
+                result,
+                "main"
+            );
+
+            resolve(
+                result
+            );
+
+        }
+        catch (error) {
+
+            reject(
+                error
+            );
+
+        }
+
+    }
+
+
+    ensureWorker() {
+
+        if (this.destroyed) {
 
             throw new Error(
                 "WorkerAnalyzer has been destroyed."
@@ -395,11 +776,13 @@ export default class WorkerAnalyzer {
 
         }
 
+
         if (this.worker) {
 
             return this.worker;
 
         }
+
 
         if (
             typeof Worker ===
@@ -413,38 +796,34 @@ export default class WorkerAnalyzer {
         }
 
 
-        const worker =
+        this.worker =
             new Worker(
                 this.workerURL,
                 this.workerOptions
             );
 
-        worker.addEventListener(
+
+        this.worker.addEventListener(
             "message",
             this.boundMessage
         );
 
-        worker.addEventListener(
+        this.worker.addEventListener(
             "error",
             this.boundError
         );
 
-        worker.addEventListener(
+        this.worker.addEventListener(
             "messageerror",
             this.boundError
         );
 
-        this.worker =
-            worker;
 
-        return worker;
+        return this.worker;
 
     }
 
 
-    /**
-     * 將 Game context 整理成 Worker 可 structured-clone 的資料。
-     */
     createWorkerPayload(
         context,
         runOptions
@@ -468,127 +847,112 @@ export default class WorkerAnalyzer {
             onProgress,
             onMonteCarloProgress,
             onExactProgress,
+            debounceMs,
+            bypassCache,
             ...serializableRunOptions
         } = runOptions;
 
 
-        const analyzerOptions =
-            context.analyzerOptions ??
-            {};
-
-
         return {
 
-            payload:
-                {
+            payload: {
 
-                    shoe:
-                        context.shoe
-                            .toJSON(),
+                shoe:
+                    context.shoe
+                        .toJSON(),
 
-                    roundCount:
-                        context.roundCount ??
-                        context.history
-                            ?.count ??
-                        0,
+                roundCount:
+                    context.roundCount ??
+                    context.history
+                        ?.count ??
+                    0,
 
-                    historyCount:
-                        context.history
-                            ?.count ??
-                        context.roundCount ??
-                        0,
+                historyCount:
+                    context.history
+                        ?.count ??
+                    context.roundCount ??
+                    0,
 
-                    contextOptions:
-                        {
+                contextOptions:
+                    clonePlainData({
 
-                            payouts:
-                                clonePlainData(
-                                    context.payouts ??
-                                    {}
-                                ),
+                        payouts:
+                            context.payouts ??
+                            {},
 
-                            monteCarloOptions:
-                                clonePlainData(
-                                    context
-                                        .monteCarloOptions ??
-                                    {}
-                                ),
+                        monteCarloOptions:
+                            context
+                                .monteCarloOptions ??
+                            {},
 
-                            exactOptions:
-                                clonePlainData(
-                                    context
-                                        .exactOptions ??
-                                    {}
-                                ),
+                        exactOptions:
+                            context
+                                .exactOptions ??
+                            {},
 
-                            kellyOptions:
-                                clonePlainData(
-                                    context
-                                        .kellyOptions ??
-                                    {}
-                                ),
+                        kellyOptions:
+                            context
+                                .kellyOptions ??
+                            {},
 
-                            riskOptions:
-                                clonePlainData(
-                                    context
-                                        .riskOptions ??
-                                    {}
-                                ),
+                        riskOptions:
+                            context
+                                .riskOptions ??
+                            {},
 
-                            confidenceOptions:
-                                clonePlainData(
-                                    context
-                                        .confidenceOptions ??
-                                    {}
-                                ),
+                        confidenceOptions:
+                            context
+                                .confidenceOptions ??
+                            {},
 
-                            rankingOptions:
-                                clonePlainData(
-                                    context
-                                        .rankingOptions ??
-                                    {}
-                                ),
+                        rankingOptions:
+                            context
+                                .rankingOptions ??
+                            {},
 
-                            recommendationOptions:
-                                clonePlainData(
-                                    context
-                                        .recommendationOptions ??
-                                    {}
-                                ),
+                        recommendationOptions:
+                            context
+                                .recommendationOptions ??
+                            {},
 
-                            bankroll:
-                                context.bankroll,
+                        bankroll:
+                            context.bankroll,
 
-                            fraction:
-                                context.fraction,
+                        fraction:
+                            context.fraction,
 
-                            minBet:
-                                context.minBet,
+                        minBet:
+                            context.minBet,
 
-                            maxBet:
-                                context.maxBet,
+                        maxBet:
+                            context.maxBet,
 
-                            maxBankrollRatio:
-                                context
-                                    .maxBankrollRatio,
+                        maxBankrollRatio:
+                            context
+                                .maxBankrollRatio,
 
-                            analyzerOptions:
-                                clonePlainData(
-                                    analyzerOptions
-                                )
+                        analyzerOptions:
+                            context
+                                .analyzerOptions ??
+                            {}
 
-                        },
+                    }),
 
-                    runOptions:
-                        clonePlainData(
-                            serializableRunOptions
-                        )
+                runOptions:
+                    clonePlainData(
+                        serializableRunOptions
+                    )
 
-                },
+            },
 
             signal:
                 signal ??
                 null,
+
+            bypassCache:
+                Boolean(
+                    bypassCache
+                ),
 
             onProgress:
                 typeof onProgress ===
@@ -603,7 +967,8 @@ export default class WorkerAnalyzer {
 
                             onMonteCarloProgress
                                 ?.(
-                                    progress.progress
+                                    progress
+                                        .progress
                                 );
 
                         }
@@ -615,7 +980,8 @@ export default class WorkerAnalyzer {
 
                             onExactProgress
                                 ?.(
-                                    progress.progress
+                                    progress
+                                        .progress
                                 );
 
                         }
@@ -627,9 +993,19 @@ export default class WorkerAnalyzer {
     }
 
 
+    createCacheKey(payload) {
+
+        return stableStringify(
+            payload
+        );
+
+    }
+
+
     analyzeInWorker(
-        context,
-        runOptions
+        prepared,
+        token,
+        attempt
     ) {
 
         const worker =
@@ -637,12 +1013,6 @@ export default class WorkerAnalyzer {
 
         const requestId =
             createRequestId();
-
-        const prepared =
-            this.createWorkerPayload(
-                context,
-                runOptions
-            );
 
 
         return new Promise(
@@ -652,17 +1022,11 @@ export default class WorkerAnalyzer {
             ) => {
 
                 const abort =
-                    () => {
-
+                    () =>
                         this.cancel(
                             requestId,
-                            new DOMException(
-                                "Analysis aborted.",
-                                "AbortError"
-                            )
+                            createAbortError()
                         );
-
-                    };
 
 
                 if (
@@ -671,10 +1035,7 @@ export default class WorkerAnalyzer {
                 ) {
 
                     reject(
-                        new DOMException(
-                            "Analysis aborted.",
-                            "AbortError"
-                        )
+                        createAbortError()
                     );
 
                     return;
@@ -682,29 +1043,25 @@ export default class WorkerAnalyzer {
                 }
 
 
-                if (
-                    prepared.signal
-                ) {
-
-                    prepared.signal
-                        .addEventListener(
-                            "abort",
-                            abort,
-                            {
-                                once:
-                                    true
-                            }
-                        );
-
-                }
+                prepared.signal
+                    ?.addEventListener(
+                        "abort",
+                        abort,
+                        {
+                            once:
+                                true
+                        }
+                    );
 
 
                 this.pending.set(
                     requestId,
                     {
 
+                        requestId,
+                        token,
+                        attempt,
                         resolve,
-
                         reject,
 
                         onProgress:
@@ -728,6 +1085,10 @@ export default class WorkerAnalyzer {
 
                     requestId,
 
+                    token,
+
+                    attempt,
+
                     payload:
                         prepared.payload
 
@@ -739,10 +1100,25 @@ export default class WorkerAnalyzer {
     }
 
 
-    analyzeOnMainThread(
+    async analyzeOnMainThread(
         context,
         runOptions
     ) {
+
+        const {
+            signal,
+            debounceMs,
+            bypassCache,
+            ...safeRunOptions
+        } = runOptions;
+
+
+        if (signal?.aborted) {
+
+            throw createAbortError();
+
+        }
+
 
         const analyzer =
             this.fallbackAnalyzer;
@@ -757,7 +1133,7 @@ export default class WorkerAnalyzer {
             return analyzer
                 .analyzeContext(
                     context,
-                    runOptions
+                    safeRunOptions
                 );
 
         }
@@ -770,34 +1146,18 @@ export default class WorkerAnalyzer {
 
             return analyzer.run(
                 context,
-                runOptions
+                safeRunOptions
             );
 
         }
 
 
-        if (
-            typeof analyzer
-                .setContext ===
-                "function" &&
-            typeof analyzer
-                .analyze ===
-                "function"
-        ) {
+        analyzer.setContext(
+            context
+        );
 
-            analyzer.setContext(
-                context
-            );
-
-            return analyzer.analyze(
-                runOptions
-            );
-
-        }
-
-
-        throw new TypeError(
-            "Fallback Analyzer does not provide a supported interface."
+        return analyzer.analyze(
+            safeRunOptions
         );
 
     }
@@ -808,9 +1168,7 @@ export default class WorkerAnalyzer {
         const data =
             event.data;
 
-        if (
-            !isObject(data)
-        ) {
+        if (!isObject(data)) {
 
             return;
 
@@ -834,15 +1192,28 @@ export default class WorkerAnalyzer {
                 "progress"
         ) {
 
-            pending.onProgress?.({
+            if (
+                pending.token ===
+                this.token
+            ) {
 
-                phase:
-                    data.phase,
+                pending.onProgress?.({
 
-                progress:
-                    data.progress
+                    phase:
+                        data.phase,
 
-            });
+                    progress:
+                        data.progress,
+
+                    token:
+                        pending.token,
+
+                    attempt:
+                        pending.attempt
+
+                });
+
+            }
 
             return;
 
@@ -871,6 +1242,22 @@ export default class WorkerAnalyzer {
 
         if (
             data.type ===
+                "cancelled"
+        ) {
+
+            pending.reject(
+                createAbortError(
+                    "Worker analysis cancelled."
+                )
+            );
+
+            return;
+
+        }
+
+
+        if (
+            data.type ===
                 "error"
         ) {
 
@@ -885,97 +1272,6 @@ export default class WorkerAnalyzer {
     }
 
 
-    cleanupRequest(
-        requestId,
-        pending
-    ) {
-
-        if (
-            pending.signal
-        ) {
-
-            pending.signal
-                .removeEventListener(
-                    "abort",
-                    pending.abort
-                );
-
-        }
-
-        this.pending.delete(
-            requestId
-        );
-
-    }
-
-
-    cancel(
-        requestId,
-        reason =
-            new DOMException(
-                "Analysis cancelled.",
-                "AbortError"
-            )
-    ) {
-
-        const pending =
-            this.pending.get(
-                requestId
-            );
-
-        if (!pending) {
-
-            return false;
-
-        }
-
-        this.cleanupRequest(
-            requestId,
-            pending
-        );
-
-        pending.reject(
-            reason
-        );
-
-        return true;
-
-    }
-
-
-    cancelAll(
-        reason =
-            new DOMException(
-                "All analyses cancelled.",
-                "AbortError"
-            )
-    ) {
-
-        for (
-            const [
-                requestId,
-                pending
-            ] of [
-                ...this.pending
-            ]
-        ) {
-
-            this.cleanupRequest(
-                requestId,
-                pending
-            );
-
-            pending.reject(
-                reason
-            );
-
-        }
-
-        return this;
-
-    }
-
-
     handleWorkerFailure(event) {
 
         const error =
@@ -984,6 +1280,7 @@ export default class WorkerAnalyzer {
                 event?.message ??
                 "Analysis Worker failed."
             );
+
 
         this.lastError =
             error;
@@ -1011,6 +1308,243 @@ export default class WorkerAnalyzer {
 
 
         this.releaseWorker();
+
+    }
+
+
+    cleanupRequest(
+        requestId,
+        pending
+    ) {
+
+        pending.signal
+            ?.removeEventListener(
+                "abort",
+                pending.abort
+            );
+
+        this.pending.delete(
+            requestId
+        );
+
+    }
+
+
+    cancel(
+        requestId,
+        reason =
+            createAbortError(
+                "Analysis cancelled."
+            )
+    ) {
+
+        const pending =
+            this.pending.get(
+                requestId
+            );
+
+        if (!pending) {
+
+            return false;
+
+        }
+
+
+        try {
+
+            this.worker?.postMessage({
+
+                type:
+                    "cancel",
+
+                requestId
+
+            });
+
+        }
+        catch {
+
+            // worker may already be unavailable
+        }
+
+
+        this.cleanupRequest(
+            requestId,
+            pending
+        );
+
+        pending.reject(
+            reason
+        );
+
+        return true;
+
+    }
+
+
+    cancelPending(reason) {
+
+        for (
+            const requestId of
+            [
+                ...this.pending
+                    .keys()
+            ]
+        ) {
+
+            this.cancel(
+                requestId,
+                reason
+            );
+
+        }
+
+        return this;
+
+    }
+
+
+    cancelDebounced(reason) {
+
+        if (!this.debounceEntry) {
+
+            return this;
+
+        }
+
+
+        clearTimeout(
+            this.debounceEntry
+                .timer
+        );
+
+        this.debounceEntry
+            .reject(
+                reason
+            );
+
+        this.debounceEntry =
+            null;
+
+        return this;
+
+    }
+
+
+    cancelAll(
+        reason =
+            createAbortError(
+                "All analyses cancelled."
+            )
+    ) {
+
+        this.cancelDebounced(
+            reason
+        );
+
+        this.cancelPending(
+            reason
+        );
+
+        return this;
+
+    }
+
+
+    commitResult(
+        token,
+        result,
+        engine
+    ) {
+
+        if (
+            token <
+            this.latestCommittedToken
+        ) {
+
+            return false;
+
+        }
+
+
+        this.latestCommittedToken =
+            token;
+
+        this.lastEngine =
+            engine;
+
+        this.lastResult =
+            result;
+
+        this.lastError =
+            null;
+
+        return true;
+
+    }
+
+
+    setCache(
+        key,
+        result
+    ) {
+
+        this.cache.delete(
+            key
+        );
+
+        this.cache.set(
+            key,
+            clonePlainData(
+                result
+            )
+        );
+
+
+        while (
+            this.cache.size >
+            this.options.cacheSize
+        ) {
+
+            const oldest =
+                this.cache
+                    .keys()
+                    .next()
+                    .value;
+
+            this.cache.delete(
+                oldest
+            );
+
+        }
+
+    }
+
+
+    touchCache(
+        key,
+        result
+    ) {
+
+        this.cache.delete(
+            key
+        );
+
+        this.cache.set(
+            key,
+            clonePlainData(
+                result
+            )
+        );
+
+    }
+
+
+    clearCache() {
+
+        this.cache.clear();
+
+        return this;
 
     }
 
@@ -1051,17 +1585,18 @@ export default class WorkerAnalyzer {
 
     destroy() {
 
-        if (
-            this.destroyed
-        ) {
+        if (this.destroyed) {
 
             return this;
 
         }
 
+
         this.cancelAll();
 
         this.releaseWorker();
+
+        this.clearCache();
 
         this.destroyed =
             true;
@@ -1073,7 +1608,14 @@ export default class WorkerAnalyzer {
 
     get activeCount() {
 
-        return this.pending.size;
+        return (
+            this.pending.size +
+            (
+                this.debounceEntry
+                    ? 1
+                    : 0
+            )
+        );
 
     }
 
@@ -1081,6 +1623,9 @@ export default class WorkerAnalyzer {
     get summary() {
 
         return {
+
+            version:
+                WORKER_ANALYZER_VERSION,
 
             engine:
                 this.lastEngine,
@@ -1093,8 +1638,23 @@ export default class WorkerAnalyzer {
             activeCount:
                 this.activeCount,
 
+            cacheSize:
+                this.cache.size,
+
+            latestToken:
+                this.token,
+
+            committedToken:
+                this.latestCommittedToken,
+
             fallback:
-                this.fallback,
+                this.options.fallback,
+
+            retryCount:
+                this.options.retryCount,
+
+            debounceMs:
+                this.options.debounceMs,
 
             destroyed:
                 this.destroyed,
