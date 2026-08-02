@@ -59,7 +59,7 @@ const TESTS = [
         id: "bead-road",
         name: "Bead Road",
         run: beadRoadTest
-    }
+    },
 
     {
         id: "big-road",
