@@ -1,9 +1,10 @@
 /**
- * Baccarat Analyzer V3
+ * Baccarat Analyzer V3.3 Final
  * tests/dashboard.test.js
  */
 
 import createDashboard, {
+    DASHBOARD_VERSION,
     Dashboard,
     DashboardMode
 } from "../pages/dashboard.js";
@@ -105,24 +106,25 @@ export default async function dashboardTest() {
         const dashboard = createDashboard({ root, game });
 
         assert(dashboard instanceof Dashboard, "工廠函式應建立 Dashboard");
+        assert(DASHBOARD_VERSION === "3.3.0", "Dashboard 版本應為 3.3.0");
         assert(dashboard.components.statusPanel instanceof StatusPanel, "StatusPanel 未建立");
         assert(dashboard.components.analysisPanel instanceof AnalysisPanel, "AnalysisPanel 未建立");
         assert(dashboard.components.recommendationPanel instanceof RecommendationPanel, "RecommendationPanel 未建立");
-        messages.push("✓ V3 元件建立正確");
+        messages.push("✓ V3.3 Final 元件建立正確");
 
-        assert(root.querySelector(".dashboardV3"), "缺少 Dashboard V3");
+        assert(root.querySelector(".dashboardV33"), "缺少 Dashboard V3.3");
         assert(root.querySelector(".v3StatusStrip"), "缺少 StatusPanel");
         assert(root.querySelector(".v3RoundPanel"), "缺少 Round Panel");
         assert(root.querySelector(".v3AnalysisPanel"), "缺少 AnalysisPanel");
         assert(root.querySelector(".v3RecommendationPanel"), "缺少 RecommendationPanel");
         assert(root.querySelector(".v3HistoryPanel"), "缺少 History Panel");
         assert(root.querySelector(".v3RoadmapPanel"), "缺少 Roadmap Panel");
-        assert(root.querySelector(".v32CasinoGrid"), "缺少 V3.2 Casino Grid");
-        assert(root.querySelector(".v32InputZone"), "缺少輸牌區");
-        assert(root.querySelector(".v32InsightZone"), "缺少分析區");
-        assert(root.querySelector(".v32RoadZone"), "缺少路單區");
+        assert(root.querySelector(".v33CasinoGrid"), "缺少 V3.3 Casino Grid");
+        assert(root.querySelector(".v33InputZone"), "缺少輸牌區");
+        assert(root.querySelector(".v33InsightZone"), "缺少分析區");
+        assert(root.querySelector(".v33RoadZone"), "缺少路單區");
         assert(root.querySelectorAll("[data-action='set-mobile-section']").length === 3, "手機分區按鈕應為 3 個");
-        messages.push("✓ V3.2 Casino Dashboard DOM 正確");
+        messages.push("✓ V3.3 Final Casino Dashboard DOM 正確");
 
         assert(root.querySelector('[data-mode="quick"]'), "缺少快速模式按鈕");
         assert(root.querySelector('[data-mode="full"]'), "缺少完整模式按鈕");
@@ -263,6 +265,7 @@ export default async function dashboardTest() {
         messages.push("✓ Roadmap 切換正確");
 
         const summary = dashboard.summary;
+        assert(summary.version === "3.3.0", "summary.version 錯誤");
         assert(summary.mounted === true, "summary.mounted 錯誤");
         assert(summary.roundCount === 1, "summary.roundCount 錯誤");
         assert(summary.hasAnalysis === true, "summary.hasAnalysis 錯誤");
@@ -278,7 +281,7 @@ export default async function dashboardTest() {
         return `
 ${messages.join("\n")}
 
-Dashboard V3 測試完成
+Dashboard V3.3 Final 測試完成
 
 元件化：通過
 快速／完整模式：通過
@@ -289,6 +292,7 @@ Dashboard V3 測試完成
 鍵盤一鍵輸牌：通過
 自動花色：通過
 指定花色模式：通過
+V3.3 Final：通過
 Casino Grid：通過
 手機三區切換：通過
 `;
