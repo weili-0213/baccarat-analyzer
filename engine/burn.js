@@ -189,13 +189,10 @@ export default class Burn {
      */
     get physicalRemaining() {
 
-        return Math.max(
-
-            0,
-
-            this.observableRemaining -
-            this.hiddenCount
-
+        return (
+            this.shoe
+                ?.physicalRemaining ??
+            0
         );
 
     }
@@ -649,6 +646,9 @@ export default class Burn {
                 indicator
             );
 
+        this.shoe.registerUnknownBurn(
+            hiddenCount
+        );
 
         this.indicator =
             removedIndicator;
