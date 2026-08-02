@@ -1,121 +1,126 @@
 /**
  * Baccarat Analyzer
  * -----------------------------------------
+ *
+ * analysis/recommendation.js
+ *
  * Recommendation Engine
  *
- * 職責：
- * 1. 接收 Ranking 結果
- * 2. 判斷下注或跳過
- * 3. 選出最佳下注
- * 4. 整理建議原因
- * 5. 整理拒絕原因
- * 6. 提供 UI 可直接使用的輸出
+ * 預設只允許主注成為最終建議：
  *
- * 不負責：
- * - 機率計算
- * - EV 計算
- * - Kelly 計算
- * - Risk 計算
- * - Confidence 計算
- * - Ranking 計算
+ * - player
+ * - banker
+ * - tie
+ *
+ * 邊注與 Dragon Bonus 可保留在分析畫面中，
+ * 但不會成為主推薦。
  */
 
-const DEFAULT_OPTIONS = Object.freeze({
+export const ACTION =
+    Object.freeze({
 
-    /**
-     * 最低 EV
-     *
-     * 0 代表必須為正 EV。
-     */
-    minimumEV: 0,
+        BET:
+            "bet",
 
-    /**
-     * 最低可信度
-     */
-    minimumConfidence: 0.6,
+        SKIP:
+            "skip"
 
-    /**
-     * 最高相對風險
-     *
-     * null 代表不限制。
-     */
-    maximumRisk: null,
-
-    /**
-     * 最低綜合排名分數
-     */
-    minimumScore: 0,
-
-    /**
-     * 必須有正 Kelly
-     */
-    requirePositiveKelly: true,
-
-    /**
-     * 必須有實際下注金額
-     */
-    requirePositiveAmount: true,
-
-    /**
-     * 暫時可信度是否允許下注
-     *
-     * Monte Carlo / Exact 尚未完成時，
-     * Confidence 可能標記 provisional。
-     */
-    allowProvisionalConfidence: false,
-
-    /**
-     * 最多輸出幾個候選項目
-     */
-    candidateCount: 3
-
-});
+    });
 
 
-const ACTION = Object.freeze({
+export const DECISION =
+    Object.freeze({
 
-    BET: "bet",
+        RECOMMENDED:
+            "recommended",
 
-    SKIP: "skip"
+        REJECTED:
+            "rejected"
 
-});
-
-
-const DECISION = Object.freeze({
-
-    RECOMMENDED: "recommended",
-
-    REJECTED: "rejected"
-
-});
+    });
 
 
-export {
-    ACTION,
-    DECISION
-};
+export const DEFAULT_ALLOWED_BETS =
+    Object.freeze([
+
+        "player",
+
+        "banker",
+
+        "tie"
+
+    ]);
+
+
+const DEFAULT_OPTIONS =
+    Object.freeze({
+
+        minimumEV:
+            0,
+
+        minimumConfidence:
+            0.6,
+
+        maximumRisk:
+            null,
+
+        minimumScore:
+            0,
+
+        requirePositiveKelly:
+            true,
+
+        requirePositiveAmount:
+            true,
+
+        allowProvisionalConfidence:
+            false,
+
+        candidateCount:
+            3,
+
+        allowedBets:
+            DEFAULT_ALLOWED_BETS
+
+    });
 
 
 export default class Recommendation {
 
-    constructor(options = {}) {
+    constructor(
+        options = {}
+    ) {
 
-        this.setOptions(options);
+        this.setOptions(
+            options
+        );
 
     }
 
-    /**
-     * 更新設定
-     */
-    setOptions(options = {}) {
+
+    setOptions(
+        options = {}
+    ) {
 
         this.options = {
 
             ...DEFAULT_OPTIONS,
 
-            ...options
+            ...options,
+
+            allowedBets:
+                Array.isArray(
+                    options.allowedBets
+                )
+                    ? [
+                        ...options.allowedBets
+                    ]
+                    : [
+                        ...DEFAULT_ALLOWED_BETS
+                    ]
 
         };
+
 
         this.validateOptions();
 
@@ -123,9 +128,7 @@ export default class Recommendation {
 
     }
 
-    /**
-     * 驗證設定
-     */
+
     validateOptions() {
 
         const {
@@ -136,16 +139,23 @@ export default class Recommendation {
             requirePositiveKelly,
             requirePositiveAmount,
             allowProvisionalConfidence,
-            candidateCount
+            candidateCount,
+            allowedBets
         } = this.options;
 
-        if (!Number.isFinite(minimumEV)) {
+
+        if (
+            !Number.isFinite(
+                minimumEV
+            )
+        ) {
 
             throw new TypeError(
                 "minimumEV must be a finite number"
             );
 
         }
+
 
         if (
             !Number.isFinite(
@@ -161,10 +171,13 @@ export default class Recommendation {
 
         }
 
+
         if (
             maximumRisk !== null &&
             (
-                !Number.isFinite(maximumRisk) ||
+                !Number.isFinite(
+                    maximumRisk
+                ) ||
                 maximumRisk < 0
             )
         ) {
@@ -175,8 +188,11 @@ export default class Recommendation {
 
         }
 
+
         if (
-            !Number.isFinite(minimumScore) ||
+            !Number.isFinite(
+                minimumScore
+            ) ||
             minimumScore < 0 ||
             minimumScore > 1
         ) {
@@ -187,9 +203,10 @@ export default class Recommendation {
 
         }
 
+
         if (
             typeof requirePositiveKelly !==
-            "boolean"
+                "boolean"
         ) {
 
             throw new TypeError(
@@ -198,9 +215,10 @@ export default class Recommendation {
 
         }
 
+
         if (
             typeof requirePositiveAmount !==
-            "boolean"
+                "boolean"
         ) {
 
             throw new TypeError(
@@ -209,9 +227,10 @@ export default class Recommendation {
 
         }
 
+
         if (
             typeof allowProvisionalConfidence !==
-            "boolean"
+                "boolean"
         ) {
 
             throw new TypeError(
@@ -220,8 +239,11 @@ export default class Recommendation {
 
         }
 
+
         if (
-            !Number.isInteger(candidateCount) ||
+            !Number.isInteger(
+                candidateCount
+            ) ||
             candidateCount < 1
         ) {
 
@@ -231,14 +253,59 @@ export default class Recommendation {
 
         }
 
+
+        if (
+            !Array.isArray(
+                allowedBets
+            ) ||
+            allowedBets.length === 0
+        ) {
+
+            throw new TypeError(
+                "allowedBets must be a non-empty array"
+            );
+
+        }
+
     }
 
-    /**
-     * 驗證 Ranking 結果
-     */
-    validateRanking(ranking) {
 
-        if (!Array.isArray(ranking)) {
+    isAllowedBet(name) {
+
+        return this.options
+            .allowedBets
+            .includes(
+                name
+            );
+
+    }
+
+
+    filterAllowedRanking(
+        ranking
+    ) {
+
+        return ranking.filter(
+            item =>
+                this.isAllowedBet(
+                    item.name
+                ) &&
+                item.recommendationEligible !==
+                    false
+        );
+
+    }
+
+
+    validateRanking(
+        ranking
+    ) {
+
+        if (
+            !Array.isArray(
+                ranking
+            )
+        ) {
 
             throw new TypeError(
                 "Ranking result must be an array"
@@ -246,11 +313,16 @@ export default class Recommendation {
 
         }
 
-        for (const item of ranking) {
+
+        for (
+            const item of
+            ranking
+        ) {
 
             if (
                 !item ||
-                typeof item !== "object" ||
+                typeof item !==
+                    "object" ||
                 Array.isArray(item)
             ) {
 
@@ -260,9 +332,10 @@ export default class Recommendation {
 
             }
 
+
             if (
                 typeof item.name !==
-                "string" ||
+                    "string" ||
                 item.name.length === 0
             ) {
 
@@ -272,33 +345,36 @@ export default class Recommendation {
 
             }
 
-            const requiredNumbers = {
-
-                ev:
-                    item.ev,
-
-                kelly:
-                    item.kelly,
-
-                risk:
-                    item.risk,
-
-                confidence:
-                    item.confidence,
-
-                score:
-                    item.score
-
-            };
 
             for (
-                const [key, value]
-                of Object.entries(
-                    requiredNumbers
-                )
+                const [
+                    key,
+                    value
+                ] of Object.entries({
+
+                    ev:
+                        item.ev,
+
+                    kelly:
+                        item.kelly,
+
+                    risk:
+                        item.risk,
+
+                    confidence:
+                        item.confidence,
+
+                    score:
+                        item.score
+
+                })
             ) {
 
-                if (!Number.isFinite(value)) {
+                if (
+                    !Number.isFinite(
+                        value
+                    )
+                ) {
 
                     throw new TypeError(
                         `${item.name}.${key} must be a finite number`
@@ -312,47 +388,56 @@ export default class Recommendation {
 
     }
 
-    /**
-     * 數值格式化
-     */
+
     formatPercent(
         value,
         digits = 2
     ) {
 
-        if (!Number.isFinite(value)) {
+        if (
+            !Number.isFinite(
+                value
+            )
+        ) {
 
             return "0.00%";
 
         }
 
+
         return (
-            value * 100
-        ).toFixed(digits) + "%";
+            value *
+            100
+        ).toFixed(
+            digits
+        ) + "%";
 
     }
 
-    /**
-     * 金額格式化
-     */
+
     formatAmount(amount) {
 
-        if (!Number.isFinite(amount)) {
+        if (
+            !Number.isFinite(
+                amount
+            )
+        ) {
 
             return "0";
 
         }
 
+
         return Math.max(
             0,
-            Math.floor(amount)
+            Math.floor(
+                amount
+            )
         ).toLocaleString();
 
     }
 
-    /**
-     * 取得中文名稱
-     */
+
     getLabel(item) {
 
         return (
@@ -362,18 +447,31 @@ export default class Recommendation {
 
     }
 
-    /**
-     * 檢查單一項目是否符合推薦條件
-     */
+
     evaluate(item) {
 
-        const reasons = [];
+        const reasons =
+            [];
 
-        const rejectedReasons = [];
+        const rejectedReasons =
+            [];
 
-        /**
-         * EV
-         */
+
+        if (
+            !this.isAllowedBet(
+                item.name
+            ) ||
+            item.recommendationEligible ===
+                false
+        ) {
+
+            rejectedReasons.push(
+                "此下注項目不在主推薦候選範圍"
+            );
+
+        }
+
+
         if (
             item.ev >
             this.options.minimumEV
@@ -392,9 +490,7 @@ export default class Recommendation {
 
         }
 
-        /**
-         * Confidence
-         */
+
         if (
             item.confidence >=
             this.options.minimumConfidence
@@ -413,9 +509,7 @@ export default class Recommendation {
 
         }
 
-        /**
-         * 暫時可信度
-         */
+
         if (
             item.confidenceProvisional &&
             !this.options
@@ -428,16 +522,16 @@ export default class Recommendation {
 
         }
 
-        /**
-         * Kelly
-         */
+
         if (
             !this.options
                 .requirePositiveKelly ||
             item.kelly > 0
         ) {
 
-            if (item.kelly > 0) {
+            if (
+                item.kelly > 0
+            ) {
 
                 reasons.push(
                     `Kelly 比例為 ${this.formatPercent(item.kelly)}`
@@ -454,16 +548,19 @@ export default class Recommendation {
 
         }
 
-        /**
-         * 下注金額
-         */
+
         const amount =
-            Number.isFinite(item.amount)
+            Number.isFinite(
+                item.amount
+            )
                 ? Math.max(
                     0,
-                    Math.floor(item.amount)
+                    Math.floor(
+                        item.amount
+                    )
                 )
                 : 0;
+
 
         if (
             !this.options
@@ -471,7 +568,9 @@ export default class Recommendation {
             amount > 0
         ) {
 
-            if (amount > 0) {
+            if (
+                amount > 0
+            ) {
 
                 reasons.push(
                     `建議下注金額為 ${this.formatAmount(amount)}`
@@ -488,15 +587,15 @@ export default class Recommendation {
 
         }
 
-        /**
-         * Risk
-         */
+
         if (
             this.options.maximumRisk ===
             null
         ) {
 
-            if (item.riskLabel) {
+            if (
+                item.riskLabel
+            ) {
 
                 reasons.push(
                     `風險等級：${item.riskLabel}`
@@ -523,9 +622,7 @@ export default class Recommendation {
 
         }
 
-        /**
-         * Ranking Score
-         */
+
         if (
             item.score >=
             this.options.minimumScore
@@ -544,11 +641,11 @@ export default class Recommendation {
 
         }
 
-        /**
-         * Ranking 自己已經判定不合格時，
-         * Recommendation 必須尊重該結果。
-         */
-        if (item.eligible === false) {
+
+        if (
+            item.eligible ===
+                false
+        ) {
 
             rejectedReasons.push(
                 "未通過 Ranking 的基本下注條件"
@@ -556,12 +653,12 @@ export default class Recommendation {
 
         }
 
-        const eligible =
-            rejectedReasons.length === 0;
 
         return {
 
-            eligible,
+            eligible:
+                rejectedReasons.length ===
+                0,
 
             reasons,
 
@@ -573,13 +670,14 @@ export default class Recommendation {
 
     }
 
-    /**
-     * 建立候選項目資料
-     */
+
     createCandidate(item) {
 
         const evaluation =
-            this.evaluate(item);
+            this.evaluate(
+                item
+            );
+
 
         return {
 
@@ -587,28 +685,35 @@ export default class Recommendation {
                 item.name,
 
             label:
-                this.getLabel(item),
+                this.getLabel(
+                    item
+                ),
 
             rank:
-                item.rank ?? null,
+                item.rank ??
+                null,
 
             probability:
-                item.probability ?? null,
+                item.probability ??
+                null,
 
             ev:
                 item.ev,
 
             evPercent:
-                item.ev * 100,
+                item.ev *
+                100,
 
             kelly:
                 item.kelly,
 
             kellyPercent:
-                item.kelly * 100,
+                item.kelly *
+                100,
 
             fullKelly:
-                item.fullKelly ?? null,
+                item.fullKelly ??
+                null,
 
             amount:
                 evaluation.amount,
@@ -617,16 +722,19 @@ export default class Recommendation {
                 item.risk,
 
             riskLevel:
-                item.riskLevel ?? null,
+                item.riskLevel ??
+                null,
 
             riskLabel:
-                item.riskLabel ?? null,
+                item.riskLabel ??
+                null,
 
             confidence:
                 item.confidence,
 
             confidencePercent:
-                item.confidence * 100,
+                item.confidence *
+                100,
 
             confidenceLevel:
                 item.confidenceLevel ??
@@ -644,10 +752,12 @@ export default class Recommendation {
                 item.score,
 
             scorePercent:
-                item.score * 100,
+                item.score *
+                100,
 
             positiveEV:
-                item.ev > 0,
+                item.ev >
+                0,
 
             eligible:
                 evaluation.eligible,
@@ -662,27 +772,28 @@ export default class Recommendation {
 
     }
 
-    /**
-     * 取得符合條件的候選項目
-     */
+
     getCandidates(ranking) {
 
-        this.validateRanking(ranking);
+        this.validateRanking(
+            ranking
+        );
 
-        return ranking
 
+        return this
+            .filterAllowedRanking(
+                ranking
+            )
             .map(
                 item =>
                     this.createCandidate(
                         item
                     )
             )
-
             .filter(
                 item =>
                     item.eligible
             )
-
             .slice(
                 0,
                 this.options
@@ -691,22 +802,21 @@ export default class Recommendation {
 
     }
 
-    /**
-     * 取得被拒絕項目
-     */
+
     getRejected(ranking) {
 
-        this.validateRanking(ranking);
+        this.validateRanking(
+            ranking
+        );
+
 
         return ranking
-
             .map(
                 item =>
                     this.createCandidate(
                         item
                     )
             )
-
             .filter(
                 item =>
                     !item.eligible
@@ -714,9 +824,7 @@ export default class Recommendation {
 
     }
 
-    /**
-     * 建立下注建議
-     */
+
     createBetRecommendation(
         best,
         candidates,
@@ -797,9 +905,10 @@ export default class Recommendation {
             message:
                 `建議下注 ${best.label}，金額 ${this.formatAmount(best.amount)}`,
 
-            reasons: [
-                ...best.reasons
-            ],
+            reasons:
+                [
+                    ...best.reasons
+                ],
 
             warnings:
                 best.confidenceProvisional
@@ -820,85 +929,34 @@ export default class Recommendation {
 
     }
 
-    /**
-     * 建立跳過建議
-     */
+
     createSkipRecommendation(
         ranking,
         rejected
     ) {
 
-        const reasons = [];
+        const reasons =
+            [];
 
-        if (ranking.length === 0) {
+
+        if (
+            ranking.length ===
+            0
+        ) {
 
             reasons.push(
-                "目前沒有可供分析的下注項目"
+                "目前沒有可供分析的主注項目"
             );
 
         }
         else {
 
             reasons.push(
-                "目前沒有符合條件的正 EV 下注"
+                "目前沒有符合條件的正 EV 主注"
             );
 
         }
 
-        const negativeEVCount =
-            ranking.filter(
-                item =>
-                    item.ev <=
-                    this.options.minimumEV
-            ).length;
-
-        if (
-            negativeEVCount ===
-            ranking.length &&
-            ranking.length > 0
-        ) {
-
-            reasons.push(
-                "所有下注項目的 EV 都未超過設定門檻"
-            );
-
-        }
-
-        const lowConfidenceCount =
-            ranking.filter(
-                item =>
-                    item.confidence <
-                    this.options
-                        .minimumConfidence
-            ).length;
-
-        if (
-            lowConfidenceCount > 0
-        ) {
-
-            reasons.push(
-                `${lowConfidenceCount} 個下注項目的可信度不足`
-            );
-
-        }
-
-        const provisionalCount =
-            ranking.filter(
-                item =>
-                    item.confidenceProvisional
-            ).length;
-
-        if (
-            provisionalCount > 0 &&
-            !this.options
-                .allowProvisionalConfidence
-        ) {
-
-            reasons.push(
-                "分析尚未完成 Monte Carlo 或 Exact 驗證"
-            );
-
-        }
 
         return {
 
@@ -963,13 +1021,15 @@ export default class Recommendation {
                 "建議：本局不下注",
 
             message:
-                "目前沒有符合設定條件的下注項目",
+                "目前沒有符合設定條件的主注項目",
 
             reasons,
 
-            warnings: [],
+            warnings:
+                [],
 
-            candidates: [],
+            candidates:
+                [],
 
             rejected,
 
@@ -981,12 +1041,19 @@ export default class Recommendation {
 
     }
 
-    /**
-     * 產生最終建議
-     */
+
     calculate(ranking) {
 
-        this.validateRanking(ranking);
+        this.validateRanking(
+            ranking
+        );
+
+
+        const allowedRanking =
+            this.filterAllowedRanking(
+                ranking
+            );
+
 
         const candidates =
             this.getCandidates(
@@ -999,17 +1066,22 @@ export default class Recommendation {
             );
 
         const best =
-            candidates[0] ?? null;
+            candidates[0] ??
+            null;
 
-        if (!best) {
+
+        if (
+            !best
+        ) {
 
             return this
                 .createSkipRecommendation(
-                    ranking,
+                    allowedRanking,
                     rejected
                 );
 
         }
+
 
         return this
             .createBetRecommendation(
@@ -1020,9 +1092,7 @@ export default class Recommendation {
 
     }
 
-    /**
-     * calculate() 的別名
-     */
+
     recommend(ranking) {
 
         return this.calculate(
@@ -1031,10 +1101,10 @@ export default class Recommendation {
 
     }
 
-    /**
-     * 更新單一設定
-     */
-    updateOptions(options = {}) {
+
+    updateOptions(
+        options = {}
+    ) {
 
         return this.setOptions({
 
@@ -1046,22 +1116,24 @@ export default class Recommendation {
 
     }
 
-    /**
-     * 複製 Recommendation 引擎
-     */
+
     clone() {
 
         return new Recommendation({
 
-            ...this.options
+            ...this.options,
+
+            allowedBets:
+                [
+                    ...this.options
+                        .allowedBets
+                ]
 
         });
 
     }
 
-    /**
-     * 輸出設定
-     */
+
     toJSON() {
 
         return {
@@ -1093,7 +1165,13 @@ export default class Recommendation {
 
             candidateCount:
                 this.options
-                    .candidateCount
+                    .candidateCount,
+
+            allowedBets:
+                [
+                    ...this.options
+                        .allowedBets
+                ]
 
         };
 
