@@ -157,6 +157,70 @@ const BET_LABELS =
     });
 
 
+export const DashboardMode =
+    Object.freeze({
+
+        QUICK:
+            "quick",
+
+        FULL:
+            "full"
+
+    });
+
+
+function loadDashboardMode() {
+
+    try {
+
+        const saved =
+            window.localStorage
+                .getItem(
+                    "baccarat.dashboardMode"
+                );
+
+        if (
+            Object.values(
+                DashboardMode
+            ).includes(
+                saved
+            )
+        ) {
+
+            return saved;
+
+        }
+
+    }
+    catch {
+
+        // localStorage 不可用時使用預設值。
+    }
+
+    return DashboardMode.QUICK;
+
+}
+
+
+function saveDashboardMode(mode) {
+
+    try {
+
+        window.localStorage
+            .setItem(
+                "baccarat.dashboardMode",
+                mode
+            );
+
+    }
+    catch {
+
+        // 不影響主要功能。
+    }
+
+}
+
+
 function isObject(value) {
 
     return (
@@ -476,7 +540,10 @@ export class Dashboard {
                 "beadRoad",
 
             analysisExpanded:
-                false
+                false,
+
+            mode:
+                loadDashboardMode()
 
         };
 
@@ -882,6 +949,15 @@ export class Dashboard {
                 break;
 
 
+            case "set-dashboard-mode":
+
+                this.setMode(
+                    button.dataset.mode
+                );
+
+                break;
+
+
             case "toggle-analysis":
 
                 this.ui.analysisExpanded =
@@ -900,6 +976,40 @@ export class Dashboard {
                 );
 
         }
+
+    }
+
+
+    setMode(mode) {
+
+        if (
+            !Object.values(
+                DashboardMode
+            ).includes(
+                mode
+            )
+        ) {
+
+            throw new Error(
+                `Unknown dashboard mode: ${mode}`
+            );
+
+        }
+
+        this.ui.mode =
+            mode;
+
+        this.ui.analysisExpanded =
+            mode ===
+            DashboardMode.FULL;
+
+        saveDashboardMode(
+            mode
+        );
+
+        this.render();
+
+        return this;
 
     }
 
@@ -1342,6 +1452,36 @@ export class Dashboard {
                 </div>
 
                 <div class="dashboardHeaderActions">
+
+                    <div
+                        class="dashboardModeSwitch"
+                        role="group"
+                        aria-label="分析顯示模式"
+                    >
+
+                        <button
+                            type="button"
+                            class="${this.ui.mode === DashboardMode.QUICK
+                                ? "active"
+                                : ""}"
+                            data-action="set-dashboard-mode"
+                            data-mode="quick"
+                        >
+                            快速
+                        </button>
+
+                        <button
+                            type="button"
+                            class="${this.ui.mode === DashboardMode.FULL
+                                ? "active"
+                                : ""}"
+                            data-action="set-dashboard-mode"
+                            data-mode="full"
+                        >
+                            完整
+                        </button>
+
+                    </div>
 
                     <span class="stateBadge">
                         ${escapeHTML(
@@ -2223,18 +2363,24 @@ export class Dashboard {
                 </div>
 
 
-                <div class="analysisFooter">
+                <div class="analysisFooter ${this.ui.mode === DashboardMode.QUICK
+                    ? "quick"
+                    : ""}">
 
-                    <button
-                        type="button"
-                        class="button secondary"
-                        data-action="toggle-analysis"
-                    >
-                        ${this.ui
-                            .analysisExpanded
-                                ? "收合完整分析"
-                                : "展開完整分析"}
-                    </button>
+                    ${this.ui.mode === DashboardMode.FULL
+                        ? `
+                            <button
+                                type="button"
+                                class="button secondary"
+                                data-action="toggle-analysis"
+                            >
+                                ${this.ui
+                                    .analysisExpanded
+                                        ? "收合完整分析"
+                                        : "展開完整分析"}
+                            </button>
+                        `
+                        : ""}
 
                     <button
                         type="button"
@@ -2250,7 +2396,10 @@ export class Dashboard {
                 </div>
 
 
-                ${this.ui.analysisExpanded
+                ${(
+                    this.ui.mode === DashboardMode.FULL &&
+                    this.ui.analysisExpanded
+                )
                     ? `
                         ${this.renderProbabilityTable(
                             probability
@@ -2665,8 +2814,11 @@ export class Dashboard {
                     `
                     : ""}
 
-                ${Number.isFinite(
-                    analysis.overallConfidence
+                ${(
+                    this.ui.mode === DashboardMode.FULL &&
+                    Number.isFinite(
+                        analysis.overallConfidence
+                    )
                 )
                     ? `
                         <div class="confidenceBar">
@@ -3228,7 +3380,13 @@ export class Dashboard {
                 Boolean(
                     this.components
                         .quickCardInput
-                )
+                ),
+
+            mode:
+                this.ui.mode,
+
+            analysisExpanded:
+                this.ui.analysisExpanded
 
         };
 
