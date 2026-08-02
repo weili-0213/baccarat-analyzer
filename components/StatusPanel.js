@@ -1,7 +1,9 @@
 /**
- * Baccarat Analyzer V3
+ * Baccarat Analyzer V3.3 Final
  * components/StatusPanel.js
  */
+
+export const STATUS_PANEL_VERSION = "3.3.0";
 
 function escapeHTML(value) {
     return String(value ?? "")
