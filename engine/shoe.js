@@ -2,102 +2,247 @@
  * Baccarat Analyzer
  * -----------------------------------------
  *
- * Shoe v6
+ * engine/shoe.js
  *
- * 百家樂牌靴
+ * 百家樂牌靴。
  *
  * 支援：
  *
- * 1. 多副牌建立
- * 2. 洗牌
- * 3. 自動抽牌
- * 4. 手動移除公開牌
- * 5. 已知棄牌
- * 6. 已知燒牌
- * 7. 未知燒牌張數
- * 8. 可知牌池剩餘數
- * 9. 物理牌靴剩餘數
- * 10. JSON 匯出／還原
- *
- * 未知燒牌設計：
- *
- * 隱藏燒牌的牌面未知，因此不會從 cards 陣列中
- * 任意移除具體牌面。
- *
- * cards.length：
- * 分析器仍可能看到的牌面集合。
- *
- * unknownBurnedCount：
- * 實際已離開牌靴，但身分未知的牌數。
- *
- * physicalRemaining：
- * cards.length - unknownBurnedCount
+ * - 精確牌面輸入：Rank + Suit + Deck
+ * - 花色牌卡輸入：Rank + Suit
+ * - 快速點數輸入：只提供 Rank
+ * - 點數／花色剩餘數量
+ * - 公開牌與未知燒牌的雙剩餘牌模型
  */
 
-import Deck
-    from "./deck.js";
-
-import Card
-    from "./card.js";
+import Deck from "./deck.js";
+import Card from "./card.js";
 
 
-const DEFAULT_DECK_COUNT = 8;
+export const SHOE_RANKS =
+    Object.freeze([
+
+        "A",
+
+        "2",
+
+        "3",
+
+        "4",
+
+        "5",
+
+        "6",
+
+        "7",
+
+        "8",
+
+        "9",
+
+        "10",
+
+        "J",
+
+        "Q",
+
+        "K"
+
+    ]);
+
+
+export const SHOE_SUITS =
+    Object.freeze([
+
+        "S",
+
+        "H",
+
+        "D",
+
+        "C"
+
+    ]);
+
+
+export const SUIT_SYMBOLS =
+    Object.freeze({
+
+        S:
+            "♠",
+
+        H:
+            "♥",
+
+        D:
+            "♦",
+
+        C:
+            "♣"
+
+    });
+
+
+function getDeckNumber(card) {
+
+    return (
+        card?.deck ??
+        card?.deckNumber ??
+        null
+    );
+
+}
+
+
+function normalizeRank(value) {
+
+    const rank =
+        String(
+            value ??
+            ""
+        )
+            .trim()
+            .toUpperCase();
+
+    if (
+        !SHOE_RANKS.includes(
+            rank
+        )
+    ) {
+
+        throw new Error(
+            `Invalid rank: ${value}`
+        );
+
+    }
+
+    return rank;
+
+}
+
+
+function normalizeSuit(
+    value,
+    {
+        optional = false
+    } = {}
+) {
+
+    if (
+        optional &&
+        (
+            value === undefined ||
+            value === null ||
+            value === ""
+        )
+    ) {
+
+        return null;
+
+    }
+
+    const suit =
+        String(
+            value ??
+            ""
+        )
+            .trim()
+            .toUpperCase();
+
+    if (
+        !SHOE_SUITS.includes(
+            suit
+        )
+    ) {
+
+        throw new Error(
+            `Invalid suit: ${value}`
+        );
+
+    }
+
+    return suit;
+
+}
+
+
+function normalizeDeck(
+    value,
+    {
+        optional = false
+    } = {}
+) {
+
+    if (
+        optional &&
+        (
+            value === undefined ||
+            value === null ||
+            value === ""
+        )
+    ) {
+
+        return null;
+
+    }
+
+    const deck =
+        Number(value);
+
+    if (
+        !Number.isInteger(deck) ||
+        deck < 1
+    ) {
+
+        throw new Error(
+            `Invalid deck number: ${value}`
+        );
+
+    }
+
+    return deck;
+
+}
+
+
+function samePhysicalCard(
+    left,
+    right
+) {
+
+    if (
+        left instanceof Card &&
+        typeof left.equals ===
+            "function"
+    ) {
+
+        return left.equals(
+            right
+        );
+
+    }
+
+    return (
+
+        left?.rank ===
+            right?.rank &&
+
+        left?.suit ===
+            right?.suit &&
+
+        getDeckNumber(left) ===
+            getDeckNumber(right)
+
+    );
+
+}
 
 
 export default class Shoe {
 
     constructor(
-        deckCount =
-            DEFAULT_DECK_COUNT
+        deckCount = 8
     ) {
-
-        this.validateDeckCount(
-            deckCount
-        );
-
-        this.deckCount =
-            deckCount;
-
-        this.cards = [];
-
-        /**
-         * 已公開並從牌靴移除的牌。
-         *
-         * 包含：
-         * - 荷官已發出的牌
-         * - 公開的燒牌指示牌
-         * - 手動移除牌
-         */
-        this.discarded = [];
-
-        /**
-         * 已知牌面的燒牌。
-         *
-         * 保留給舊版流程或特殊情況。
-         * 新版隱藏燒牌不應放入此陣列。
-         */
-        this.burned = [];
-
-        /**
-         * 不公開牌面的燒牌張數。
-         *
-         * 只記錄數量，不建立虛構 Card。
-         */
-        this.unknownBurnedCount = 0;
-
-        this.createdAt = null;
-
-        this.shuffledAt = null;
-
-        this.create();
-
-    }
-
-
-    /**
-     * 驗證副牌數
-     */
-    validateDeckCount(deckCount) {
 
         if (
             !Number.isInteger(
@@ -106,30 +251,41 @@ export default class Shoe {
             deckCount < 1
         ) {
 
-            throw new RangeError(
-                "deckCount must be a positive integer."
+            throw new Error(
+                `Invalid deck count: ${deckCount}`
             );
 
         }
 
-        return deckCount;
+        this.deckCount =
+            deckCount;
+
+        this.cards =
+            [];
+
+        this.discarded =
+            [];
+
+        this.burned =
+            [];
+
+        this.unknownBurnedCount =
+            0;
+
+        this.create();
+
+        this.shuffle();
 
     }
 
 
     /**
-     * 建立完整牌靴
+     * 建立完整牌靴。
      */
     create() {
 
-        this.cards = [];
-
-        this.discarded = [];
-
-        this.burned = [];
-
-        this.unknownBurnedCount = 0;
-
+        this.cards =
+            [];
 
         for (
             let deckNumber = 1;
@@ -143,73 +299,30 @@ export default class Shoe {
                     deckNumber
                 );
 
-            /**
-             * 相容兩種 Deck：
-             *
-             * 1. Constructor 已自動 create()
-             * 2. Constructor 後需要手動 create()
-             */
-            if (
-                deck.count === 0 &&
-                typeof deck.create ===
-                    "function"
-            ) {
-
-                deck.create();
-
-            }
-
-
-            const cards =
-
-                typeof deck.getCards ===
-                    "function"
-
-                    ? deck.getCards()
-
-                    : [
-                        ...deck.cards
-                    ];
-
-
             this.cards.push(
-                ...cards
+                ...deck.getCards()
             );
 
         }
-
-
-        this.createdAt =
-            Date.now();
-
-        this.shuffledAt = null;
 
         return this;
 
     }
 
 
-    /**
-     * 理論總牌數
-     */
     get total() {
 
         return (
-            this.deckCount * 52
+            this.deckCount *
+            52
         );
 
     }
 
 
     /**
-     * 可知牌池剩餘數
-     *
-     * 已扣除：
-     * - 公開燒牌指示牌
-     * - 所有已輸入的公開牌
-     *
-     * 尚未按具體牌面扣除：
-     * - 不公開的隱藏燒牌
+     * 舊版相容：
+     * remaining 代表可觀察牌池。
      */
     get remaining() {
 
@@ -218,31 +331,16 @@ export default class Shoe {
     }
 
 
-    /**
-     * remaining 的語意化別名
-     */
-    get knownRemaining() {
-
-        return this.remaining;
-
-    }
-
-
-    /**
-     * 分析器可觀察牌池剩餘數
-     */
     get observableRemaining() {
 
-        return this.remaining;
+        return this.cards.length;
 
     }
 
 
     /**
-     * 牌靴物理剩餘張數
-     *
-     * 可知牌池仍包含未知燒牌可能是哪些牌，
-     * 因此物理數量需要再扣除未知燒牌張數。
+     * 未知燒牌沒有具體牌面，
+     * 因此只從實體剩餘數扣除。
      */
     get physicalRemaining() {
 
@@ -250,7 +348,7 @@ export default class Shoe {
 
             0,
 
-            this.remaining -
+            this.observableRemaining -
             this.unknownBurnedCount
 
         );
@@ -258,40 +356,6 @@ export default class Shoe {
     }
 
 
-    /**
-     * 已知移除張數
-     *
-     * 不包含未知燒牌。
-     */
-    get knownRemovedCount() {
-
-        return (
-            this.discarded.length +
-            this.burned.length
-        );
-
-    }
-
-
-    /**
-     * 實際物理移除總數
-     */
-    get physicalRemovedCount() {
-
-        return (
-            this.knownRemovedCount +
-            this.unknownBurnedCount
-        );
-
-    }
-
-
-    /**
-     * 舊版相容：
-     * 已使用牌數
-     *
-     * 主要代表已公開、已棄置的牌。
-     */
     get used() {
 
         return this.discarded.length;
@@ -299,25 +363,6 @@ export default class Shoe {
     }
 
 
-    /**
-     * 全部已知移除牌
-     */
-    get knownRemovedCards() {
-
-        return [
-
-            ...this.discarded,
-
-            ...this.burned
-
-        ];
-
-    }
-
-
-    /**
-     * 發牌歷史
-     */
     get history() {
 
         return [
@@ -327,31 +372,11 @@ export default class Shoe {
     }
 
 
-    /**
-     * 可知牌池剩餘比例
-     */
-    get observableRemainingRatio() {
+    get remainingRatio() {
 
-        if (this.total === 0) {
-
-            return 0;
-
-        }
-
-        return (
-            this.observableRemaining /
-            this.total
-        );
-
-    }
-
-
-    /**
-     * 物理牌靴剩餘比例
-     */
-    get physicalRemainingRatio() {
-
-        if (this.total === 0) {
+        if (
+            this.total === 0
+        ) {
 
             return 0;
 
@@ -365,74 +390,47 @@ export default class Shoe {
     }
 
 
-    /**
-     * 舊版相容。
-     *
-     * UI 的牌靴剩餘比例應採用實際物理數量。
-     */
-    get remainingRatio() {
+    shuffle(
+        random = Math.random
+    ) {
 
-        return this.physicalRemainingRatio;
+        if (
+            typeof random !==
+                "function"
+        ) {
 
-    }
+            throw new TypeError(
+                "random must be a function"
+            );
 
-
-    /**
-     * 是否為空
-     *
-     * 以物理牌數判斷。
-     */
-    get isEmpty() {
-
-        return (
-            this.physicalRemaining <= 0
-        );
-
-    }
-
-
-    /**
-     * 是否還有可知牌面
-     */
-    get hasObservableCards() {
-
-        return this.remaining > 0;
-
-    }
-
-
-    /**
-     * Fisher-Yates 洗牌
-     */
-    shuffle() {
+        }
 
         for (
             let index =
-                this.cards.length - 1;
-
+                this.cards.length -
+                1;
             index > 0;
-
             index--
         ) {
 
-            const randomIndex =
+            const target =
                 Math.floor(
-                    Math.random() *
-                    (index + 1)
+                    random() *
+                    (
+                        index +
+                        1
+                    )
                 );
 
             [
                 this.cards[index],
-                this.cards[randomIndex]
+                this.cards[target]
             ] = [
-                this.cards[randomIndex],
+                this.cards[target],
                 this.cards[index]
             ];
 
         }
-
-        this.shuffledAt =
-            Date.now();
 
         return this;
 
@@ -440,27 +438,16 @@ export default class Shoe {
 
 
     /**
-     * 自動抽一張牌
-     *
-     * 主要供測試、模擬與 Dealer 使用。
-     *
-     * 正式荷官輸入流程應優先使用 remove()。
+     * 依牌靴順序抽一張牌。
      */
     draw() {
 
-        if (
-            this.physicalRemaining <= 0
-        ) {
-
-            return null;
-
-        }
-
         const card =
-            this.cards.pop() ??
-            null;
+            this.cards.pop();
 
-        if (!card) {
+        if (
+            !(card instanceof Card)
+        ) {
 
             return null;
 
@@ -476,10 +463,63 @@ export default class Shoe {
 
 
     /**
-     * 查看可知牌池
+     * 將指定牌放入 burned。
      *
-     * 回傳副本。
+     * 若牌仍在可觀察牌池，
+     * 會先從 cards 移除。
      */
+    burn(card) {
+
+        const resolved =
+            this.resolveCard(
+                card
+            );
+
+        const index =
+            this.cards.indexOf(
+                resolved
+            );
+
+        if (
+            index >= 0
+        ) {
+
+            this.cards.splice(
+                index,
+                1
+            );
+
+        }
+
+        const discardedIndex =
+            this.discarded.findIndex(
+                item =>
+                    samePhysicalCard(
+                        item,
+                        resolved
+                    )
+            );
+
+        if (
+            discardedIndex >= 0
+        ) {
+
+            this.discarded.splice(
+                discardedIndex,
+                1
+            );
+
+        }
+
+        this.burned.push(
+            resolved
+        );
+
+        return resolved;
+
+    }
+
+
     peek() {
 
         return [
@@ -490,196 +530,134 @@ export default class Shoe {
 
 
     /**
-     * 查看最上方一張
-     */
-    peekTop() {
-
-        return (
-            this.cards.at(-1) ??
-            null
-        );
-
-    }
-
-
-    /**
-     * 判斷兩張牌是否相同
-     */
-    cardsEqual(
-        left,
-        right
-    ) {
-
-        if (!left || !right) {
-
-            return false;
-
-        }
-
-        if (
-            typeof left.equals ===
-                "function"
-        ) {
-
-            return left.equals(
-                right
-            );
-
-        }
-
-
-        if (
-            left.id !== undefined &&
-            right.id !== undefined
-        ) {
-
-            return (
-                left.id === right.id
-            );
-
-        }
-
-
-        const leftDeck =
-            left.deck ??
-            left.deckNumber ??
-            null;
-
-        const rightDeck =
-            right.deck ??
-            right.deckNumber ??
-            null;
-
-
-        return (
-
-            left.rank === right.rank &&
-
-            left.suit === right.suit &&
-
-            (
-                leftDeck === null ||
-                rightDeck === null ||
-                leftDeck === rightDeck
-            )
-
-        );
-
-    }
-
-
-    /**
-     * 解析牌靴中的實際 Card
+     * 解析輸入牌面。
      *
      * 支援：
      *
-     * Card
+     * resolveCard(Card)
+     * resolveCard({ rank, suit, deck })
+     * resolveCard({ rank, suit })
+     * resolveCard({ rank })
+     * resolveCard("A")
      *
-     * {
-     *     rank: "A",
-     *     suit: "S"
-     * }
-     *
-     * {
-     *     rank: "A",
-     *     suit: "S",
-     *     deck: 3
-     * }
+     * 只提供 rank 時，會自動選擇牌靴中第一張可用牌。
+     * 提供 rank + suit 時，會自動選擇該花色第一張可用牌。
      */
     resolveCard(input) {
 
-        if (!input) {
-
-            throw new Error(
-                "Card is required."
-            );
-
-        }
-
-
-        let rank;
-
-        let suit;
-
-        let deckNumber;
-
-
-        if (input instanceof Card) {
-
-            rank =
-                input.rank;
-
-            suit =
-                input.suit;
-
-            deckNumber =
-                input.deck ??
-                input.deckNumber ??
-                null;
-
-        }
-        else if (
-            typeof input ===
-                "object" &&
-            !Array.isArray(input)
+        if (
+            input instanceof Card
         ) {
 
-            rank =
-                input.rank;
+            const exact =
+                this.cards.find(
+                    card =>
+                        samePhysicalCard(
+                            card,
+                            input
+                        )
+                );
 
-            suit =
-                input.suit;
+            if (!exact) {
 
-            deckNumber =
-                input.deck ??
-                input.deckNumber ??
-                null;
+                throw new Error(
+                    `Card is not available in shoe: ${input.shortName ?? input.toString()}`
+                );
+
+            }
+
+            return exact;
 
         }
-        else {
+
+
+        const data =
+
+            typeof input ===
+                "string"
+
+                ? {
+                    rank:
+                        input
+                }
+
+                : input;
+
+
+        if (
+            !data ||
+            typeof data !==
+                "object" ||
+            Array.isArray(data)
+        ) {
 
             throw new TypeError(
-                "Card must be a Card or card data object."
+                "Card input must be a Card, rank string, or object."
             );
 
         }
 
 
-        if (!rank || !suit) {
-
-            throw new Error(
-                "Card rank and suit are required."
+        const rank =
+            normalizeRank(
+                data.rank
             );
 
-        }
+        const suit =
+            normalizeSuit(
+                data.suit,
+                {
+                    optional:
+                        true
+                }
+            );
+
+        const deck =
+            normalizeDeck(
+                data.deck ??
+                data.deckNumber,
+                {
+                    optional:
+                        true
+                }
+            );
 
 
         const matched =
             this.cards.find(
                 card => {
 
-                    const cardDeck =
-                        card.deck ??
-                        card.deckNumber ??
-                        null;
+                    if (
+                        card.rank !==
+                        rank
+                    ) {
 
-                    const sameDeck =
+                        return false;
 
-                        deckNumber === null ||
+                    }
 
-                        cardDeck ===
-                            deckNumber;
+                    if (
+                        suit &&
+                        card.suit !==
+                            suit
+                    ) {
 
+                        return false;
 
-                    return (
+                    }
 
-                        card.rank === rank &&
+                    if (
+                        deck &&
+                        getDeckNumber(
+                            card
+                        ) !== deck
+                    ) {
 
-                        card.suit === suit &&
+                        return false;
 
-                        sameDeck
+                    }
 
-                    );
+                    return true;
 
                 }
             );
@@ -687,11 +665,17 @@ export default class Shoe {
 
         if (!matched) {
 
+            const label =
+                `${rank}${suit
+                    ? SUIT_SYMBOLS[suit]
+                    : ""}`;
+
             throw new Error(
-                `Card is not available in shoe: ${rank}${suit}`
+                `Card is not available in shoe: ${label}`
             );
 
         }
+
 
         return matched;
 
@@ -699,41 +683,50 @@ export default class Shoe {
 
 
     /**
-     * 手動移除一張公開牌
+     * 快速解析點數。
      *
-     * 適用於：
-     *
-     * - 燒牌指示牌
-     * - Player 手牌
-     * - Banker 手牌
-     *
-     * 移除後會放入 discarded。
+     * suit 可省略，也可由花色卡牌指定。
+     */
+    resolveByRank(
+        rank,
+        suit = null
+    ) {
+
+        return this.resolveCard({
+
+            rank,
+
+            suit
+
+        });
+
+    }
+
+
+    /**
+     * 移除指定牌，並加入 discarded。
      */
     remove(input) {
 
-        const card =
+        const resolved =
             this.resolveCard(
                 input
             );
 
         const index =
-            this.cards.findIndex(
-                item =>
-                    this.cardsEqual(
-                        item,
-                        card
-                    )
+            this.cards.indexOf(
+                resolved
             );
 
-
-        if (index < 0) {
+        if (
+            index < 0
+        ) {
 
             throw new Error(
-                "Card was not found in shoe."
+                "Card is not available in shoe."
             );
 
         }
-
 
         const [
             removed
@@ -742,7 +735,6 @@ export default class Shoe {
                 index,
                 1
             );
-
 
         this.discarded.push(
             removed
@@ -754,121 +746,159 @@ export default class Shoe {
 
 
     /**
-     * 移除一張已知燒牌
+     * 快速移除指定點數。
      *
-     * 新版隱藏燒牌不應使用這個方法。
-     *
-     * 此方法主要保留給：
-     *
-     * - 舊版相容
-     * - 已公開的額外燒牌
+     * removeByRank("8")
+     * removeByRank("8", "H")
      */
-    burn(input) {
+    removeByRank(
+        rank,
+        suit = null
+    ) {
 
-        let card = null;
+        return this.remove({
 
+            rank,
 
-        /**
-         * 牌仍在可知牌池。
-         */
-        try {
+            suit
 
-            card =
-                this.resolveCard(
-                    input
-                );
-
-        }
-        catch {
-
-            card = null;
-
-        }
-
-
-        if (card) {
-
-            const index =
-                this.cards.findIndex(
-                    item =>
-                        this.cardsEqual(
-                            item,
-                            card
-                        )
-                );
-
-            const [
-                removed
-            ] =
-                this.cards.splice(
-                    index,
-                    1
-                );
-
-            this.burned.push(
-                removed
-            );
-
-            return removed;
-
-        }
-
-
-        /**
-         * 牌可能已由 draw() 或 remove()
-         * 放入 discarded。
-         *
-         * 此時移到 burned，避免重複計數。
-         */
-        const discardedIndex =
-            this.discarded
-                .findLastIndex(
-                    item =>
-                        this.cardsEqual(
-                            item,
-                            input
-                        )
-                );
-
-
-        if (discardedIndex < 0) {
-
-            throw new Error(
-                "Burn card was not found."
-            );
-
-        }
-
-
-        const [
-            removed
-        ] =
-            this.discarded.splice(
-                discardedIndex,
-                1
-            );
-
-
-        this.burned.push(
-            removed
-        );
-
-        return removed;
+        });
 
     }
 
 
     /**
-     * 記錄未知燒牌張數
-     *
-     * 不會從 cards 中移除任何具體牌面。
+     * 將已移除牌面放回牌靴。
      */
-    registerUnknownBurn(
-        count
-    ) {
+    restore(input) {
+
+        let card =
+            input;
 
         if (
-            !Number.isInteger(count) ||
+            !(card instanceof Card)
+        ) {
+
+            const rank =
+                normalizeRank(
+                    input?.rank
+                );
+
+            const suit =
+                normalizeSuit(
+                    input?.suit
+                );
+
+            const deck =
+                normalizeDeck(
+                    input?.deck ??
+                    input?.deckNumber
+                );
+
+            card =
+                new Card(
+                    rank,
+                    suit,
+                    deck
+                );
+
+        }
+
+
+        const alreadyAvailable =
+            this.cards.some(
+                item =>
+                    samePhysicalCard(
+                        item,
+                        card
+                    )
+            );
+
+        if (
+            alreadyAvailable
+        ) {
+
+            throw new Error(
+                "Card is already available in shoe."
+            );
+
+        }
+
+
+        const discardedIndex =
+            this.discarded.findIndex(
+                item =>
+                    samePhysicalCard(
+                        item,
+                        card
+                    )
+            );
+
+        const burnedIndex =
+            this.burned.findIndex(
+                item =>
+                    samePhysicalCard(
+                        item,
+                        card
+                    )
+            );
+
+
+        if (
+            discardedIndex < 0 &&
+            burnedIndex < 0
+        ) {
+
+            throw new Error(
+                "Card was not removed from this shoe."
+            );
+
+        }
+
+
+        let restored;
+
+        if (
+            discardedIndex >= 0
+        ) {
+
+            [
+                restored
+            ] =
+                this.discarded.splice(
+                    discardedIndex,
+                    1
+                );
+
+        }
+        else {
+
+            [
+                restored
+            ] =
+                this.burned.splice(
+                    burnedIndex,
+                    1
+                );
+
+        }
+
+
+        this.cards.push(
+            restored
+        );
+
+        return restored;
+
+    }
+
+
+    registerUnknownBurn(count) {
+
+        if (
+            !Number.isInteger(
+                count
+            ) ||
             count < 0
         ) {
 
@@ -881,12 +911,11 @@ export default class Shoe {
 
         if (
             count >
-            this.remaining -
-            this.unknownBurnedCount
+            this.physicalRemaining
         ) {
 
-            throw new Error(
-                "Unknown burn count exceeds remaining physical cards."
+            throw new RangeError(
+                "Unknown burn count exceeds physical remaining cards."
             );
 
         }
@@ -901,363 +930,180 @@ export default class Shoe {
 
 
     /**
-     * 設定未知燒牌總數
-     *
-     * 適合 JSON 還原或狀態同步。
+     * 指定點數剩餘數量。
      */
-    setUnknownBurnedCount(
-        count
+    countByRank(rank) {
+
+        const normalizedRank =
+            normalizeRank(
+                rank
+            );
+
+        return this.cards.reduce(
+            (
+                count,
+                card
+            ) =>
+                count +
+                (
+                    card.rank ===
+                    normalizedRank
+                        ? 1
+                        : 0
+                ),
+            0
+        );
+
+    }
+
+
+    /**
+     * 指定點數與花色剩餘數量。
+     */
+    countByRankAndSuit(
+        rank,
+        suit
     ) {
 
-        if (
-            !Number.isInteger(count) ||
-            count < 0
-        ) {
-
-            throw new RangeError(
-                "Unknown burn count must be a non-negative integer."
+        const normalizedRank =
+            normalizeRank(
+                rank
             );
 
-        }
-
-
-        if (
-            count >
-            this.remaining
-        ) {
-
-            throw new Error(
-                "Unknown burn count exceeds observable remaining cards."
+        const normalizedSuit =
+            normalizeSuit(
+                suit
             );
 
-        }
+        return this.cards.reduce(
+            (
+                count,
+                card
+            ) =>
+                count +
+                (
+                    card.rank ===
+                        normalizedRank &&
+                    card.suit ===
+                        normalizedSuit
+                        ? 1
+                        : 0
+                ),
+            0
+        );
 
+    }
+
+
+    getRankCounts() {
+
+        return Object.fromEntries(
+
+            SHOE_RANKS.map(
+                rank => [
+
+                    rank,
+
+                    this.countByRank(
+                        rank
+                    )
+
+                ]
+            )
+
+        );
+
+    }
+
+
+    /**
+     * 花色卡牌 UI 使用。
+     *
+     * shoe.getSuitCounts("8")
+     *
+     * {
+     *   S: 8,
+     *   H: 8,
+     *   D: 7,
+     *   C: 8
+     * }
+     */
+    getSuitCounts(rank) {
+
+        const normalizedRank =
+            normalizeRank(
+                rank
+            );
+
+        return Object.fromEntries(
+
+            SHOE_SUITS.map(
+                suit => [
+
+                    suit,
+
+                    this.countByRankAndSuit(
+                        normalizedRank,
+                        suit
+                    )
+
+                ]
+            )
+
+        );
+
+    }
+
+
+    hasRank(rank) {
+
+        return (
+            this.countByRank(
+                rank
+            ) > 0
+        );
+
+    }
+
+
+    hasRankAndSuit(
+        rank,
+        suit
+    ) {
+
+        return (
+            this.countByRankAndSuit(
+                rank,
+                suit
+            ) > 0
+        );
+
+    }
+
+
+    reset() {
+
+        this.cards =
+            [];
+
+        this.discarded =
+            [];
+
+        this.burned =
+            [];
 
         this.unknownBurnedCount =
-            count;
-
-        return this;
-
-    }
-
-
-    /**
-     * 清除未知燒牌紀錄
-     *
-     * 只應用於重置或測試。
-     */
-    clearUnknownBurn() {
-
-        this.unknownBurnedCount = 0;
-
-        return this;
-
-    }
-
-
-    /**
-     * 將最後一張 discarded 放回牌靴
-     *
-     * 用於手動輸入撤銷。
-     *
-     * 不保證恢復原洗牌位置，
-     * 但分析使用牌面組成，因此不受順序影響。
-     */
-    restoreLastDiscarded() {
-
-        const card =
-            this.discarded.pop() ??
-            null;
-
-        if (!card) {
-
-            return null;
-
-        }
-
-
-        const alreadyExists =
-            this.cards.some(
-                item =>
-                    this.cardsEqual(
-                        item,
-                        card
-                    )
-            );
-
-
-        if (alreadyExists) {
-
-            this.discarded.push(
-                card
-            );
-
-            throw new Error(
-                "Card already exists in shoe."
-            );
-
-        }
-
-
-        this.cards.push(
-            card
-        );
-
-        return card;
-
-    }
-
-
-    /**
-     * 將指定 discarded 放回牌靴
-     *
-     * 用於撤銷手動輸入。
-     */
-    restore(input) {
-
-        if (!input) {
-
-            throw new Error(
-                "Card is required."
-            );
-
-        }
-
-
-        const index =
-            this.discarded
-                .findLastIndex(
-                    item =>
-                        this.cardsEqual(
-                            item,
-                            input
-                        )
-                );
-
-
-        if (index < 0) {
-
-            throw new Error(
-                "Card was not found in discarded cards."
-            );
-
-        }
-
-
-        const [
-            card
-        ] =
-            this.discarded.splice(
-                index,
-                1
-            );
-
-
-        const alreadyExists =
-            this.cards.some(
-                item =>
-                    this.cardsEqual(
-                        item,
-                        card
-                    )
-            );
-
-
-        if (alreadyExists) {
-
-            this.discarded.splice(
-                index,
-                0,
-                card
-            );
-
-            throw new Error(
-                "Card already exists in shoe."
-            );
-
-        }
-
-
-        this.cards.push(
-            card
-        );
-
-        return card;
-
-    }
-
-
-    /**
-     * 是否含有指定牌
-     */
-    has(input) {
-
-        if (!input) {
-
-            return false;
-
-        }
-
-        return this.cards.some(
-            card =>
-                this.cardsEqual(
-                    card,
-                    input
-                )
-        );
-
-    }
-
-
-    /**
-     * 計算指定 rank / suit 的剩餘數量
-     */
-    countCard(
-        rank,
-        suit = null
-    ) {
-
-        return this.cards.filter(
-            card => {
-
-                if (
-                    card.rank !== rank
-                ) {
-
-                    return false;
-
-                }
-
-                if (
-                    suit !== null &&
-                    card.suit !== suit
-                ) {
-
-                    return false;
-
-                }
-
-                return true;
-
-            }
-        ).length;
-
-    }
-
-
-    /**
-     * 依百家樂點數統計可知牌池
-     */
-    get baccaratValueCounts() {
-
-        const counts = {
-
-            0: 0,
-            1: 0,
-            2: 0,
-            3: 0,
-            4: 0,
-            5: 0,
-            6: 0,
-            7: 0,
-            8: 0,
-            9: 0
-
-        };
-
-
-        for (
-            const card of
-            this.cards
-        ) {
-
-            counts[
-                card.baccaratValue
-            ]++;
-
-        }
-
-        return counts;
-
-    }
-
-
-    /**
-     * 牌靴摘要
-     */
-    get summary() {
-
-        return {
-
-            deckCount:
-                this.deckCount,
-
-            total:
-                this.total,
-
-            observableRemaining:
-                this.observableRemaining,
-
-            knownRemaining:
-                this.knownRemaining,
-
-            unknownBurnedCount:
-                this.unknownBurnedCount,
-
-            physicalRemaining:
-                this.physicalRemaining,
-
-            discarded:
-                this.discarded.length,
-
-            burned:
-                this.burned.length,
-
-            knownRemoved:
-                this.knownRemovedCount,
-
-            physicalRemoved:
-                this.physicalRemovedCount,
-
-            observableRemainingRatio:
-                this.observableRemainingRatio,
-
-            physicalRemainingRatio:
-                this.physicalRemainingRatio,
-
-            isEmpty:
-                this.isEmpty
-
-        };
-
-    }
-
-
-    /**
-     * 重置並重新建立牌靴
-     */
-    reset({
-
-        shuffle = true
-
-    } = {}) {
+            0;
 
         this.create();
 
-        if (shuffle) {
-
-            this.shuffle();
-
-        }
+        this.shuffle();
 
         return this;
 
     }
 
 
-    /**
-     * 深度複製
-     */
     clone() {
 
         return Shoe.fromJSON(
@@ -1267,14 +1113,9 @@ export default class Shoe {
     }
 
 
-    /**
-     * JSON
-     */
     toJSON() {
 
         return {
-
-            version: 6,
 
             deckCount:
                 this.deckCount,
@@ -1298,22 +1139,13 @@ export default class Shoe {
                 ),
 
             unknownBurnedCount:
-                this.unknownBurnedCount,
-
-            createdAt:
-                this.createdAt,
-
-            shuffledAt:
-                this.shuffledAt
+                this.unknownBurnedCount
 
         };
 
     }
 
 
-    /**
-     * JSON 還原
-     */
     static fromJSON(data) {
 
         if (
@@ -1330,24 +1162,10 @@ export default class Shoe {
         }
 
 
-        const deckCount =
-            data.deckCount ??
-            DEFAULT_DECK_COUNT;
-
-
         const shoe =
-            Object.create(
-                Shoe.prototype
+            new Shoe(
+                data.deckCount
             );
-
-
-        shoe.validateDeckCount(
-            deckCount
-        );
-
-
-        shoe.deckCount =
-            deckCount;
 
 
         shoe.cards =
@@ -1355,8 +1173,10 @@ export default class Shoe {
                 data.cards
             )
                 ? data.cards.map(
-                    card =>
-                        Card.fromJSON(card)
+                    item =>
+                        Card.fromJSON(
+                            item
+                        )
                 )
                 : [];
 
@@ -1366,8 +1186,10 @@ export default class Shoe {
                 data.discarded
             )
                 ? data.discarded.map(
-                    card =>
-                        Card.fromJSON(card)
+                    item =>
+                        Card.fromJSON(
+                            item
+                        )
                 )
                 : [];
 
@@ -1377,8 +1199,10 @@ export default class Shoe {
                 data.burned
             )
                 ? data.burned.map(
-                    card =>
-                        Card.fromJSON(card)
+                    item =>
+                        Card.fromJSON(
+                            item
+                        )
                 )
                 : [];
 
@@ -1387,7 +1211,8 @@ export default class Shoe {
             Number.isInteger(
                 data.unknownBurnedCount
             ) &&
-            data.unknownBurnedCount >= 0
+            data.unknownBurnedCount >=
+                0
 
                 ? data.unknownBurnedCount
 
@@ -1396,33 +1221,56 @@ export default class Shoe {
 
         if (
             shoe.unknownBurnedCount >
-            shoe.cards.length
+            shoe.observableRemaining
         ) {
 
-            throw new Error(
-                "Unknown burn count exceeds observable remaining cards."
+            throw new RangeError(
+                "Invalid unknownBurnedCount in Shoe data."
             );
 
         }
 
 
-        shoe.createdAt =
-            Number.isFinite(
-                data.createdAt
-            )
-                ? data.createdAt
-                : null;
-
-
-        shoe.shuffledAt =
-            Number.isFinite(
-                data.shuffledAt
-            )
-                ? data.shuffledAt
-                : null;
-
-
         return shoe;
+
+    }
+
+
+    get summary() {
+
+        return {
+
+            deckCount:
+                this.deckCount,
+
+            total:
+                this.total,
+
+            remaining:
+                this.remaining,
+
+            observableRemaining:
+                this.observableRemaining,
+
+            physicalRemaining:
+                this.physicalRemaining,
+
+            unknownBurnedCount:
+                this.unknownBurnedCount,
+
+            used:
+                this.used,
+
+            burned:
+                this.burned.length,
+
+            remainingRatio:
+                this.remainingRatio,
+
+            rankCounts:
+                this.getRankCounts()
+
+        };
 
     }
 
