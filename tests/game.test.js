@@ -2,28 +2,39 @@
  * Baccarat Analyzer
  * -----------------------------------------
  *
- * Game Test
+ * Game Controller v2 Test
  *
- * 百家樂遊戲主控制器測試
+ * 測試：
+ *
+ * 1. 建立 Game 與新牌靴
+ * 2. 等待燒牌指示牌
+ * 3. 手動確認燒牌
+ * 4. 未知燒牌與剩餘牌數
+ * 5. 手動輸入發牌順序
+ * 6. Natural 完成牌局
+ * 7. History 與 Roadmap 更新
+ * 8. Analyzer 整合
+ * 9. 下一局分析狀態
+ * 10. undoManualCard()
+ * 11. cancelManualRound()
+ * 12. 非法輸入驗證
+ * 13. startNewShoe() 重置
+ * 14. ViewModel 與統計
+ * 15. 一致性檢查
+ * 16. JSON 匯出
  */
 
 import Game, {
-    GameState
+    GameState,
+    ManualRoundState,
+    AnalysisState,
+    HandSide
 } from "../engine/game.js";
 
-import Shoe
-    from "../engine/shoe.js";
 
-import Dealer
-    from "../engine/dealer.js";
-
-import History
-    from "../engine/history.js";
-
-import RoadmapAnalyzer
-    from "../roadmap/roadmapAnalyzer.js";
-
-
+/**
+ * 斷言工具
+ */
 function assert(
     condition,
     message
@@ -31,7 +42,9 @@ function assert(
 
     if (!condition) {
 
-        throw new Error(message);
+        throw new Error(
+            message
+        );
 
     }
 
@@ -39,93 +52,122 @@ function assert(
 
 
 /**
- * 驗證指定函式必須丟出錯誤
- */
-function assertThrows(
-    callback,
-    message
-) {
-
-    let thrown = false;
-
-    try {
-
-        callback();
-
-    }
-    catch {
-
-        thrown = true;
-
-    }
-
-    assert(
-        thrown,
-        message
-    );
-
-}
-
-
-/**
- * 驗證 Winner
- */
-function assertWinner(
-    winner,
-    message
-) {
-
-    assert(
-        [
-            "Player",
-            "Banker",
-            "Tie"
-        ].includes(winner),
-        `${message}：無效 winner ${winner}`
-    );
-
-}
-
-
-/**
- * 建立可供匯入的普通結果
+ * 建立測試用 Analyzer
  *
- * 注意：
- * 普通物件沒有 toJSON()，
- * 因此只用於 addResult() 與同步測試。
+ * 避免測試時真的執行大量 Monte Carlo，
+ * 只驗證 Game 是否正確傳入 context，
+ * 並保存下一局分析結果。
  */
-function createResult(
-    winner,
-    options = {}
-) {
+function createAnalyzerMock() {
 
     return {
 
-        winner,
+        calls: [],
 
-        playerPair:
-            options.playerPair ??
-            false,
+        async analyzeContext(
+            context,
+            runOptions = {}
+        ) {
 
-        bankerPair:
-            options.bankerPair ??
-            false,
+            this.calls.push({
 
-        super6:
-            options.super6 ??
-            false,
+                context,
 
-        margin:
-            options.margin ??
-            0,
+                runOptions
 
-        playerNatural:
-            options.playerNatural ??
-            false,
+            });
 
-        bankerNatural:
-            options.bankerNatural ??
-            false
+            return {
+
+                method:
+                    "mock",
+
+                probability: {
+
+                    player:
+                        0.45,
+
+                    banker:
+                        0.46,
+
+                    tie:
+                        0.09,
+
+                    playerPair:
+                        0.07,
+
+                    bankerPair:
+                        0.07,
+
+                    super6:
+                        0.05
+
+                },
+
+                ev: {
+
+                    player:
+                        -0.01,
+
+                    banker:
+                        -0.005,
+
+                    tie:
+                        -0.12
+
+                },
+
+                ranking: [
+
+                    {
+                        name:
+                            "banker",
+
+                        score:
+                            0.8
+                    }
+
+                ],
+
+                recommendation: {
+
+                    shouldBet:
+                        false,
+
+                    bet:
+                        null,
+
+                    reason:
+                        "測試分析結果"
+
+                },
+
+                shouldBet:
+                    false,
+
+                remainingCards:
+                    context
+                        .physicalRemaining,
+
+                observableRemaining:
+                    context
+                        .observableRemaining,
+
+                physicalRemaining:
+                    context
+                        .physicalRemaining,
+
+                unknownBurnedCount:
+                    context
+                        .unknownBurnedCount,
+
+                generatedAfterRound:
+                    context
+                        .roundCount
+
+            };
+
+        }
 
     };
 
@@ -133,1348 +175,932 @@ function createResult(
 
 
 /**
- * 確保 Shoe 已建立卡牌
+ * 確認物件存在指定欄位
  */
-function prepareShoe(
-    deckCount = 1
+function assertHasKeys(
+    object,
+    keys,
+    label
 ) {
 
-    const shoe =
-        new Shoe(deckCount);
+    assert(
+        object &&
+        typeof object ===
+            "object",
+        `${label} 必須是物件`
+    );
 
-    if (
-        shoe.remaining === 0 &&
-        typeof shoe.create ===
-            "function"
+    for (
+        const key of
+        keys
     ) {
 
-        shoe.create();
+        assert(
+            key in object,
+            `${label} 缺少欄位：${key}`
+        );
 
     }
-
-    return shoe;
 
 }
 
 
+/**
+ * Game v2 完整測試
+ */
 export default async function gameTest() {
 
-    const details = [];
+    const messages = [];
+
+    const analyzer =
+        createAnalyzerMock();
 
 
-    /*
-     * 測試 1：
-     * 新遊戲初始化
+    /**
+     * 1. 建立 Game。
      *
-     * 關閉 shuffle 與 burn，
-     * 讓初始牌數容易驗證。
+     * 關閉燒牌後自動分析，
+     * 讓測試可以逐步驗證狀態。
      */
     const game =
         new Game({
 
-            deckCount: 1,
+            deckCount:
+                8,
 
-            autoShuffle: false,
+            autoShuffle:
+                false,
 
-            autoBurn: false
+            analyzeAfterBurn:
+                false,
+
+            analyzeAfterRound:
+                true,
+
+            analyzer
 
         });
 
+
+    assert(
+        game instanceof Game,
+        "Game 建立失敗"
+    );
+
     assert(
         game.state ===
-            GameState.PLAYING,
-        "新遊戲狀態應為 PLAYING"
-    );
-
-    assert(
-        game.shoe instanceof Shoe,
-        "新遊戲應建立 Shoe"
-    );
-
-    assert(
-        game.dealer instanceof Dealer,
-        "新遊戲應建立 Dealer"
-    );
-
-    assert(
-        game.history instanceof History,
-        "新遊戲應建立 History"
-    );
-
-    assert(
-        game.roadmapAnalyzer instanceof
-            RoadmapAnalyzer,
-        "新遊戲應建立 RoadmapAnalyzer"
+            GameState
+                .WAITING_BURN_INDICATOR,
+        "建立 Game 後應等待燒牌指示牌"
     );
 
     assert(
         game.shoeNumber === 1,
-        "初始牌靴編號應為 1"
+        "第一個牌靴編號應為 1"
     );
 
     assert(
-        game.remainingCards === 52,
-        "一副未燒牌牌靴應有 52 張"
+        game.shoe.total === 416,
+        "8 副牌應有 416 張"
     );
 
     assert(
-        game.usedCards === 0,
-        "新牌靴已使用牌數應為 0"
+        game.history.count === 0,
+        "新牌靴 History 應為空"
     );
 
-    assert(
-        game.roundCount === 0,
-        "新遊戲局數應為 0"
-    );
-
-    assert(
-        game.isEmpty === true,
-        "新遊戲 History 應為空"
-    );
-
-    assert(
-        game.lastResult === null,
-        "新遊戲 lastResult 應為 null"
-    );
-
-    assert(
-        game.winner === null,
-        "新遊戲 winner 應為 null"
-    );
-
-    assert(
-        game.canPlay === true,
-        "新遊戲應可開始牌局"
-    );
-
-    assert(
-        game.finished === false,
-        "新遊戲不應已完成牌靴"
-    );
-
-    assert(
-        Number.isFinite(
-            game.startedAt
-        ),
-        "新遊戲應記錄 startedAt"
-    );
-
-    assert(
-        game.lastRoundAt === null,
-        "尚未遊戲時 lastRoundAt 應為 null"
-    );
-
-    details.push(
-        "建立 Game：PASS"
+    messages.push(
+        "✓ Game 與 8 副牌新牌靴建立完成"
     );
 
 
-    /*
-     * 測試 2：
-     * 未自動燒牌
+    /**
+     * 2. 尚未燒牌前不可開始牌局。
      */
-    const noBurnInfo =
-        game.burnInfo;
-
     assert(
-        noBurnInfo !== null,
-        "應提供 burnInfo"
-    );
-
-    assert(
-        noBurnInfo.executed === false,
-        "autoBurn=false 時不應執行燒牌"
-    );
-
-    assert(
-        noBurnInfo.count === 0,
-        "未燒牌時 burn count 應為 0"
-    );
-
-    details.push(
-        "關閉自動燒牌：PASS"
-    );
-
-
-    /*
-     * 測試 3：
-     * 預設自動燒牌
-     */
-    const burnedGame =
-        new Game({
-
-            deckCount: 1,
-
-            autoShuffle: false,
-
-            autoBurn: true
-
-        });
-
-    assert(
-        burnedGame.burnInfo.executed ===
+        game.isWaitingBurnIndicator ===
             true,
-        "autoBurn=true 時應執行燒牌"
+        "應處於等待燒牌狀態"
     );
 
     assert(
-        burnedGame.burnInfo.indicator !==
-            null,
-        "燒牌後應有指示牌"
+        game.burnConfirmed ===
+            false,
+        "燒牌尚未完成"
     );
 
     assert(
-        Number.isInteger(
-            burnedGame.burnInfo.amount
-        ),
-        "燒牌數量應為整數"
+        game.canStartManualRound ===
+            false,
+        "燒牌前不可開始牌局"
     );
 
-    assert(
-        burnedGame.burnInfo.amount >= 1 &&
-        burnedGame.burnInfo.amount <= 10,
-        "燒牌數量應介於 1 到 10"
-    );
+    let earlyRoundError =
+        null;
 
-    assert(
-        burnedGame.remainingCards < 52,
-        "燒牌後剩餘牌數應少於 52"
-    );
+    try {
 
-    details.push(
-        "自動燒牌：PASS"
-    );
+        game.startManualRound();
 
+    }
+    catch (error) {
 
-    /*
-     * 測試 4：
-     * play() 完成一局
-     */
-    const remainingBeforePlay =
-        game.remainingCards;
-
-    const firstResult =
-        game.play();
-
-    assert(
-        firstResult !== null,
-        "play() 應回傳結果"
-    );
-
-    assertWinner(
-        firstResult.winner,
-        "第一局結果"
-    );
-
-    assert(
-        game.lastResult ===
-            firstResult,
-        "lastResult 應為 play() 回傳結果"
-    );
-
-    assert(
-        game.lastRound ===
-            firstResult,
-        "History 最後一局應為目前結果"
-    );
-
-    assert(
-        game.winner ===
-            firstResult.winner,
-        "Game winner 應與結果一致"
-    );
-
-    assert(
-        game.roundCount === 1,
-        "完成一局後 roundCount 應為 1"
-    );
-
-    assert(
-        game.history.count === 1,
-        "完成一局後 History 應有一局"
-    );
-
-    assert(
-        game.remainingCards <
-            remainingBeforePlay,
-        "完成一局後剩餘牌數應減少"
-    );
-
-    assert(
-        game.currentRound !== null,
-        "完成一局後應保留目前 Round"
-    );
-
-    assert(
-        Number.isFinite(
-            game.lastRoundAt
-        ),
-        "完成一局後應記錄 lastRoundAt"
-    );
-
-    details.push(
-        "play() 完成一局：PASS"
-    );
-
-
-    /*
-     * 測試 5：
-     * History 與 Roadmap 自動同步
-     */
-    assert(
-        game.roadmapAnalyzer
-            .sourceCount === 1,
-        "Roadmap 來源應有一局"
-    );
-
-    assert(
-        game.roads.beadRoad.count === 1,
-        "珠盤路應有一格"
-    );
-
-    assert(
-        game.roads.bigRoad
-            .totalRounds === 1,
-        "大路總局數應為 1"
-    );
-
-    assert(
-        game.roads.bigRoad.count ===
-            (
-                firstResult.winner === "Tie"
-                    ? 0
-                    : 1
-            ),
-        "大路格數應依 Tie 規則更新"
-    );
-
-    assert(
-        game.validateConsistency()
-            .valid === true,
-        "完成一局後資料應保持一致"
-    );
-
-    details.push(
-        "History／Roadmap 同步：PASS"
-    );
-
-
-    /*
-     * 測試 6：
-     * playRound() 與 play() 功能相同
-     */
-    const secondResult =
-        game.playRound();
-
-    assertWinner(
-        secondResult.winner,
-        "第二局結果"
-    );
-
-    assert(
-        game.roundCount === 2,
-        "playRound() 後應有兩局"
-    );
-
-    assert(
-        game.lastResult ===
-            secondResult,
-        "playRound() 應更新 lastResult"
-    );
-
-    assert(
-        game.validateConsistency()
-            .valid === true,
-        "playRound() 後應保持一致"
-    );
-
-    details.push(
-        "playRound()：PASS"
-    );
-
-
-    /*
-     * 測試 7：
-     * playMany()
-     */
-    const beforeManyCount =
-        game.roundCount;
-
-    const manyResults =
-        game.playMany(5);
-
-    assert(
-        Array.isArray(
-            manyResults
-        ),
-        "playMany() 應回傳陣列"
-    );
-
-    assert(
-        manyResults.length === 5,
-        "牌數足夠時 playMany(5) 應完成五局"
-    );
-
-    for (
-        const result of
-        manyResults
-    ) {
-
-        assertWinner(
-            result.winner,
-            "playMany() 結果"
-        );
+        earlyRoundError =
+            error;
 
     }
 
     assert(
-        game.roundCount ===
-            beforeManyCount + 5,
-        "playMany() 應增加五局"
+        earlyRoundError instanceof Error,
+        "燒牌前開始牌局應報錯"
     );
 
-    assert(
-        game.history.count ===
-            game.roadmapAnalyzer
-                .sourceCount,
-        "playMany() 後 History 與 Roadmap 應同步"
-    );
-
-    assert(
-        game.validateConsistency()
-            .valid === true,
-        "playMany() 後一致性應通過"
-    );
-
-    details.push(
-        "playMany()：PASS"
+    messages.push(
+        "✓ 燒牌前禁止開始牌局"
     );
 
 
-    /*
-     * 測試 8：
-     * playMany(0)
+    /**
+     * 3. 確認燒牌指示牌。
+     *
+     * A♠：
+     * - 公開指示牌 1 張
+     * - 隱藏燒牌 1 張
      */
-    const beforeZeroPlay =
-        game.roundCount;
+    const burnInfo =
+        game.confirmBurnIndicator({
 
-    const zeroResults =
-        game.playMany(0);
+            rank:
+                "A",
+
+            suit:
+                "S"
+
+        });
+
 
     assert(
-        zeroResults.length === 0,
-        "playMany(0) 應回傳空陣列"
-    );
-
-    assert(
-        game.roundCount ===
-            beforeZeroPlay,
-        "playMany(0) 不應改變局數"
-    );
-
-    assertThrows(
-        () => {
-
-            game.playMany(-1);
-
-        },
-        "playMany(-1) 應丟出錯誤"
-    );
-
-    assertThrows(
-        () => {
-
-            game.playMany(1.5);
-
-        },
-        "playMany() 非整數應丟出錯誤"
-    );
-
-    details.push(
-        "playMany() 邊界：PASS"
-    );
-
-
-    /*
-     * 測試 9：
-     * statistics
-     */
-    const statistics =
-        game.statistics;
-
-    assert(
-        statistics.rounds ===
-            game.roundCount,
-        "statistics.rounds 應與遊戲局數一致"
-    );
-
-    assert(
-        statistics.remainingCards ===
-            game.remainingCards,
-        "statistics.remainingCards 應一致"
-    );
-
-    assert(
-        statistics.usedCards ===
-            game.usedCards,
-        "statistics.usedCards 應一致"
-    );
-
-    assert(
-        statistics.winners.player +
-        statistics.winners.banker +
-        statistics.winners.tie ===
-            game.roundCount,
-        "勝負統計總和應等於局數"
-    );
-
-    assert(
-        statistics.lastWinner ===
-            game.winner,
-        "statistics.lastWinner 應一致"
-    );
-
-    assert(
-        statistics.shoeNumber ===
-            game.shoeNumber,
-        "statistics.shoeNumber 應一致"
-    );
-
-    details.push(
-        "遊戲統計：PASS"
-    );
-
-
-    /*
-     * 測試 10：
-     * Roadmap getters
-     */
-    assert(
-        game.roads.beadRoad ===
-            game.roadmapAnalyzer
-                .beadRoad,
-        "roads getter 應回傳珠盤路"
-    );
-
-    assert(
-        game.roads.bigRoad ===
-            game.roadmapAnalyzer
-                .bigRoad,
-        "roads getter 應回傳大路"
-    );
-
-    const matrices =
-        game.roadMatrices;
-
-    assert(
-        Array.isArray(
-            matrices.beadRoad
-        ),
-        "roadMatrices 應包含珠盤路矩陣"
-    );
-
-    assert(
-        Array.isArray(
-            matrices.bigRoad
-        ),
-        "roadMatrices 應包含大路矩陣"
-    );
-
-    assert(
-        game.roadmapSummary
-            .sourceRounds ===
-            game.roundCount,
-        "roadmapSummary 來源局數應一致"
-    );
-
-    assert(
-        game.roadmapViewModel
-            .summary
-            .sourceRounds ===
-            game.roundCount,
-        "Roadmap ViewModel 局數應一致"
-    );
-
-    details.push(
-        "Roadmap getters：PASS"
-    );
-
-
-    /*
-     * 測試 11：
-     * Game ViewModel
-     */
-    const viewModel =
-        game.toViewModel();
-
-    assert(
-        viewModel.state ===
-            game.state,
-        "ViewModel state 應一致"
-    );
-
-    assert(
-        viewModel.canPlay ===
-            game.canPlay,
-        "ViewModel canPlay 應一致"
-    );
-
-    assert(
-        viewModel.finished ===
-            game.finished,
-        "ViewModel finished 應一致"
-    );
-
-    assert(
-        viewModel.statistics.rounds ===
-            game.roundCount,
-        "ViewModel statistics 應一致"
-    );
-
-    assert(
-        viewModel.lastResult !== null,
-        "有牌局時 ViewModel 應包含 lastResult"
-    );
-
-    assert(
-        viewModel.lastResult.winner ===
-            game.winner,
-        "ViewModel lastResult winner 應一致"
-    );
-
-    assert(
-        viewModel.consistency.valid ===
+        game.burnConfirmed ===
             true,
-        "ViewModel consistency 應通過"
+        "燒牌應已確認"
     );
 
-    details.push(
-        "toViewModel()：PASS"
+    assert(
+        game.state ===
+            GameState.SHOE_ACTIVE,
+        "燒牌後應進入 SHOE_ACTIVE"
+    );
+
+    assert(
+        burnInfo.hiddenCount === 1,
+        "A 指示牌的隱藏燒牌數應為 1"
+    );
+
+    assert(
+        burnInfo.totalRemoved === 2,
+        "A 指示牌總移除張數應為 2"
+    );
+
+    assert(
+        game.shoe.observableRemaining ===
+            415,
+        "燒牌後可觀察牌池應為 415"
+    );
+
+    assert(
+        game.shoe.physicalRemaining ===
+            414,
+        "燒牌後物理剩餘牌應為 414"
+    );
+
+    assert(
+        game.unknownBurnedCount === 1,
+        "未知燒牌數應為 1"
+    );
+
+    messages.push(
+        "✓ 燒牌指示牌與未知燒牌處理正確"
     );
 
 
-    /*
-     * 測試 12：
-     * clearHistory()
+    /**
+     * 4. 手動執行第一局分析。
      */
-    const remainingBeforeClear =
-        game.remainingCards;
+    const firstAnalysis =
+        await game.analyzeNextRound({
 
-    game.clearHistory();
+            source:
+                "afterBurn"
+
+        });
+
 
     assert(
-        game.history.count === 0,
-        "clearHistory() 後 History 應為空"
+        firstAnalysis.method ===
+            "mock",
+        "Game 應保存 Analyzer 回傳結果"
     );
 
     assert(
-        game.roundCount === 0,
-        "clearHistory() 後 roundCount 應為 0"
+        game.analysisState ===
+            AnalysisState.COMPLETED,
+        "分析狀態應為 COMPLETED"
+    );
+
+    assert(
+        game.hasNextAnalysis ===
+            true,
+        "應已有下一局分析"
+    );
+
+    assert(
+        game.nextAnalysis ===
+            firstAnalysis,
+        "nextAnalysis 應保存分析結果"
+    );
+
+    assert(
+        analyzer.calls.length === 1,
+        "Analyzer 應被呼叫一次"
+    );
+
+    const firstContext =
+        analyzer.calls[0]
+            .context;
+
+    assert(
+        firstContext.shoe ===
+            game.shoe,
+        "Analyzer context 應包含目前 Shoe"
+    );
+
+    assert(
+        firstContext.history ===
+            game.history,
+        "Analyzer context 應包含 History"
+    );
+
+    assert(
+        firstContext.roundCount === 0,
+        "第一局前 roundCount 應為 0"
+    );
+
+    assert(
+        firstContext.observableRemaining ===
+            415,
+        "Analyzer 可觀察牌數錯誤"
+    );
+
+    assert(
+        firstContext.physicalRemaining ===
+            414,
+        "Analyzer 物理牌數錯誤"
+    );
+
+    messages.push(
+        "✓ 燒牌後下一局分析整合正確"
+    );
+
+
+    /**
+     * 5. 開始手動牌局。
+     */
+    const round =
+        game.startManualRound();
+
+
+    assert(
+        round ===
+            game.manualRound,
+        "startManualRound() 應回傳目前 Round"
+    );
+
+    assert(
+        game.state ===
+            GameState.ROUND_INPUT,
+        "開始牌局後狀態應為 ROUND_INPUT"
+    );
+
+    assert(
+        game.manualState ===
+            ManualRoundState.INITIAL,
+        "手動牌局初始狀態錯誤"
+    );
+
+    assert(
+        game.nextManualSide ===
+            HandSide.PLAYER,
+        "第一張應輸入 Player"
+    );
+
+    assert(
+        game.nextManualInput
+            .cardNumber === 1,
+        "第一張牌編號應為 1"
+    );
+
+    messages.push(
+        "✓ 手動牌局建立與第一張提示正確"
+    );
+
+
+    /**
+     * 6. 錯誤發牌順序。
+     */
+    let wrongSideError =
+        null;
+
+    try {
+
+        game.addManualCard(
+
+            HandSide.BANKER,
+
+            {
+                rank:
+                    "2",
+
+                suit:
+                    "S"
+            }
+
+        );
+
+    }
+    catch (error) {
+
+        wrongSideError =
+            error;
+
+    }
+
+    assert(
+        wrongSideError instanceof Error,
+        "錯誤發牌順序應報錯"
+    );
+
+    assert(
+        game.manualCards.length === 0,
+        "錯誤輸入不應加入牌局"
+    );
+
+    messages.push(
+        "✓ 發牌順序驗證正確"
+    );
+
+
+    /**
+     * 7. 輸入 Natural Player 勝牌局。
+     *
+     * Player：9♥ + K♣ = 9
+     * Banker：5♦ + 2♣ = 7
+     */
+    game.addManualCard(
+
+        HandSide.PLAYER,
+
+        {
+            rank:
+                "9",
+
+            suit:
+                "H"
+        }
+
+    );
+
+    assert(
+        game.nextManualSide ===
+            HandSide.BANKER,
+        "第二張應輸入 Banker"
+    );
+
+
+    game.addManualCard(
+
+        HandSide.BANKER,
+
+        {
+            rank:
+                "5",
+
+            suit:
+                "D"
+        }
+
+    );
+
+    assert(
+        game.nextManualSide ===
+            HandSide.PLAYER,
+        "第三張應輸入 Player"
+    );
+
+
+    game.addManualCard(
+
+        HandSide.PLAYER,
+
+        {
+            rank:
+                "K",
+
+            suit:
+                "C"
+        }
+
+    );
+
+    assert(
+        game.nextManualSide ===
+            HandSide.BANKER,
+        "第四張應輸入 Banker"
+    );
+
+
+    game.addManualCard(
+
+        HandSide.BANKER,
+
+        {
+            rank:
+                "2",
+
+            suit:
+                "C"
+        }
+
+    );
+
+
+    assert(
+        game.manualState ===
+            ManualRoundState
+                .READY_TO_FINISH,
+        "Natural 牌局應可立即完成"
+    );
+
+    assert(
+        game.canFinishManualRound ===
+            true,
+        "Natural 牌局應允許完成"
+    );
+
+    assert(
+        game.nextManualInput === null,
+        "Natural 後不應再要求第三張"
+    );
+
+    assert(
+        game.manualProgress
+            .playerScore === 9,
+        "Player 點數應為 9"
+    );
+
+    assert(
+        game.manualProgress
+            .bankerScore === 7,
+        "Banker 點數應為 7"
+    );
+
+    assert(
+        game.manualProgress
+            .isNatural === true,
+        "此牌局應為 Natural"
+    );
+
+    messages.push(
+        "✓ Natural 手動發牌流程正確"
+    );
+
+
+    /**
+     * 8. 完成本局並自動分析下一局。
+     */
+    const result =
+        await game.finishManualRound();
+
+
+    assert(
+        result.winner ===
+            "Player",
+        "本局應為 Player 勝"
+    );
+
+    assert(
+        game.manualState ===
+            ManualRoundState.FINISHED,
+        "完成後 manualState 應為 FINISHED"
+    );
+
+    assert(
+        game.state ===
+            GameState.SHOE_ACTIVE,
+        "完成與分析後應回到 SHOE_ACTIVE"
+    );
+
+    assert(
+        game.history.count === 1,
+        "History 應增加一局"
+    );
+
+    assert(
+        game.history.last ===
+            result,
+        "History.last 應為本局結果"
+    );
+
+    assert(
+        game.lastResult ===
+            result,
+        "Game.lastResult 應為本局結果"
+    );
+
+    assert(
+        game.winner ===
+            "Player",
+        "Game.winner 應為 Player"
     );
 
     assert(
         game.roadmapAnalyzer
-            .sourceCount === 0,
-        "clearHistory() 後 Roadmap 應為空"
+            .sourceCount === 1,
+        "Roadmap sourceCount 應為 1"
     );
 
     assert(
-        game.roads.beadRoad.count === 0,
-        "clearHistory() 後珠盤路應為空"
+        game.roadmapAnalyzer
+            .beadRoad
+            .count === 1,
+        "珠盤路應有一局"
     );
 
     assert(
-        game.roads.bigRoad.count === 0,
-        "clearHistory() 後大路應為空"
+        analyzer.calls.length === 2,
+        "完成牌局後 Analyzer 應再執行一次"
     );
 
     assert(
-        game.lastResult === null,
-        "clearHistory() 後 lastResult 應為 null"
+        analyzer.calls[1]
+            .context
+            .roundCount === 1,
+        "第二次分析 roundCount 應為 1"
     );
 
     assert(
-        game.lastRoundAt === null,
-        "clearHistory() 後 lastRoundAt 應為 null"
+        game.nextAnalysis
+            .generatedAfterRound === 1,
+        "分析結果應標記在第 1 局後產生"
     );
 
-    assert(
-        game.remainingCards ===
-            remainingBeforeClear,
-        "clearHistory() 不應更換或重設牌靴"
+    messages.push(
+        "✓ 完成本局、History、Roadmap 與 Analyzer 更新正確"
     );
 
-    assert(
-        game.validateConsistency()
-            .valid === true,
-        "清空後一致性應通過"
-    );
-
-    details.push(
-        "clearHistory()：PASS"
-    );
-
-
-    /*
-     * 測試 13：
-     * addResult()
-     */
-    const importGame =
-        new Game({
-
-            deckCount: 1,
-
-            autoShuffle: false,
-
-            autoBurn: false
-
-        });
-
-    const importedPlayer =
-        createResult(
-            "Player",
-            {
-                playerPair: true,
-                margin: 4
-            }
-        );
-
-    const returnedResult =
-        importGame.addResult(
-            importedPlayer
-        );
-
-    assert(
-        returnedResult ===
-            importedPlayer,
-        "addResult() 應回傳原結果"
-    );
-
-    assert(
-        importGame.roundCount === 1,
-        "addResult() 後應有一局"
-    );
-
-    assert(
-        importGame.history.last ===
-            importedPlayer,
-        "匯入結果應加入 History"
-    );
-
-    assert(
-        importGame.roads
-            .beadRoad.count === 1,
-        "匯入結果應更新珠盤路"
-    );
-
-    assert(
-        importGame.roads
-            .bigRoad.count === 1,
-        "Player 結果應更新大路"
-    );
-
-    assert(
-        importGame.validateConsistency()
-            .valid === true,
-        "addResult() 後一致性應通過"
-    );
-
-    details.push(
-        "addResult()：PASS"
-    );
-
-
-    /*
-     * 測試 14：
-     * addResults()
-     */
-    importGame.addResults([
-
-        createResult("Tie"),
-
-        createResult(
-            "Banker",
-            {
-                bankerPair: true,
-                super6: true
-            }
-        )
-
-    ]);
-
-    assert(
-        importGame.roundCount === 3,
-        "addResults() 後應有三局"
-    );
-
-    assert(
-        importGame.roads
-            .beadRoad.count === 3,
-        "addResults() 應同步珠盤路"
-    );
-
-    assert(
-        importGame.roads
-            .bigRoad.totalRounds === 3,
-        "addResults() 應同步大路總局數"
-    );
-
-    assert(
-        importGame.roads
-            .bigRoad.count === 2,
-        "一局 Tie 不應增加大路格數"
-    );
-
-    assert(
-        importGame.roads
-            .bigRoad.tieCount === 1,
-        "大路應記錄一局 Tie"
-    );
-
-    assert(
-        importGame.validateConsistency()
-            .valid === true,
-        "addResults() 後一致性應通過"
-    );
-
-    assertThrows(
-        () => {
-
-            importGame.addResults({});
-
-        },
-        "addResults() 非陣列應丟出錯誤"
-    );
-
-    assertThrows(
-        () => {
-
-            importGame.addResult(null);
-
-        },
-        "addResult(null) 應丟出錯誤"
-    );
-
-    details.push(
-        "addResults()：PASS"
-    );
-
-
-    /*
-     * 測試 15：
-     * rebuildRoadmaps()
-     */
-    importGame.roadmapAnalyzer.clear();
-
-    assert(
-        importGame.validateConsistency()
-            .valid === false,
-        "清除 Roadmap 後一致性應失敗"
-    );
-
-    const rebuilt =
-        importGame.rebuildRoadmaps();
-
-    assert(
-        rebuilt ===
-            importGame.roadmapAnalyzer,
-        "rebuildRoadmaps() 應回傳 RoadmapAnalyzer"
-    );
-
-    assert(
-        importGame.roadmapAnalyzer
-            .sourceCount ===
-            importGame.history.count,
-        "重建後 Roadmap 局數應與 History 一致"
-    );
-
-    assert(
-        importGame.validateConsistency()
-            .valid === true,
-        "重建後一致性應恢復"
-    );
-
-    details.push(
-        "rebuildRoadmaps()：PASS"
-    );
-
-
-    /*
-     * 測試 16：
-     * newShoe() 預設清除歷史
-     */
-    const shoeGame =
-        new Game({
-
-            deckCount: 1,
-
-            autoShuffle: false,
-
-            autoBurn: false
-
-        });
-
-    shoeGame.play();
-
-    const oldShoe =
-        shoeGame.shoe;
-
-    const oldShoeNumber =
-        shoeGame.shoeNumber;
-
-    shoeGame.newShoe();
-
-    assert(
-        shoeGame.shoe !== oldShoe,
-        "newShoe() 應更換 Shoe"
-    );
-
-    assert(
-        shoeGame.shoeNumber ===
-            oldShoeNumber + 1,
-        "newShoe() 應增加牌靴編號"
-    );
-
-    assert(
-        shoeGame.roundCount === 0,
-        "newShoe() 預設應清空 History"
-    );
-
-    assert(
-        shoeGame.roadmapAnalyzer
-            .sourceCount === 0,
-        "newShoe() 預設應清空 Roadmap"
-    );
-
-    assert(
-        shoeGame.lastResult === null,
-        "newShoe() 後 lastResult 應為 null"
-    );
-
-    assert(
-        shoeGame.state ===
-            GameState.PLAYING,
-        "newShoe() 後狀態應為 PLAYING"
-    );
-
-    assert(
-        shoeGame.remainingCards === 52,
-        "新的一副牌應有 52 張"
-    );
-
-    details.push(
-        "newShoe() 清空歷史：PASS"
-    );
-
-
-    /*
-     * 測試 17：
-     * newShoe({ clearHistory:false })
-     */
-    shoeGame.play();
-    shoeGame.play();
-
-    const retainedCount =
-        shoeGame.roundCount;
-
-    const retainedTrend = [
-        ...shoeGame.history.trend
-    ];
-
-    const retainedShoeNumber =
-        shoeGame.shoeNumber;
-
-    shoeGame.newShoe({
-
-        clearHistory: false,
-
-        shuffle: false,
-
-        burn: false
-
-    });
-
-    assert(
-        shoeGame.shoeNumber ===
-            retainedShoeNumber + 1,
-        "保留歷史換鞋仍應增加牌靴編號"
-    );
-
-    assert(
-        shoeGame.roundCount ===
-            retainedCount,
-        "clearHistory=false 應保留歷史"
-    );
-
-    assert(
-        JSON.stringify(
-            shoeGame.history.trend
-        ) ===
-        JSON.stringify(
-            retainedTrend
-        ),
-        "換鞋後應保留勝方趨勢"
-    );
-
-    assert(
-        shoeGame.roadmapAnalyzer
-            .sourceCount ===
-            retainedCount,
-        "換鞋後應保留 Roadmap"
-    );
-
-    assert(
-        shoeGame.lastResult === null,
-        "開始新鞋後 lastResult 應重設"
-    );
-
-    assert(
-        shoeGame.validateConsistency()
-            .valid === true,
-        "保留歷史換鞋後應保持一致"
-    );
-
-    details.push(
-        "newShoe() 保留歷史：PASS"
-    );
-
-
-    /*
-     * 測試 18：
-     * setShoe()
-     */
-    const replacementShoe =
-        prepareShoe(1);
-
-    const setShoeGame =
-        new Game({
-
-            deckCount: 1,
-
-            autoShuffle: false,
-
-            autoBurn: false
-
-        });
-
-    setShoeGame.play();
-
-    const setResult =
-        setShoeGame.setShoe(
-            replacementShoe
-        );
-
-    assert(
-        setResult === setShoeGame,
-        "setShoe() 應回傳 Game 本身"
-    );
-
-    assert(
-        setShoeGame.shoe ===
-            replacementShoe,
-        "setShoe() 應使用指定牌靴"
-    );
-
-    assert(
-        setShoeGame.dealer instanceof
-            Dealer,
-        "setShoe() 應重建 Dealer"
-    );
-
-    assert(
-        setShoeGame.dealer.shoe ===
-            replacementShoe,
-        "新 Dealer 應使用指定牌靴"
-    );
-
-    assert(
-        setShoeGame.roundCount === 0,
-        "setShoe() 預設應清除歷史"
-    );
-
-    assert(
-        setShoeGame.state ===
-            GameState.PLAYING,
-        "setShoe() 後狀態應為 PLAYING"
-    );
-
-    assert(
-        setShoeGame.canPlay === true,
-        "完整替換牌靴應可繼續遊戲"
-    );
-
-    assertThrows(
-        () => {
-
-            setShoeGame.setShoe(null);
-
-        },
-        "setShoe(null) 應丟出錯誤"
-    );
-
-    assertThrows(
-        () => {
-
-            setShoeGame.setShoe({});
-
-        },
-        "沒有 draw() 的牌靴應丟出錯誤"
-    );
-
-    details.push(
-        "setShoe()：PASS"
-    );
-
-
-    /*
-     * 測試 19：
-     * setShoe() 保留歷史
-     */
-    setShoeGame.play();
-
-    const setHistoryCount =
-        setShoeGame.roundCount;
-
-    const secondReplacement =
-        prepareShoe(1);
-
-    setShoeGame.setShoe(
-        secondReplacement,
-        {
-            clearHistory: false
-        }
-    );
-
-    assert(
-        setShoeGame.roundCount ===
-            setHistoryCount,
-        "setShoe(clearHistory=false) 應保留歷史"
-    );
-
-    assert(
-        setShoeGame.roadmapAnalyzer
-            .sourceCount ===
-            setHistoryCount,
-        "保留歷史時 Roadmap 也應保留"
-    );
-
-    assert(
-        setShoeGame.validateConsistency()
-            .valid === true,
-        "保留歷史替換牌靴後應保持一致"
-    );
-
-    details.push(
-        "setShoe() 保留歷史：PASS"
-    );
-
-
-    /*
-     * 測試 20：
-     * 牌數不足
-     */
-    const shortShoe =
-        prepareShoe(1);
-
-    /*
-     * 只保留五張，
-     * 少於預設 minimumCards = 6。
-     */
-    shortShoe.cards =
-        shortShoe.cards.slice(
-            0,
-            5
-        );
-
-    const shortGame =
-        new Game({
-
-            deckCount: 1,
-
-            autoShuffle: false,
-
-            autoBurn: false
-
-        });
-
-    shortGame.setShoe(
-        shortShoe
-    );
-
-    assert(
-        shortGame.remainingCards === 5,
-        "測試牌靴應只剩五張"
-    );
-
-    assert(
-        shortGame.canPlay === false,
-        "少於 minimumCards 時不可開始"
-    );
-
-    assertThrows(
-        () => {
-
-            shortGame.play();
-
-        },
-        "牌數不足時 play() 應丟出錯誤"
-    );
-
-    assert(
-        shortGame.state ===
-            GameState.SHOE_FINISHED,
-        "牌數不足後狀態應為 SHOE_FINISHED"
-    );
-
-    assert(
-        shortGame.finished === true,
-        "牌數不足後 finished 應為 true"
-    );
-
-    assertThrows(
-        () => {
-
-            shortGame.play();
-
-        },
-        "已完成牌靴不得再次 play()"
-    );
-
-    details.push(
-        "牌數不足與牌靴結束：PASS"
-    );
-
-
-    /*
-     * 測試 21：
-     * playMany() 在牌數不足時提前停止
-     */
-    const limitedShoe =
-        prepareShoe(1);
-
-    /*
-     * 保留約可完成一局但不足很多局的牌。
-     */
-    limitedShoe.cards =
-        limitedShoe.cards.slice(
-            0,
-            10
-        );
-
-    const limitedGame =
-        new Game({
-
-            deckCount: 1,
-
-            autoShuffle: false,
-
-            autoBurn: false
-
-        });
-
-    limitedGame.setShoe(
-        limitedShoe
-    );
-
-    const limitedResults =
-        limitedGame.playMany(20);
-
-    assert(
-        limitedResults.length < 20,
-        "牌數不足時 playMany() 應提前停止"
-    );
-
-    assert(
-        limitedGame.roundCount ===
-            limitedResults.length,
-        "實際完成局數應與回傳結果數一致"
-    );
-
-    assert(
-        limitedGame.validateConsistency()
-            .valid === true,
-        "提前停止後資料仍應一致"
-    );
-
-    details.push(
-        "playMany() 提前停止：PASS"
-    );
-
-
-    /*
-     * 測試 22：
-     * 人為破壞一致性
-     */
-    const inconsistentGame =
-        new Game({
-
-            deckCount: 1,
-
-            autoShuffle: false,
-
-            autoBurn: false
-
-        });
-
-    inconsistentGame.play();
-
-    inconsistentGame
-        .roadmapAnalyzer
-        .sourceRounds
-        .pop();
-
-    const brokenConsistency =
-        inconsistentGame
-            .validateConsistency();
-
-    assert(
-        brokenConsistency.valid === false,
-        "人為破壞資料後一致性應失敗"
-    );
-
-    assert(
-        brokenConsistency.errors.length >
-            0,
-        "一致性失敗應包含錯誤訊息"
-    );
-
-    assert(
-        brokenConsistency.errors.some(
-            error =>
-                error.includes(
-                    "History count"
-                )
-        ),
-        "應偵測 History 與 Roadmap 數量不符"
-    );
-
-    details.push(
-        "一致性異常偵測：PASS"
-    );
-
 
-    /*
-     * 測試 23：
-     * JSON 匯出
+    /**
+     * 9. 已知移除與剩餘牌數。
      *
-     * 必須使用真實 play() 產生 RoundResult，
-     * 避免普通物件沒有 toJSON()。
+     * 已知移除：
+     * - 燒牌指示牌 1
+     * - 本局公開牌 4
+     *
+     * 可觀察剩餘 411
+     * 物理剩餘 410
      */
-    const jsonGame =
+    assert(
+        game.shoe
+            .observableRemaining === 411,
+        "完成第一局後可觀察牌數應為 411"
+    );
+
+    assert(
+        game.shoe
+            .physicalRemaining === 410,
+        "完成第一局後物理牌數應為 410"
+    );
+
+    assert(
+        game.usedCards === 5,
+        "已知移除牌數應為 5"
+    );
+
+    messages.push(
+        "✓ 完成本局後牌靴數量正確"
+    );
+
+
+    /**
+     * 10. 開始第二局並測試 undo。
+     */
+    game.startManualRound();
+
+    game.addManualCard(
+
+        HandSide.PLAYER,
+
+        {
+            rank:
+                "3",
+
+            suit:
+                "S"
+        }
+
+    );
+
+    game.addManualCard(
+
+        HandSide.BANKER,
+
+        {
+            rank:
+                "4",
+
+            suit:
+                "H"
+        }
+
+    );
+
+
+    const beforeUndo =
+        game.shoe
+            .observableRemaining;
+
+
+    const undone =
+        game.undoManualCard();
+
+
+    assert(
+        undone.side ===
+            HandSide.BANKER,
+        "undo 應撤銷 Banker 最後一張"
+    );
+
+    assert(
+        game.manualCards.length === 1,
+        "undo 後應剩一張輸入牌"
+    );
+
+    assert(
+        game.shoe
+            .observableRemaining ===
+            beforeUndo + 1,
+        "undo 應將牌放回 Shoe"
+    );
+
+    assert(
+        game.nextManualSide ===
+            HandSide.BANKER,
+        "undo 後下一張應重新要求 Banker"
+    );
+
+    messages.push(
+        "✓ undoManualCard() 正確"
+    );
+
+
+    /**
+     * 11. cancelManualRound()。
+     */
+    const beforeCancel =
+        game.shoe
+            .observableRemaining;
+
+
+    game.cancelManualRound();
+
+
+    assert(
+        game.manualRound === null,
+        "取消後 manualRound 應為 null"
+    );
+
+    assert(
+        game.manualState ===
+            ManualRoundState.IDLE,
+        "取消後 manualState 應為 IDLE"
+    );
+
+    assert(
+        game.manualCards.length === 0,
+        "取消後 manualCards 應清空"
+    );
+
+    assert(
+        game.state ===
+            GameState.SHOE_ACTIVE,
+        "取消後應回到 SHOE_ACTIVE"
+    );
+
+    assert(
+        game.shoe
+            .observableRemaining ===
+            beforeCancel + 1,
+        "取消後應放回剩餘的一張輸入牌"
+    );
+
+    assert(
+        game.history.count === 1,
+        "取消未完成牌局不應影響 History"
+    );
+
+    messages.push(
+        "✓ cancelManualRound() 正確"
+    );
+
+
+    /**
+     * 12. 分析期間不可輸入牌局。
+     */
+    const delayedAnalyzer = {
+
+        analyzeContext() {
+
+            return new Promise(
+                resolve => {
+
+                    setTimeout(
+                        () => {
+
+                            resolve({
+
+                                method:
+                                    "delayed",
+
+                                probability: {
+
+                                    player:
+                                        0.45,
+
+                                    banker:
+                                        0.46,
+
+                                    tie:
+                                        0.09
+
+                                }
+
+                            });
+
+                        },
+                        10
+                    );
+
+                }
+            );
+
+        }
+
+    };
+
+
+    const analysisGame =
         new Game({
 
-            deckCount: 1,
+            autoShuffle:
+                false,
 
-            autoShuffle: false,
+            analyzeAfterBurn:
+                false,
 
-            autoBurn: false
+            analyzeAfterRound:
+                false,
+
+            analyzer:
+                delayedAnalyzer
 
         });
 
-    jsonGame.playMany(3);
 
+    analysisGame
+        .confirmBurnIndicator({
+
+            rank:
+                "A",
+
+            suit:
+                "S"
+
+        });
+
+
+    const runningPromise =
+        analysisGame
+            .runNextAnalysis();
+
+
+    assert(
+        analysisGame.isAnalyzing ===
+            true,
+        "分析開始後 isAnalyzing 應為 true"
+    );
+
+
+    let analyzingRoundError =
+        null;
+
+    try {
+
+        analysisGame
+            .startManualRound();
+
+    }
+    catch (error) {
+
+        analyzingRoundError =
+            error;
+
+    }
+
+    assert(
+        analyzingRoundError instanceof Error,
+        "分析期間開始牌局應報錯"
+    );
+
+
+    await runningPromise;
+
+
+    assert(
+        analysisGame.state ===
+            GameState.SHOE_ACTIVE,
+        "分析完成後應回到 SHOE_ACTIVE"
+    );
+
+    messages.push(
+        "✓ 分析期間狀態鎖定正確"
+    );
+
+
+    /**
+     * 13. ViewModel、statistics 與一致性。
+     */
+    const viewModel =
+        game.toViewModel();
+
+    const statistics =
+        game.statistics;
+
+    const consistency =
+        game.validateConsistency();
+
+
+    assertHasKeys(
+
+        viewModel,
+
+        [
+            "state",
+            "shoeNumber",
+            "burn",
+            "manual",
+            "analysis",
+            "statistics",
+            "roadmap",
+            "consistency"
+        ],
+
+        "Game ViewModel"
+
+    );
+
+
+    assert(
+        statistics.rounds === 1,
+        "statistics.rounds 應為 1"
+    );
+
+    assert(
+        statistics.winners
+            .player === 1,
+        "Player 勝場應為 1"
+    );
+
+    assert(
+        statistics.lastWinner ===
+            "Player",
+        "lastWinner 應為 Player"
+    );
+
+    assert(
+        consistency.valid === true,
+        `Game 一致性檢查失敗：${consistency.errors.join(", ")}`
+    );
+
+    messages.push(
+        "✓ ViewModel、統計與一致性檢查正確"
+    );
+
+
+    /**
+     * 14. JSON 匯出。
+     */
     const json =
-        jsonGame.toJSON();
+        game.toJSON();
+
 
     assert(
         json.version === 2,
@@ -1482,467 +1108,132 @@ export default async function gameTest() {
     );
 
     assert(
-        json.options.deckCount === 1,
-        "JSON deckCount 應為 1"
-    );
-
-    assert(
-        json.state ===
-            jsonGame.state,
-        "JSON state 應一致"
-    );
-
-    assert(
-        json.shoeNumber ===
-            jsonGame.shoeNumber,
-        "JSON shoeNumber 應一致"
-    );
-
-    assert(
-        json.shoe !== null,
+        json.shoe &&
+        Array.isArray(
+            json.shoe.cards
+        ),
         "JSON 應包含 Shoe"
-    );
-
-    assert(
-        json.burn !== null,
-        "JSON 應包含 Burn"
-    );
-
-    assert(
-        json.dealer !== null,
-        "JSON 應包含 Dealer"
     );
 
     assert(
         Array.isArray(
             json.history
-        ),
-        "JSON history 應為陣列"
+        ) &&
+        json.history.length === 1,
+        "JSON History 應有一局"
     );
 
     assert(
-        json.history.length === 3,
-        "JSON history 應有三局"
+        json.burn
+            .hiddenCount === 1,
+        "JSON 應保存未知燒牌數"
     );
 
     assert(
-        json.roadmap.sourceRounds
-            .length === 3,
-        "JSON roadmap 應有三局來源"
+        json.analysis
+            .result !== null,
+        "JSON 應保存分析結果"
     );
 
-    assert(
-        json.lastResult !== null,
-        "JSON 應包含最後結果"
-    );
-
-    details.push(
-        "JSON 匯出：PASS"
+    messages.push(
+        "✓ toJSON() 匯出正確"
     );
 
 
-    /*
-     * 測試 24：
-     * JSON 還原
+    /**
+     * 15. 開始新牌靴。
      */
-    const restored =
-        Game.fromJSON(
-            json
-        );
+    const oldShoe =
+        game.shoe;
+
+    game.startNewShoe({
+
+        clearHistory:
+            true,
+
+        shuffle:
+            false
+
+    });
+
 
     assert(
-        restored instanceof Game,
-        "fromJSON() 應回傳 Game"
-    );
-
-    assert(
-        restored.shoe instanceof Shoe,
-        "還原後應有 Shoe"
-    );
-
-    assert(
-        restored.dealer instanceof Dealer,
-        "還原後應有 Dealer"
-    );
-
-    assert(
-        restored.history instanceof History,
-        "還原後應有 History"
+        game.shoe !== oldShoe,
+        "新牌靴應建立新的 Shoe"
     );
 
     assert(
-        restored.roadmapAnalyzer instanceof
-            RoadmapAnalyzer,
-        "還原後應有 RoadmapAnalyzer"
+        game.shoeNumber === 2,
+        "第二個牌靴編號應為 2"
     );
 
     assert(
-        restored.roundCount ===
-            jsonGame.roundCount,
-        "還原後局數應一致"
+        game.state ===
+            GameState
+                .WAITING_BURN_INDICATOR,
+        "新牌靴後應重新等待燒牌"
     );
 
     assert(
-        restored.remainingCards ===
-            jsonGame.remainingCards,
-        "還原後剩餘牌數應一致"
+        game.burnConfirmed ===
+            false,
+        "新牌靴燒牌狀態應重置"
     );
 
     assert(
-        restored.shoeNumber ===
-            jsonGame.shoeNumber,
-        "還原後牌靴編號應一致"
+        game.history.count === 0,
+        "新牌靴應清空 History"
     );
 
     assert(
-        restored.state ===
-            jsonGame.state,
-        "還原後狀態應一致"
+        game.roadmapAnalyzer
+            .sourceCount === 0,
+        "新牌靴應清空 Roadmap"
     );
 
     assert(
-        restored.lastWinner ===
-            undefined,
-        "Game 沒有 lastWinner getter"
+        game.nextAnalysis === null,
+        "新牌靴應清空下一局分析"
     );
 
     assert(
-        restored.winner ===
-            jsonGame.winner,
-        "還原後最後 winner 應一致"
+        game.lastResult === null,
+        "新牌靴應清空上一局結果"
     );
 
     assert(
-        restored.lastResult ===
-            restored.history.last,
-        "還原後 lastResult 應為 History 最後一局"
+        game.shoe
+            .observableRemaining === 416,
+        "新牌靴可觀察牌數應為 416"
     );
 
     assert(
-        restored.roadmapAnalyzer
-            .sourceCount ===
-            restored.history.count,
-        "還原後 Roadmap 與 History 應同步"
+        game.shoe
+            .physicalRemaining === 416,
+        "新牌靴物理牌數應為 416"
     );
 
-    assert(
-        restored.validateConsistency()
-            .valid === true,
-        "JSON 還原後一致性應通過"
-    );
-
-    details.push(
-        "JSON 還原：PASS"
+    messages.push(
+        "✓ startNewShoe() 完整重置正確"
     );
 
 
-    /*
-     * 測試 25：
-     * 還原後可繼續遊戲
-     */
-    const restoredBeforePlay =
-        restored.roundCount;
-
-    if (restored.canPlay) {
-
-        const restoredResult =
-            restored.play();
-
-        assertWinner(
-            restoredResult.winner,
-            "還原後新牌局"
-        );
-
-        assert(
-            restored.roundCount ===
-                restoredBeforePlay + 1,
-            "還原後 play() 應增加一局"
-        );
-
-        assert(
-            restored.validateConsistency()
-                .valid === true,
-            "還原後繼續遊戲仍應一致"
-        );
-
-    }
-
-    details.push(
-        "JSON 還原後繼續遊戲：PASS"
-    );
-
-
-    /*
-     * 測試 26：
-     * fromJSON() 非法資料
-     */
-    assertThrows(
-        () => {
-
-            Game.fromJSON(null);
-
-        },
-        "fromJSON(null) 應丟出錯誤"
-    );
-
-    assertThrows(
-        () => {
-
-            Game.fromJSON({});
-
-        },
-        "缺少 shoe 應丟出錯誤"
-    );
-
-    assertThrows(
-        () => {
-
-            Game.fromJSON({
-                shoe: json.shoe,
-                history: {}
-            });
-
-        },
-        "history 非陣列應丟出錯誤"
-    );
-
-    details.push(
-        "fromJSON() 非法資料：PASS"
-    );
-
-
-    /*
-     * 測試 27：
-     * Constructor 非法設定
-     */
-    assertThrows(
-        () => {
-
-            new Game({
-                deckCount: 0
-            });
-
-        },
-        "deckCount = 0 應丟出錯誤"
-    );
-
-    assertThrows(
-        () => {
-
-            new Game({
-                minimumCards: 0
-            });
-
-        },
-        "minimumCards = 0 應丟出錯誤"
-    );
-
-    assertThrows(
-        () => {
-
-            new Game({
-                beadRows: 0
-            });
-
-        },
-        "beadRows = 0 應丟出錯誤"
-    );
-
-    assertThrows(
-        () => {
-
-            new Game({
-                bigRoadRows: 0
-            });
-
-        },
-        "bigRoadRows = 0 應丟出錯誤"
-    );
-
-    assertThrows(
-        () => {
-
-            new Game({
-                derivedRows: 0
-            });
-
-        },
-        "derivedRows = 0 應丟出錯誤"
-    );
-
-    details.push(
-        "非法設定驗證：PASS"
-    );
-
-
-    /*
-     * 測試 28：
-     * 自訂 Roadmap rows
-     */
-    const customGame =
-        new Game({
-
-            deckCount: 1,
-
-            autoShuffle: false,
-
-            autoBurn: false,
-
-            beadRows: 4,
-
-            bigRoadRows: 5,
-
-            derivedRows: 3
-
-        });
-
-    assert(
-        customGame.roads
-            .beadRoad
-            .options.rows === 4,
-        "自訂 beadRows 應傳給 Bead Road"
-    );
-
-    assert(
-        customGame.roads
-            .bigRoad
-            .options.rows === 5,
-        "自訂 bigRoadRows 應傳給 Big Road"
-    );
-
-    assert(
-        customGame.roads
-            .bigEyeRoad
-            .options.rows === 3,
-        "自訂 derivedRows 應傳給 Big Eye Road"
-    );
-
-    assert(
-        customGame.roads
-            .smallRoad
-            .options.rows === 3,
-        "自訂 derivedRows 應傳給 Small Road"
-    );
-
-    assert(
-        customGame.roads
-            .cockroachRoad
-            .options.rows === 3,
-        "自訂 derivedRows 應傳給 Cockroach Road"
-    );
-
-    details.push(
-        "自訂 Roadmap rows：PASS"
-    );
-
-
-    /*
-     * 保存最終摘要
-     */
-    const finalSummary = {
-
-        rounds:
-            jsonGame.roundCount,
-
-        remaining:
-            jsonGame.remainingCards,
-
-        used:
-            jsonGame.usedCards,
-
-        player:
-            jsonGame.history
-                .playerWins,
-
-        banker:
-            jsonGame.history
-                .bankerWins,
-
-        tie:
-            jsonGame.history
-                .ties,
-
-        beadCells:
-            jsonGame.roads
-                .beadRoad.count,
-
-        bigCells:
-            jsonGame.roads
-                .bigRoad.count,
-
-        bigEyeCells:
-            jsonGame.roads
-                .bigEyeRoad.count,
-
-        smallCells:
-            jsonGame.roads
-                .smallRoad.count,
-
-        cockroachCells:
-            jsonGame.roads
-                .cockroachRoad.count
-
-    };
-
-
-    return [
-
-        "Game 測試全部完成",
-
-        "",
-
-        ...details,
-
-        "",
-
-        "遊戲整合流程：",
-
-        "Shoe",
-
-        "  ↓",
-
-        "Dealer.play()",
-
-        "  ↓",
-
-        "RoundResult",
-
-        "  ↓",
-
-        "History",
-
-        "  ↓",
-
-        "RoadmapAnalyzer",
-
-        "",
-
-        `測試局數：${finalSummary.rounds}`,
-
-        `剩餘牌數：${finalSummary.remaining}`,
-
-        `已使用牌數：${finalSummary.used}`,
-
-        "",
-
-        `Player：${finalSummary.player}`,
-
-        `Banker：${finalSummary.banker}`,
-
-        `Tie：${finalSummary.tie}`,
-
-        "",
-
-        `珠盤路格數：${finalSummary.beadCells}`,
-
-        `大路格數：${finalSummary.bigCells}`,
-
-        `大眼仔格數：${finalSummary.bigEyeCells}`,
-
-        `小路格數：${finalSummary.smallCells}`,
-
-        `曱甴路格數：${finalSummary.cockroachCells}`
-
-    ].join("\n");
-
+    return `
+${messages.join("\n")}
+
+Game Controller v2 測試完成
+
+新牌靴編號：${game.shoeNumber}
+目前狀態：${game.state}
+總牌數：${game.shoe.total}
+可觀察牌數：${game.shoe.observableRemaining}
+物理剩餘牌數：${game.shoe.physicalRemaining}
+未知燒牌數：${game.shoe.unknownBurnedCount}
+
+上一個牌靴測試結果：
+Player 勝：1
+History：1
+Roadmap：1
+Analyzer 呼叫：${analyzer.calls.length}
+`;
 }
