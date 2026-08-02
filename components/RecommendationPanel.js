@@ -1,7 +1,9 @@
 /**
- * Baccarat Analyzer V3
+ * Baccarat Analyzer V3.3 Final
  * components/RecommendationPanel.js
  */
+
+export const RECOMMENDATION_PANEL_VERSION = "3.3.0";
 
 const LABELS = Object.freeze({
     player: "閒",
