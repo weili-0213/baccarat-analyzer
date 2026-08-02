@@ -31,6 +31,9 @@ import bigRoadTest
 import bigEyeRoadTest
     from "./bigEyeRoad.test.js";
 
+import smallRoadTest
+    from "./smallRoad.test.js";
+
 
 /**
  * 新增測試時，只需：
@@ -74,6 +77,12 @@ const TESTS = [
         id: "big-eye-road",
         name: "Big Eye Road",
         run: bigEyeRoadTest
+    }
+
+    {
+        id: "small-road",
+        name: "Small Road",
+        run: smallRoadTest
     }
 
 ];
