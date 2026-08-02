@@ -163,9 +163,40 @@ export default async function dashboardTest() {
         await clickAction(root, dashboard, "start-round");
 
         assert(dashboard.components.quickCardInput instanceof QuickCardInput, "QuickCardInput 未掛載");
-        assert(root.querySelectorAll("[data-quick-rank]").length === 13, "點數牌卡應為 13 個");
-        assert(root.querySelectorAll("[data-quick-suit]").length === 4, "花色牌卡應為 4 個");
-        messages.push("✓ QuickCardInput 掛載正確");
+        assert(
+            root.querySelectorAll("[data-quick-rank]").length === 13,
+            "點數牌卡應為 13 個"
+        );
+
+        assert(
+            root.querySelector('[data-quick-mode="auto"]'),
+            "缺少自動花色模式按鈕"
+        );
+
+        assert(
+            root.querySelector('[data-quick-mode="precise"]'),
+            "缺少指定花色模式按鈕"
+        );
+
+        /*
+         * V3.3 自動花色模式下不顯示四個花色牌卡；
+         * 切換為指定花色模式後才應出現。
+         */
+        assert(
+            root.querySelectorAll("[data-quick-suit]").length === 0,
+            "自動花色模式不應顯示花色牌卡"
+        );
+
+        root.querySelector('[data-quick-mode="precise"]').click();
+
+        assert(
+            root.querySelectorAll("[data-quick-suit]").length === 4,
+            "指定花色模式下花色牌卡應為 4 個"
+        );
+
+        root.querySelector('[data-quick-mode="auto"]').click();
+
+        messages.push("✓ QuickCardInput V3.3 模式掛載正確");
 
         /*
          * V3.3 鍵盤一鍵輸牌：
