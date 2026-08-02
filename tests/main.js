@@ -40,6 +40,9 @@ import cockroachRoadTest
 import roadmapAnalyzerTest
     from "./roadmapAnalyzer.test.js";
 
+import gameTest
+    from "./game.test.js";
+
 
 /**
  * 新增測試時，只需：
@@ -65,6 +68,12 @@ const TESTS = [
         id: "history",
         name: "History",
         run: historyTest
+    },
+
+    {
+        id: "game",
+        name: "Game",
+        run: gameTest
     },
 
     {
@@ -102,7 +111,7 @@ const TESTS = [
         name: "Roadmap Analyzer",
         run: roadmapAnalyzerTest
     }
-    
+
 ];
 
 const elements = {
