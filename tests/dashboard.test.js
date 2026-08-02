@@ -140,6 +140,36 @@ export default async function dashboardTest() {
         assert(root.querySelectorAll("[data-quick-suit]").length === 4, "花色牌卡應為 4 個");
         messages.push("✓ QuickCardInput 掛載正確");
 
+        /*
+         * V3.1 鍵盤快速輸牌：
+         * 9 → H 應自動加入 9♥。
+         */
+        window.dispatchEvent(new KeyboardEvent("keydown", {
+            key: "9",
+            bubbles: true
+        }));
+
+        await nextTick();
+
+        assert(
+            dashboard.components.quickCardInput?.selectedRank === "9",
+            "鍵盤 9 應選取點數 9"
+        );
+
+        window.dispatchEvent(new KeyboardEvent("keydown", {
+            key: "h",
+            bubbles: true
+        }));
+
+        await waitReady(dashboard);
+
+        assert(game.calls.addManualCard === 1, "鍵盤選完花色後未自動加入");
+        assert(game.manualCards[0]?.card.rank === "9", "鍵盤加入 Rank 錯誤");
+        assert(game.manualCards[0]?.card.suit === "H", "鍵盤加入 Suit 錯誤");
+        messages.push("✓ V3.1 鍵盤快速輸牌正確");
+
+        await clickAction(root, dashboard, "undo-card");
+
         await addQuickCard(root, dashboard, "9", "H");
 
         assert(game.calls.addManualCard === 1, "選完花色後未自動加入");
@@ -191,6 +221,7 @@ Dashboard V3 測試完成
 4 花色牌卡：通過
 自動加入：通過
 單頁版面：通過
+鍵盤快速輸牌：通過
 `;
     }
     finally {
