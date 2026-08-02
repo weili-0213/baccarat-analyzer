@@ -76,6 +76,9 @@ import evTableTest
 import recommendationTest
     from "./recommendation.test.js";
 
+import dashboardTest
+    from "./dashboard.test.js";
+
 /**
  * 新增測試時，只需：
  *
@@ -208,6 +211,12 @@ const TESTS = [
         id: "recommendation",
         name: "Recommendation",
         run: recommendationTest
+    },
+
+    {
+        id: "dashboard",
+        name: "Dashboard",
+        run: dashboardTest
     }
 
 ];
