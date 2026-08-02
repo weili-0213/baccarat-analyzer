@@ -27,6 +27,12 @@ import StatusPanel
 
 export const DashboardMode = AnalysisDisplayMode;
 
+export const DashboardSection = Object.freeze({
+    INPUT: "input",
+    INSIGHT: "insight",
+    ROADMAP: "roadmap"
+});
+
 const RANKS = Object.freeze([
     "A", "2", "3", "4", "5", "6", "7",
     "8", "9", "10", "J", "Q", "K"
@@ -115,7 +121,8 @@ export class Dashboard {
             selectedRank: "A",
             selectedSuit: "S",
             mode: loadMode(),
-            activeRoad: "beadRoad"
+            activeRoad: "beadRoad",
+            mobileSection: DashboardSection.INPUT
         };
 
         this.components = {
@@ -188,6 +195,16 @@ export class Dashboard {
         return this;
     }
 
+    setMobileSection(section) {
+        if (!Object.values(DashboardSection).includes(section)) {
+            throw new Error(`Unknown dashboard section: ${section}`);
+        }
+
+        this.ui.mobileSection = section;
+        this.render();
+        return this;
+    }
+
     setMessage(message, type = "info") {
         this.ui.message = String(message ?? "");
         this.ui.messageType = type;
@@ -253,6 +270,9 @@ export class Dashboard {
                 break;
             case "set-dashboard-mode":
                 this.setMode(button.dataset.mode);
+                break;
+            case "set-mobile-section":
+                this.setMobileSection(button.dataset.section);
                 break;
             case "clear-message":
                 this.clearMessage();
@@ -345,6 +365,8 @@ export class Dashboard {
     }
 
     async startRound() {
+        this.ui.mobileSection = DashboardSection.INPUT;
+
         return this.runAction(
             async () => this.game.startManualRound(),
             { successMessage: "已開始輸入本局牌面。" }
@@ -413,29 +435,83 @@ export class Dashboard {
         });
 
         this.root.innerHTML = `
-            <main class="dashboardV3">
+            <main
+                class="dashboardV3 dashboardV32"
+                data-mobile-section="${escapeHTML(this.ui.mobileSection)}"
+            >
                 ${this.renderHeader()}
                 ${this.renderMessage()}
                 ${this.components.statusPanel.render()}
+                ${this.renderMobileNavigation()}
 
-                <div class="v3Workspace">
-                    <section class="v3PrimaryColumn">
+                <div class="v32CasinoGrid">
+                    <section
+                        class="v32InputZone"
+                        data-v32-section="input"
+                    >
                         ${this.renderRoundPanel()}
+                    </section>
+
+                    <section
+                        class="v32InsightZone"
+                        data-v32-section="insight"
+                    >
+                        ${this.components.recommendationPanel.render()}
                         ${this.components.analysisPanel.render()}
                     </section>
 
-                    <aside class="v3SideColumn">
-                        ${this.components.recommendationPanel.render()}
+                    <aside class="v32HistoryZone">
                         ${this.renderHistoryPanel()}
                     </aside>
-                </div>
 
-                ${this.renderRoadmapPanel()}
+                    <section
+                        class="v32RoadZone"
+                        data-v32-section="roadmap"
+                    >
+                        ${this.renderRoadmapPanel()}
+                    </section>
+                </div>
             </main>
         `;
 
         this.mountQuickCardInput();
         return this;
+    }
+
+    renderMobileNavigation() {
+        const items = [
+            {
+                section: DashboardSection.INPUT,
+                label: "輸牌",
+                hint: this.game.isManualRoundActive ? "本局輸入中" : "牌局操作"
+            },
+            {
+                section: DashboardSection.INSIGHT,
+                label: "分析",
+                hint: this.game.nextAnalysis ? "建議已更新" : "等待分析"
+            },
+            {
+                section: DashboardSection.ROADMAP,
+                label: "路單",
+                hint: `${this.game.roundCount ?? 0} 局`
+            }
+        ];
+
+        return `
+            <nav class="v32MobileNav" aria-label="手機 Dashboard 區域">
+                ${items.map(item => `
+                    <button
+                        type="button"
+                        class="${this.ui.mobileSection === item.section ? "active" : ""}"
+                        data-action="set-mobile-section"
+                        data-section="${item.section}"
+                    >
+                        <strong>${item.label}</strong>
+                        <small>${item.hint}</small>
+                    </button>
+                `).join("")}
+            </nav>
+        `;
     }
 
     mountQuickCardInput() {
@@ -782,7 +858,9 @@ export class Dashboard {
             hasAnalysis: Boolean(this.game.nextAnalysis),
             quickCardMounted: this.components.quickCardInput instanceof QuickCardInput,
             fastInput: true,
-            keyboardShortcuts: true
+            keyboardShortcuts: true,
+            casinoLayout: true,
+            mobileSection: this.ui.mobileSection
         };
     }
 }
