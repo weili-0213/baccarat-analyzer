@@ -1,1 +1,173 @@
+/**
+ * Baccarat Analyzer
+ * -----------------------------------------
+ *
+ * styles/quickCardInput.css
+ */
 
+.quickCardInput {
+    display: grid;
+    gap: 10px;
+}
+
+.quickCardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.quickCardHeader > div {
+    display: grid;
+    gap: 3px;
+}
+
+.quickCardHeader small {
+    opacity: 0.72;
+}
+
+.quickCardClear {
+    min-height: 40px;
+    border: 0;
+    border-radius: 12px;
+    padding: 0 14px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.quickRankGrid {
+    display: grid;
+    grid-template-columns:
+        repeat(
+            7,
+            minmax(0, 1fr)
+        );
+    gap: 6px;
+}
+
+.quickRankCard {
+    min-height: 54px;
+    display: grid;
+    place-items: center;
+    gap: 1px;
+    border: 1px solid
+        rgba(255, 255, 255, 0.18);
+    border-radius: 12px;
+    background:
+        rgba(255, 255, 255, 0.08);
+    color: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color:
+        transparent;
+}
+
+.quickRankCard strong {
+    font-size: 1rem;
+}
+
+.quickRankCard small {
+    font-size: 0.68rem;
+    opacity: 0.7;
+}
+
+.quickRankCard.selected {
+    border-color: #f4ce61;
+    background: #f4ce61;
+    color: #152033;
+    box-shadow:
+        0 0 0 2px
+        rgba(244, 206, 97, 0.18);
+}
+
+.quickSuitGrid {
+    display: grid;
+    grid-template-columns:
+        repeat(
+            4,
+            minmax(0, 1fr)
+        );
+    gap: 6px;
+}
+
+.quickSuitCard {
+    min-height: 58px;
+    display: grid;
+    grid-template-columns:
+        auto 1fr auto;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid
+        rgba(255, 255, 255, 0.18);
+    border-radius: 12px;
+    background:
+        rgba(255, 255, 255, 0.08);
+    color: inherit;
+    padding: 8px;
+    cursor: pointer;
+    -webkit-tap-highlight-color:
+        transparent;
+}
+
+.quickSuitCard strong {
+    font-size: 1.35rem;
+}
+
+.quickSuitCard span {
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+
+.quickSuitCard small {
+    opacity: 0.7;
+}
+
+.quickSuitCard.red strong {
+    color: #ff7587;
+}
+
+.quickRankCard:disabled,
+.quickSuitCard:disabled {
+    opacity: 0.32;
+    cursor: not-allowed;
+}
+
+@media (max-width: 520px) {
+
+    .quickRankGrid {
+        grid-template-columns:
+            repeat(
+                7,
+                minmax(0, 1fr)
+            );
+        gap: 4px;
+    }
+
+    .quickRankCard {
+        min-height: 48px;
+        border-radius: 10px;
+    }
+
+    .quickSuitCard {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        min-height: 62px;
+        gap: 1px;
+    }
+
+    .quickSuitCard span {
+        font-size: 0.68rem;
+    }
+
+}
+
+@media (max-width: 360px) {
+
+    .quickRankGrid {
+        grid-template-columns:
+            repeat(
+                5,
+                minmax(0, 1fr)
+            );
+    }
+
+}
