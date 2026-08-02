@@ -83,7 +83,7 @@ const TESTS = [
         id: "small-road",
         name: "Small Road",
         run: smallRoadTest
-    }
+    },
 
 ];
 const elements = {
