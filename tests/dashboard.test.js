@@ -170,9 +170,17 @@ export default async function dashboardTest() {
 
         await clickAction(root, dashboard, "undo-card");
 
+        const clickInputCallsBefore =
+            game.calls.addManualCard;
+
         await addQuickCard(root, dashboard, "9", "H");
 
-        assert(game.calls.addManualCard === 1, "選完花色後未自動加入");
+        assert(
+            game.calls.addManualCard ===
+                clickInputCallsBefore + 1,
+            "選完花色後未自動加入"
+        );
+
         assert(game.manualCards.length === 1, "牌面未加入");
         assert(root.textContent.includes("9♥"), "加入牌面未顯示");
         messages.push("✓ 點數＋花色自動加入正確");
