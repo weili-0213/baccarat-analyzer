@@ -1,33 +1,14 @@
 /**
- * Baccarat Analyzer
- * -----------------------------------------
- *
+ * Baccarat Analyzer V3.4-1
  * workers/analyzer.worker.js
  *
- * 在 Web Worker 中執行 Analyzer，
- * 避免 Monte Carlo／Exact 阻塞 Dashboard。
+ * Worker-side Analysis Runtime
  *
- * 收到：
- *
- * {
- *   type: "analyze",
- *   requestId,
- *   payload: {
- *     shoe,
- *     roundCount,
- *     historyCount,
- *     contextOptions,
- *     runOptions
- *   }
- * }
- *
- * 回傳：
- *
- * {
- *   type: "result" | "error" | "progress",
- *   requestId,
- *   ...
- * }
+ * - Analyze
+ * - Cancel acknowledgement
+ * - Progress
+ * - Token echo
+ * - Analyzer instance cache
  */
 
 import Analyzer
@@ -37,11 +18,26 @@ import Shoe
     from "../engine/shoe.js";
 
 
+export const ANALYZER_WORKER_VERSION =
+    "3.4.1";
+
+
+const cancelled =
+    new Set();
+
+const analyzerCache =
+    new Map();
+
+const MAX_ANALYZER_CACHE =
+    4;
+
+
 function isObject(value) {
 
     return (
         value !== null &&
-        typeof value === "object" &&
+        typeof value ===
+            "object" &&
         !Array.isArray(value)
     );
 
@@ -69,20 +65,17 @@ function serializeError(error) {
 }
 
 
-function createHistoryMock(
-    count = 0
-) {
-
-    const normalized =
-        Number.isInteger(count) &&
-        count >= 0
-            ? count
-            : 0;
+function createHistoryMock(count = 0) {
 
     return {
 
         count:
-            normalized
+            Number.isInteger(
+                count
+            ) &&
+            count >= 0
+                ? count
+                : 0
 
     };
 
@@ -91,10 +84,22 @@ function createHistoryMock(
 
 function createProgressHandler(
     requestId,
+    token,
     phase
 ) {
 
     return progress => {
+
+        if (
+            cancelled.has(
+                requestId
+            )
+        ) {
+
+            return;
+
+        }
+
 
         self.postMessage({
 
@@ -102,6 +107,8 @@ function createProgressHandler(
                 "progress",
 
             requestId,
+
+            token,
 
             phase,
 
@@ -114,14 +121,107 @@ function createProgressHandler(
 }
 
 
-async function analyze(
-    requestId,
-    payload
+function createAnalyzerKey(
+    contextOptions = {}
+) {
+
+    return JSON.stringify({
+
+        payouts:
+            contextOptions.payouts ??
+            {},
+
+        analyzerOptions:
+            contextOptions
+                .analyzerOptions ??
+            {},
+
+        recommendationOptions:
+            contextOptions
+                .recommendationOptions ??
+            {}
+
+    });
+
+}
+
+
+function getAnalyzer(
+    context,
+    key
 ) {
 
     if (
-        !isObject(payload)
+        analyzerCache.has(
+            key
+        )
     ) {
+
+        const analyzer =
+            analyzerCache.get(
+                key
+            );
+
+        analyzerCache.delete(
+            key
+        );
+
+        analyzerCache.set(
+            key,
+            analyzer
+        );
+
+        analyzer.setContext(
+            context
+        );
+
+        return analyzer;
+
+    }
+
+
+    const analyzer =
+        new Analyzer(
+            context
+        );
+
+
+    analyzerCache.set(
+        key,
+        analyzer
+    );
+
+
+    while (
+        analyzerCache.size >
+        MAX_ANALYZER_CACHE
+    ) {
+
+        const oldest =
+            analyzerCache
+                .keys()
+                .next()
+                .value;
+
+        analyzerCache.delete(
+            oldest
+        );
+
+    }
+
+
+    return analyzer;
+
+}
+
+
+async function runAnalysis(
+    requestId,
+    token,
+    payload
+) {
+
+    if (!isObject(payload)) {
 
         throw new TypeError(
             "Worker analysis payload must be an object."
@@ -130,12 +230,7 @@ async function analyze(
     }
 
 
-    const shoeData =
-        payload.shoe;
-
-    if (
-        !isObject(shoeData)
-    ) {
+    if (!isObject(payload.shoe)) {
 
         throw new Error(
             "Worker analysis requires serialized Shoe data."
@@ -146,7 +241,7 @@ async function analyze(
 
     const shoe =
         Shoe.fromJSON(
-            shoeData
+            payload.shoe
         );
 
 
@@ -164,6 +259,14 @@ async function analyze(
             );
 
 
+    const contextOptions =
+        isObject(
+            payload.contextOptions
+        )
+            ? payload.contextOptions
+            : {};
+
+
     const context = {
 
         shoe,
@@ -176,13 +279,7 @@ async function analyze(
 
         roundCount,
 
-        ...(
-            isObject(
-                payload.contextOptions
-            )
-                ? payload.contextOptions
-                : {}
-        )
+        ...contextOptions
 
     };
 
@@ -200,28 +297,50 @@ async function analyze(
         onMonteCarloProgress:
             createProgressHandler(
                 requestId,
+                token,
                 "monteCarlo"
             ),
 
         onExactProgress:
             createProgressHandler(
                 requestId,
+                token,
                 "exact"
             )
 
     };
 
 
+    const key =
+        createAnalyzerKey(
+            contextOptions
+        );
+
     const analyzer =
-        new Analyzer(
-            context
+        getAnalyzer(
+            context,
+            key
         );
 
 
-    return analyzer
-        .analyze(
+    const result =
+        await analyzer.analyze(
             runOptions
         );
+
+
+    if (
+        cancelled.has(
+            requestId
+        )
+    ) {
+
+        return null;
+
+    }
+
+
+    return result;
 
 }
 
@@ -233,8 +352,44 @@ self.addEventListener(
         const data =
             event.data;
 
+
+        if (!isObject(data)) {
+
+            return;
+
+        }
+
+
         if (
-            !isObject(data) ||
+            data.type ===
+                "cancel"
+        ) {
+
+            cancelled.add(
+                data.requestId
+            );
+
+
+            self.postMessage({
+
+                type:
+                    "cancelled",
+
+                requestId:
+                    data.requestId,
+
+                token:
+                    data.token ??
+                    null
+
+            });
+
+            return;
+
+        }
+
+
+        if (
             data.type !==
                 "analyze"
         ) {
@@ -247,14 +402,48 @@ self.addEventListener(
         const requestId =
             data.requestId;
 
+        const token =
+            data.token ??
+            0;
+
+
+        cancelled.delete(
+            requestId
+        );
+
 
         try {
 
             const result =
-                await analyze(
+                await runAnalysis(
                     requestId,
+                    token,
                     data.payload
                 );
+
+
+            if (
+                result ===
+                    null ||
+                cancelled.has(
+                    requestId
+                )
+            ) {
+
+                self.postMessage({
+
+                    type:
+                        "cancelled",
+
+                    requestId,
+
+                    token
+
+                });
+
+                return;
+
+            }
 
 
             self.postMessage({
@@ -264,12 +453,36 @@ self.addEventListener(
 
                 requestId,
 
+                token,
+
                 result
 
             });
 
         }
         catch (error) {
+
+            if (
+                cancelled.has(
+                    requestId
+                )
+            ) {
+
+                self.postMessage({
+
+                    type:
+                        "cancelled",
+
+                    requestId,
+
+                    token
+
+                });
+
+                return;
+
+            }
+
 
             self.postMessage({
 
@@ -278,12 +491,21 @@ self.addEventListener(
 
                 requestId,
 
+                token,
+
                 error:
                     serializeError(
                         error
                     )
 
             });
+
+        }
+        finally {
+
+            cancelled.delete(
+                requestId
+            );
 
         }
 
