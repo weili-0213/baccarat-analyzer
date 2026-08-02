@@ -2179,3 +2179,5 @@ export class Recommendation {
         return component;
 
     }
+
+}
