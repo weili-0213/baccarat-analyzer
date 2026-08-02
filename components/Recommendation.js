@@ -2179,27 +2179,3 @@ export class Recommendation {
         return component;
 
     }
-
-
-/**
- * 預設工廠函式。
- */
-export default function createRecommendation(
-    options = {}
-) {
-
-    return new Recommendation(
-        options
-    );
-
-}
-
-
-/**
- * 供外部顯示名稱使用。
- */
-export {
-
-    BET_LABELS
-
-};
