@@ -64,6 +64,8 @@ import roadmapAnalyzerTest
 import roadmapComponentTest
     from "./roadmapComponent.test.js";
 
+import cardInputTest
+    from "./cardInput.test.js";
 
 /**
  * 新增測試時，只需：
@@ -173,6 +175,12 @@ const TESTS = [
         id: "roadmap-component",
         name: "Roadmap Component",
         run: roadmapComponentTest
+    },
+
+    {
+        id: "card-input",
+        name: "Card Input",
+        run: cardInputTest
     }
 
 ];
