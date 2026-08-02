@@ -1,20 +1,22 @@
 /**
- * Baccarat Analyzer
- * -----------------------------------------
- *
+ * Baccarat Analyzer V3.4
  * analysis/recommendation.js
  *
  * Recommendation Engine
  *
- * 預設只允許主注成為最終建議：
+ * 原則：
  *
- * - player
- * - banker
- * - tie
- *
- * 邊注與 Dragon Bonus 可保留在分析畫面中，
- * 但不會成為主推薦。
+ * - 主推薦只允許 player / banker / tie
+ * - 只有 EV > minimumEV 的候選可下注
+ * - 候選依 EV 由高至低排列
+ * - 最多輸出 Top 3
+ * - Kelly 建議金額限制於 minBet ～ maxBet
+ * - 沒有合格候選時，明確回傳「不下注」
  */
+
+export const RECOMMENDATION_ENGINE_VERSION =
+    "3.4.0";
+
 
 export const ACTION =
     Object.freeze({
@@ -80,9 +82,27 @@ const DEFAULT_OPTIONS =
             3,
 
         allowedBets:
-            DEFAULT_ALLOWED_BETS
+            DEFAULT_ALLOWED_BETS,
+
+        minBet:
+            100,
+
+        maxBet:
+            10000,
+
+        roundTo:
+            100
 
     });
+
+
+function isFiniteNumber(value) {
+
+    return Number.isFinite(
+        value
+    );
+
+}
 
 
 export default class Recommendation {
@@ -140,12 +160,15 @@ export default class Recommendation {
             requirePositiveAmount,
             allowProvisionalConfidence,
             candidateCount,
-            allowedBets
+            allowedBets,
+            minBet,
+            maxBet,
+            roundTo
         } = this.options;
 
 
         if (
-            !Number.isFinite(
+            !isFiniteNumber(
                 minimumEV
             )
         ) {
@@ -158,7 +181,7 @@ export default class Recommendation {
 
 
         if (
-            !Number.isFinite(
+            !isFiniteNumber(
                 minimumConfidence
             ) ||
             minimumConfidence < 0 ||
@@ -175,7 +198,7 @@ export default class Recommendation {
         if (
             maximumRisk !== null &&
             (
-                !Number.isFinite(
+                !isFiniteNumber(
                     maximumRisk
                 ) ||
                 maximumRisk < 0
@@ -190,7 +213,7 @@ export default class Recommendation {
 
 
         if (
-            !Number.isFinite(
+            !isFiniteNumber(
                 minimumScore
             ) ||
             minimumScore < 0 ||
@@ -263,6 +286,48 @@ export default class Recommendation {
 
             throw new TypeError(
                 "allowedBets must be a non-empty array"
+            );
+
+        }
+
+
+        if (
+            !isFiniteNumber(
+                minBet
+            ) ||
+            minBet < 0
+        ) {
+
+            throw new RangeError(
+                "minBet must be a non-negative number"
+            );
+
+        }
+
+
+        if (
+            !isFiniteNumber(
+                maxBet
+            ) ||
+            maxBet < minBet
+        ) {
+
+            throw new RangeError(
+                "maxBet must be greater than or equal to minBet"
+            );
+
+        }
+
+
+        if (
+            !isFiniteNumber(
+                roundTo
+            ) ||
+            roundTo <= 0
+        ) {
+
+            throw new RangeError(
+                "roundTo must be greater than 0"
             );
 
         }
@@ -371,7 +436,7 @@ export default class Recommendation {
             ) {
 
                 if (
-                    !Number.isFinite(
+                    !isFiniteNumber(
                         value
                     )
                 ) {
@@ -395,7 +460,7 @@ export default class Recommendation {
     ) {
 
         if (
-            !Number.isFinite(
+            !isFiniteNumber(
                 value
             )
         ) {
@@ -418,7 +483,7 @@ export default class Recommendation {
     formatAmount(amount) {
 
         if (
-            !Number.isFinite(
+            !isFiniteNumber(
                 amount
             )
         ) {
@@ -443,6 +508,52 @@ export default class Recommendation {
         return (
             item.label ??
             item.name
+        );
+
+    }
+
+
+    normalizeAmount(amount) {
+
+        if (
+            !isFiniteNumber(
+                amount
+            ) ||
+            amount <= 0
+        ) {
+
+            return 0;
+
+        }
+
+
+        const rounded =
+            Math.floor(
+                amount /
+                this.options.roundTo
+            ) *
+            this.options.roundTo;
+
+
+        if (
+            rounded <
+            this.options.minBet
+        ) {
+
+            return this.options
+                .requirePositiveAmount
+                    ? 0
+                    : this.options.minBet;
+
+        }
+
+
+        return Math.min(
+            this.options.maxBet,
+            Math.max(
+                this.options.minBet,
+                rounded
+            )
         );
 
     }
@@ -517,7 +628,7 @@ export default class Recommendation {
         ) {
 
             rejectedReasons.push(
-                "可信度仍為暫時值，尚未完成 Monte Carlo 或 Exact 驗證"
+                "可信度仍為暫時值"
             );
 
         }
@@ -550,16 +661,9 @@ export default class Recommendation {
 
 
         const amount =
-            Number.isFinite(
+            this.normalizeAmount(
                 item.amount
-            )
-                ? Math.max(
-                    0,
-                    Math.floor(
-                        item.amount
-                    )
-                )
-                : 0;
+            );
 
 
         if (
@@ -582,7 +686,7 @@ export default class Recommendation {
         else {
 
             rejectedReasons.push(
-                "下注金額低於最低下注限制或為 0"
+                "Kelly 金額低於最低下注限制"
             );
 
         }
@@ -718,6 +822,13 @@ export default class Recommendation {
             amount:
                 evaluation.amount,
 
+            rawAmount:
+                isFiniteNumber(
+                    item.amount
+                )
+                    ? item.amount
+                    : 0,
+
             risk:
                 item.risk,
 
@@ -773,6 +884,68 @@ export default class Recommendation {
     }
 
 
+    sortCandidates(
+        candidates
+    ) {
+
+        return [
+            ...candidates
+        ].sort(
+            (
+                left,
+                right
+            ) => {
+
+                if (
+                    right.ev !==
+                    left.ev
+                ) {
+
+                    return (
+                        right.ev -
+                        left.ev
+                    );
+
+                }
+
+
+                if (
+                    right.confidence !==
+                    left.confidence
+                ) {
+
+                    return (
+                        right.confidence -
+                        left.confidence
+                    );
+
+                }
+
+
+                if (
+                    right.kelly !==
+                    left.kelly
+                ) {
+
+                    return (
+                        right.kelly -
+                        left.kelly
+                    );
+
+                }
+
+
+                return (
+                    left.risk -
+                    right.risk
+                );
+
+            }
+        );
+
+    }
+
+
     getCandidates(ranking) {
 
         this.validateRanking(
@@ -780,24 +953,45 @@ export default class Recommendation {
         );
 
 
+        const candidates =
+            this
+                .filterAllowedRanking(
+                    ranking
+                )
+                .map(
+                    item =>
+                        this.createCandidate(
+                            item
+                        )
+                )
+                .filter(
+                    item =>
+                        item.eligible
+                );
+
+
         return this
-            .filterAllowedRanking(
-                ranking
-            )
-            .map(
-                item =>
-                    this.createCandidate(
-                        item
-                    )
-            )
-            .filter(
-                item =>
-                    item.eligible
+            .sortCandidates(
+                candidates
             )
             .slice(
                 0,
                 this.options
                     .candidateCount
+            )
+            .map(
+                (
+                    item,
+                    index
+                ) => ({
+
+                    ...item,
+
+                    recommendationRank:
+                        index +
+                        1
+
+                })
             );
 
     }
@@ -832,6 +1026,9 @@ export default class Recommendation {
     ) {
 
         return {
+
+            version:
+                RECOMMENDATION_ENGINE_VERSION,
 
             action:
                 ACTION.BET,
@@ -897,13 +1094,13 @@ export default class Recommendation {
                 best.scorePercent,
 
             rank:
-                best.rank,
+                best.recommendationRank,
 
             headline:
                 `建議下注：${best.label}`,
 
             message:
-                `建議下注 ${best.label}，金額 ${this.formatAmount(best.amount)}`,
+                `最高 EV 為 ${best.label}，建議下注 ${this.formatAmount(best.amount)}`,
 
             reasons:
                 [
@@ -920,6 +1117,19 @@ export default class Recommendation {
             candidates,
 
             rejected,
+
+            limits: {
+
+                minBet:
+                    this.options.minBet,
+
+                maxBet:
+                    this.options.maxBet,
+
+                roundTo:
+                    this.options.roundTo
+
+            },
 
             generatedAt:
                 new Date()
@@ -959,6 +1169,9 @@ export default class Recommendation {
 
 
         return {
+
+            version:
+                RECOMMENDATION_ENGINE_VERSION,
 
             action:
                 ACTION.SKIP,
@@ -1021,7 +1234,7 @@ export default class Recommendation {
                 "建議：本局不下注",
 
             message:
-                "目前沒有符合設定條件的主注項目",
+                "所有主注皆未通過正 EV、可信度、Kelly 與風險條件",
 
             reasons,
 
@@ -1032,6 +1245,19 @@ export default class Recommendation {
                 [],
 
             rejected,
+
+            limits: {
+
+                minBet:
+                    this.options.minBet,
+
+                maxBet:
+                    this.options.maxBet,
+
+                roundTo:
+                    this.options.roundTo
+
+            },
 
             generatedAt:
                 new Date()
@@ -1070,9 +1296,7 @@ export default class Recommendation {
             null;
 
 
-        if (
-            !best
-        ) {
+        if (!best) {
 
             return this
                 .createSkipRecommendation(
@@ -1138,6 +1362,9 @@ export default class Recommendation {
 
         return {
 
+            version:
+                RECOMMENDATION_ENGINE_VERSION,
+
             minimumEV:
                 this.options.minimumEV,
 
@@ -1171,7 +1398,16 @@ export default class Recommendation {
                 [
                     ...this.options
                         .allowedBets
-                ]
+                ],
+
+            minBet:
+                this.options.minBet,
+
+            maxBet:
+                this.options.maxBet,
+
+            roundTo:
+                this.options.roundTo
 
         };
 
