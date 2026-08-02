@@ -79,6 +79,9 @@ import evTableTest
 import recommendationTest
     from "./recommendation.test.js";
 
+import recommendationEngineTest 
+    from "./recommendationEngine.test.js";
+
 import dashboardTest
     from "./dashboard.test.js";
 
@@ -225,6 +228,12 @@ const TESTS = [
         id: "recommendation",
         name: "Recommendation",
         run: recommendationTest
+    },
+
+    {
+        id: "recommendation-engine",
+        name: "Recommendation Engine",
+        run: recommendationEngineTest
     },
 
     {
