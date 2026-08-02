@@ -22,6 +22,18 @@ import roundTest
 import historyTest
     from "./history.test.js";
 
+import gameTest
+    from "./game.test.js";
+
+import exactTest
+    from "./exact.test.js";
+
+import monteCarloTest
+    from "./monteCarlo.test.js";
+
+import analyzerTest
+    from "./analyzer.test.js";
+
 import beadRoadTest
     from "./beadRoad.test.js";
 
@@ -39,9 +51,6 @@ import cockroachRoadTest
 
 import roadmapAnalyzerTest
     from "./roadmapAnalyzer.test.js";
-
-import gameTest
-    from "./game.test.js";
 
 import roadmapComponentTest
     from "./roadmapComponent.test.js";
