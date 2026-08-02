@@ -1,16 +1,8 @@
 /**
- * Baccarat Analyzer
- * -----------------------------------------
- *
+ * Baccarat Analyzer V3.3 Final
  * styles/dashboard.css
  *
- * Dashboard 單頁快速操作版：
- *
- * - 手機優先
- * - 桌面雙欄
- * - 狀態、分析、建議橫向顯示
- * - 快速輸牌區維持在可視範圍
- * - Roadmap 橫向捲動，不拉長整頁
+ * Casino Dashboard responsive styles.
  */
 
 .dashboardPage {
@@ -952,15 +944,10 @@
 
 
 /* =====================================
-   Baccarat Analyzer V3.2 Casino Dashboard
+   Baccarat Analyzer V3.3 Final Casino Dashboard
    ===================================== */
 
-.dashboardV32 {
-    --v32-header-height: 58px;
-    --v32-status-height: 52px;
-}
-
-.v32CasinoGrid {
+.v33CasinoGrid {
     min-width: 0;
     display: grid;
     gap: 10px;
@@ -971,12 +958,12 @@
         "road";
 }
 
-.v32InputZone {
+.v33InputZone {
     grid-area: input;
     min-width: 0;
 }
 
-.v32InsightZone {
+.v33InsightZone {
     grid-area: insight;
     min-width: 0;
     display: grid;
@@ -984,17 +971,17 @@
     gap: 10px;
 }
 
-.v32HistoryZone {
+.v33HistoryZone {
     grid-area: history;
     min-width: 0;
 }
 
-.v32RoadZone {
+.v33RoadZone {
     grid-area: road;
     min-width: 0;
 }
 
-.v32MobileNav {
+.v33MobileNav {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 5px;
@@ -1008,7 +995,7 @@
     backdrop-filter: blur(14px);
 }
 
-.v32MobileNav button {
+.v33MobileNav button {
     min-height: 43px;
     display: grid;
     place-items: center;
@@ -1020,11 +1007,11 @@
     cursor: pointer;
 }
 
-.v32MobileNav button strong {
+.v33MobileNav button strong {
     font-size: .75rem;
 }
 
-.v32MobileNav button small {
+.v33MobileNav button small {
     max-width: 100%;
     overflow: hidden;
     font-size: .56rem;
@@ -1032,79 +1019,79 @@
     white-space: nowrap;
 }
 
-.v32MobileNav button.active {
+.v33MobileNav button.active {
     background: var(--yellow);
     color: #17202c;
 }
 
-.v32InputZone > .v3RoundPanel,
-.v32InsightZone > .v3AnalysisPanel,
-.v32InsightZone > .v3RecommendationPanel,
-.v32HistoryZone > .v3HistoryPanel,
-.v32RoadZone > .v3RoadmapPanel {
+.v33InputZone > .v3RoundPanel,
+.v33InsightZone > .v3AnalysisPanel,
+.v33InsightZone > .v3RecommendationPanel,
+.v33HistoryZone > .v3HistoryPanel,
+.v33RoadZone > .v3RoadmapPanel {
     height: 100%;
 }
 
 @media (max-width: 719px) {
-    .dashboardV32 [data-v32-section] {
+    .dashboardV33 [data-v33-section] {
         display: none;
     }
 
-    .dashboardV32[data-mobile-section="input"]
-        [data-v32-section="input"],
-    .dashboardV32[data-mobile-section="insight"]
-        [data-v32-section="insight"],
-    .dashboardV32[data-mobile-section="roadmap"]
-        [data-v32-section="roadmap"] {
+    .dashboardV33[data-mobile-section="input"]
+        [data-v33-section="input"],
+    .dashboardV33[data-mobile-section="insight"]
+        [data-v33-section="insight"],
+    .dashboardV33[data-mobile-section="roadmap"]
+        [data-v33-section="roadmap"] {
         display: block;
     }
 
-    .dashboardV32[data-mobile-section="insight"]
-        .v32InsightZone {
+    .dashboardV33[data-mobile-section="insight"]
+        .v33InsightZone {
         display: grid;
     }
 
-    .v32HistoryZone {
+    .v33HistoryZone {
         display: none;
     }
 
-    .dashboardV32[data-mobile-section="roadmap"]
-        .v32HistoryZone {
+    .dashboardV33[data-mobile-section="roadmap"]
+        .v33HistoryZone {
         display: block;
         order: 2;
     }
 
-    .v32RoadZone {
+    .v33RoadZone {
         min-height: calc(100vh - 245px);
     }
 
-    .v32RoadZone .v3RoadmapPanel {
+    .v33RoadZone .v3RoadmapPanel {
         min-height: inherit;
     }
 
-    .v32RoadZone .v3RoadViewport {
+    .v33RoadZone .v3RoadViewport {
         max-height: calc(100vh - 330px);
     }
 
-    .v32InsightZone {
+    .v33InsightZone {
         gap: 8px;
     }
 
-    .v32InsightZone .v3RecommendationPanel {
+    .v33InsightZone .v3RecommendationPanel {
         order: 1;
     }
 
-    .v32InsightZone .v3AnalysisPanel {
+    .v33InsightZone .v3AnalysisPanel {
         order: 2;
     }
 }
 
 @media (min-width: 720px) {
-    .v32MobileNav {
+    .v33MobileNav {
         display: none;
     }
 
-    .v32CasinoGrid {
+    .v33CasinoGrid {
         grid-template-columns:
             minmax(0, 1.45fr)
             minmax(290px, .55fr);
@@ -1114,14 +1101,14 @@
         align-items: start;
     }
 
-    .v32InsightZone {
+    .v33InsightZone {
         position: sticky;
         top: 10px;
     }
 }
 
 @media (min-width: 1100px) {
-    .dashboardV32 {
+    .dashboardV33 {
         height: 100vh;
         min-height: 720px;
         overflow: hidden;
@@ -1132,7 +1119,7 @@
             minmax(0, 1fr);
     }
 
-    .v32CasinoGrid {
+    .v33CasinoGrid {
         min-height: 0;
         grid-template-columns:
             minmax(0, 1.45fr)
@@ -1146,38 +1133,38 @@
         overflow: hidden;
     }
 
-    .v32InputZone,
-    .v32InsightZone,
-    .v32HistoryZone,
-    .v32RoadZone {
+    .v33InputZone,
+    .v33InsightZone,
+    .v33HistoryZone,
+    .v33RoadZone {
         min-height: 0;
         overflow: hidden;
     }
 
-    .v32InputZone {
+    .v33InputZone {
         overflow-y: auto;
         scrollbar-width: thin;
     }
 
-    .v32InsightZone {
+    .v33InsightZone {
         position: static;
         overflow-y: auto;
         scrollbar-width: thin;
     }
 
-    .v32HistoryZone .v3HistoryPanel,
-    .v32RoadZone .v3RoadmapPanel {
+    .v33HistoryZone .v3HistoryPanel,
+    .v33RoadZone .v3RoadmapPanel {
         min-height: 0;
         overflow: hidden;
     }
 
-    .v32RoadZone .v3RoadViewport {
+    .v33RoadZone .v3RoadViewport {
         max-height: calc(100% - 42px);
     }
 }
 
 @media (min-width: 1440px) {
-    .v32CasinoGrid {
+    .v33CasinoGrid {
         grid-template-columns:
             minmax(620px, 1.55fr)
             minmax(360px, .65fr)
@@ -1190,7 +1177,7 @@
             "road road history";
     }
 
-    .v32HistoryZone {
+    .v33HistoryZone {
         overflow-y: auto;
         scrollbar-width: thin;
     }
@@ -1198,7 +1185,7 @@
 
 
 /* =====================================
-   Baccarat Analyzer V3.3 Auto Suit
+   Baccarat Analyzer V3.3 Final Auto Suit
    ===================================== */
 
 .v33InputModeSwitch {
