@@ -1070,19 +1070,32 @@ export default async function bigRoadTest() {
         "矩陣 ties 陣列應為副本"
     );
 
+    const originalBankerPair =
+    tieRoad.get(0)
+        .ties[0]
+        .bankerPair;
+
     tieMatrix[0][0]
         .ties[0]
-        .playerPair =
-        false;
+        .bankerPair =
+        !originalBankerPair;
 
     assert(
         tieRoad.get(0)
             .ties[0]
-            .playerPair !==
-            tieMatrix[0][0]
+            .bankerPair ===
+            originalBankerPair,
+        "修改矩陣 Tie 不應改變原始資料"
+    );
+
+    assert(
+        tieMatrix[0][0]
+            .ties[0]
+            .bankerPair !==
+            tieRoad.get(0)
                 .ties[0]
-                .playerPair,
-        "修改矩陣 Tie 不應影響原始資料"
+                .bankerPair,
+        "矩陣 Tie 與原始 Tie 應為獨立資料"
     );
 
     details.push(
