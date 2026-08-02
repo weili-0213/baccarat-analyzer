@@ -1,19 +1,22 @@
 /**
- * Baccarat Analyzer V3.1
+ * Baccarat Analyzer V3.3
  * components/QuickCardInput.js
  *
- * Casino Fast Input：
+ * Casino Speed Input：
  *
- * - 點數 → 花色 → 自動送出
- * - 鍵盤快捷鍵
- * - Escape 清除點數
- * - 手機大按鍵
+ * 預設模式：
+ * - 只按點數
+ * - 自動選擇可用花色
+ * - 立即送出 quick-card:select
  *
- * 點數快捷鍵：
- * A, 2-9, 0/1/T = 10, J, Q, K
+ * 精準模式：
+ * - 長按／右鍵／切換按鈕後指定花色
  *
- * 花色快捷鍵：
- * S = 黑桃, H = 紅心, D = 方塊, C = 梅花
+ * 鍵盤：
+ * - A, 2-9, 0/T/1, J, Q, K：直接輸入點數
+ * - Shift + 點數：保留點數並等待花色
+ * - S/H/D/C：精準花色
+ * - Esc：清除
  */
 
 export const QUICK_CARD_RANKS = Object.freeze([
@@ -27,6 +30,11 @@ export const QUICK_CARD_SUITS = Object.freeze([
     { key: "D", symbol: "♦", label: "方塊", tone: "red" },
     { key: "C", symbol: "♣", label: "梅花", tone: "black" }
 ]);
+
+export const QuickInputMode = Object.freeze({
+    AUTO: "auto",
+    PRECISE: "precise"
+});
 
 const RANK_HOTKEYS = Object.freeze({
     A: "A",
@@ -75,6 +83,7 @@ export class QuickCardInput {
         shoe = null,
         disabled = false,
         keyboard = true,
+        mode = QuickInputMode.AUTO,
         autoMount = true
     } = {}) {
         this.root = typeof root === "string"
@@ -84,10 +93,15 @@ export class QuickCardInput {
         this.shoe = shoe;
         this.disabled = Boolean(disabled);
         this.keyboard = Boolean(keyboard);
+        this.mode = Object.values(QuickInputMode).includes(mode)
+            ? mode
+            : QuickInputMode.AUTO;
+
         this.selectedRank = null;
         this.lastCard = null;
 
         this.boundClick = event => this.handleClick(event);
+        this.boundContextMenu = event => this.handleContextMenu(event);
         this.boundKeyDown = event => this.handleKeyDown(event);
 
         if (autoMount && this.root) {
@@ -102,7 +116,9 @@ export class QuickCardInput {
 
         this.unbind();
         this.root = root;
+
         this.root.addEventListener("click", this.boundClick);
+        this.root.addEventListener("contextmenu", this.boundContextMenu);
 
         if (this.keyboard) {
             window.addEventListener("keydown", this.boundKeyDown);
@@ -114,6 +130,7 @@ export class QuickCardInput {
 
     unbind() {
         this.root?.removeEventListener("click", this.boundClick);
+        this.root?.removeEventListener("contextmenu", this.boundContextMenu);
         window.removeEventListener("keydown", this.boundKeyDown);
         return this;
     }
@@ -141,17 +158,22 @@ export class QuickCardInput {
         return this;
     }
 
-    setKeyboard(value) {
-        const enabled = Boolean(value);
-
-        if (enabled === this.keyboard) {
-            return this;
+    setMode(mode) {
+        if (!Object.values(QuickInputMode).includes(mode)) {
+            throw new Error(`Unknown QuickInput mode: ${mode}`);
         }
 
-        this.keyboard = enabled;
+        this.mode = mode;
+        this.selectedRank = null;
+        this.render();
+        return this;
+    }
+
+    setKeyboard(value) {
+        this.keyboard = Boolean(value);
         window.removeEventListener("keydown", this.boundKeyDown);
 
-        if (enabled && this.root) {
+        if (this.keyboard && this.root) {
             window.addEventListener("keydown", this.boundKeyDown);
         }
 
@@ -171,7 +193,19 @@ export class QuickCardInput {
             : null;
     }
 
-    selectRank(rank) {
+    getAvailableSuit(rank) {
+        for (const suit of QUICK_CARD_SUITS) {
+            const remaining = this.getSuitCount(rank, suit.key);
+
+            if (remaining === null || remaining > 0) {
+                return suit.key;
+            }
+        }
+
+        return null;
+    }
+
+    selectRank(rank, { precise = false } = {}) {
         if (!QUICK_CARD_RANKS.includes(rank)) {
             throw new Error(`Invalid rank: ${rank}`);
         }
@@ -179,12 +213,22 @@ export class QuickCardInput {
         const remaining = this.getRankCount(rank);
 
         if (remaining !== null && remaining <= 0) {
-            return this;
+            return false;
+        }
+
+        if (this.mode === QuickInputMode.AUTO && !precise) {
+            const suit = this.getAvailableSuit(rank);
+
+            if (!suit) {
+                return false;
+            }
+
+            return this.submitCard(rank, suit, "auto");
         }
 
         this.selectedRank = rank;
         this.render();
-        return this;
+        return true;
     }
 
     clearSelection() {
@@ -194,23 +238,36 @@ export class QuickCardInput {
     }
 
     submitSuit(suit) {
+        if (!this.selectedRank) {
+            return false;
+        }
+
+        return this.submitCard(
+            this.selectedRank,
+            suit,
+            "precise"
+        );
+    }
+
+    submitCard(rank, suit, source = "manual") {
         if (
             this.disabled ||
-            !this.selectedRank ||
+            !QUICK_CARD_RANKS.includes(rank) ||
             !QUICK_CARD_SUITS.some(item => item.key === suit)
         ) {
             return false;
         }
 
-        const remaining = this.getSuitCount(this.selectedRank, suit);
+        const remaining = this.getSuitCount(rank, suit);
 
         if (remaining !== null && remaining <= 0) {
             return false;
         }
 
         const detail = {
-            rank: this.selectedRank,
-            suit
+            rank,
+            suit,
+            source
         };
 
         this.lastCard = { ...detail };
@@ -233,6 +290,12 @@ export class QuickCardInput {
             return;
         }
 
+        const modeButton = event.target.closest("[data-quick-mode]");
+        if (modeButton && this.root?.contains(modeButton)) {
+            this.setMode(modeButton.dataset.quickMode);
+            return;
+        }
+
         const clearButton = event.target.closest("[data-quick-clear]");
         if (clearButton && this.root?.contains(clearButton)) {
             this.clearSelection();
@@ -249,6 +312,23 @@ export class QuickCardInput {
         if (suitButton && this.root?.contains(suitButton)) {
             this.submitSuit(suitButton.dataset.quickSuit);
         }
+    }
+
+    handleContextMenu(event) {
+        const rankButton = event.target.closest("[data-quick-rank]");
+
+        if (
+            !rankButton ||
+            !this.root?.contains(rankButton) ||
+            this.disabled
+        ) {
+            return;
+        }
+
+        event.preventDefault();
+
+        this.selectedRank = rankButton.dataset.quickRank;
+        this.render();
     }
 
     handleKeyDown(event) {
@@ -270,30 +350,23 @@ export class QuickCardInput {
 
         const key = event.key.toUpperCase();
 
-        if (!this.selectedRank) {
-            const rank = RANK_HOTKEYS[key];
+        if (this.selectedRank) {
+            const suit = SUIT_HOTKEYS[key];
 
-            if (rank) {
+            if (suit) {
                 event.preventDefault();
-                this.selectRank(rank);
+                this.submitSuit(suit);
+                return;
             }
-
-            return;
         }
 
-        const suit = SUIT_HOTKEYS[key];
+        const rank = RANK_HOTKEYS[key];
 
-        if (suit) {
+        if (rank) {
             event.preventDefault();
-            this.submitSuit(suit);
-            return;
-        }
-
-        const replacementRank = RANK_HOTKEYS[key];
-
-        if (replacementRank) {
-            event.preventDefault();
-            this.selectRank(replacementRank);
+            this.selectRank(rank, {
+                precise: event.shiftKey
+            });
         }
     }
 
@@ -302,49 +375,50 @@ export class QuickCardInput {
             return this;
         }
 
+        const preciseStage =
+            this.mode === QuickInputMode.PRECISE ||
+            Boolean(this.selectedRank);
+
         this.root.innerHTML = `
             <section
-                class="quickCardInput casinoFastInput"
-                aria-label="賭場快速牌面輸入"
-                data-stage="${this.selectedRank ? "suit" : "rank"}"
+                class="quickCardInput casinoFastInput v33FastInput"
+                aria-label="V3.3 一鍵快速牌面輸入"
+                data-mode="${this.mode}"
+                data-stage="${preciseStage ? "suit" : "rank"}"
             >
                 <header class="quickCardHeader">
                     <div>
                         <strong>
-                            ${this.selectedRank
-                                ? `第 2 步：選 ${escapeHTML(this.selectedRank)} 的花色`
-                                : "第 1 步：選牌面點數"}
+                            ${preciseStage
+                                ? `指定 ${escapeHTML(this.selectedRank ?? "")} 的花色`
+                                : "一鍵輸入點數"}
                         </strong>
 
                         <small>
-                            ${this.keyboard
-                                ? (
-                                    this.selectedRank
-                                        ? "快捷鍵：S / H / D / C"
-                                        : "快捷鍵：A、2-9、0、J、Q、K"
-                                )
-                                : "點數 → 花色 → 自動加入"}
+                            ${this.mode === QuickInputMode.AUTO
+                                ? "按點數立即加入；右鍵或 Shift＋點數可指定花色"
+                                : "先選點數，再選花色"}
                         </small>
                     </div>
 
-                    ${this.selectedRank
-                        ? `
-                            <button
-                                type="button"
-                                class="quickCardClear"
-                                data-quick-clear
-                            >
-                                清除 Esc
-                            </button>
-                        `
-                        : ""}
-                </header>
+                    <div class="v33InputModeSwitch">
+                        <button
+                            type="button"
+                            class="${this.mode === QuickInputMode.AUTO ? "active" : ""}"
+                            data-quick-mode="auto"
+                        >
+                            自動花色
+                        </button>
 
-                <div class="quickStageIndicator" aria-hidden="true">
-                    <span class="${!this.selectedRank ? "active" : "done"}">1 點數</span>
-                    <i></i>
-                    <span class="${this.selectedRank ? "active" : ""}">2 花色</span>
-                </div>
+                        <button
+                            type="button"
+                            class="${this.mode === QuickInputMode.PRECISE ? "active" : ""}"
+                            data-quick-mode="precise"
+                        >
+                            指定花色
+                        </button>
+                    </div>
+                </header>
 
                 <div class="quickRankGrid">
                     ${QUICK_CARD_RANKS.map(rank => {
@@ -366,30 +440,53 @@ export class QuickCardInput {
                     }).join("")}
                 </div>
 
-                <div class="quickSuitGrid">
-                    ${QUICK_CARD_SUITS.map(suit => {
-                        const count = this.selectedRank
-                            ? this.getSuitCount(this.selectedRank, suit.key)
-                            : null;
+                ${preciseStage
+                    ? `
+                        <div class="v33PreciseBar">
+                            <span>
+                                已選：
+                                <strong>${escapeHTML(this.selectedRank ?? "")}</strong>
+                            </span>
 
-                        const unavailable = !this.selectedRank ||
-                            (count !== null && count <= 0);
-
-                        return `
                             <button
                                 type="button"
-                                class="quickSuitCard ${suit.tone}"
-                                data-quick-suit="${suit.key}"
-                                ${this.disabled || unavailable ? "disabled" : ""}
+                                data-quick-clear
                             >
-                                <strong>${suit.symbol}</strong>
-                                <span>${suit.label}</span>
-                                <kbd>${suit.key}</kbd>
-                                ${count !== null ? `<small>${count}</small>` : ""}
+                                清除 Esc
                             </button>
-                        `;
-                    }).join("")}
-                </div>
+                        </div>
+
+                        <div class="quickSuitGrid">
+                            ${QUICK_CARD_SUITS.map(suit => {
+                                const count = this.selectedRank
+                                    ? this.getSuitCount(this.selectedRank, suit.key)
+                                    : null;
+
+                                const unavailable = !this.selectedRank ||
+                                    (count !== null && count <= 0);
+
+                                return `
+                                    <button
+                                        type="button"
+                                        class="quickSuitCard ${suit.tone}"
+                                        data-quick-suit="${suit.key}"
+                                        ${this.disabled || unavailable ? "disabled" : ""}
+                                    >
+                                        <strong>${suit.symbol}</strong>
+                                        <span>${suit.label}</span>
+                                        <kbd>${suit.key}</kbd>
+                                        ${count !== null ? `<small>${count}</small>` : ""}
+                                    </button>
+                                `;
+                            }).join("")}
+                        </div>
+                    `
+                    : `
+                        <div class="v33AutoHint">
+                            <strong>自動花色已啟用</strong>
+                            <span>系統會使用該點數第一張可用花色。</span>
+                        </div>
+                    `}
             </section>
         `;
 
@@ -398,11 +495,12 @@ export class QuickCardInput {
 
     get summary() {
         return {
+            mode: this.mode,
             selectedRank: this.selectedRank,
             lastCard: this.lastCard ? { ...this.lastCard } : null,
             disabled: this.disabled,
             keyboard: this.keyboard,
-            stage: this.selectedRank ? "suit" : "rank"
+            autoSuit: this.mode === QuickInputMode.AUTO
         };
     }
 }
