@@ -1195,3 +1195,111 @@
         scrollbar-width: thin;
     }
 }
+
+
+/* =====================================
+   Baccarat Analyzer V3.3 Auto Suit
+   ===================================== */
+
+.v33InputModeSwitch {
+    display: inline-grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 3px;
+    background: rgba(0, 0, 0, .14);
+}
+
+.v33InputModeSwitch button {
+    min-height: 29px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--muted);
+    padding: 0 9px;
+    font-size: .62rem;
+    font-weight: 900;
+}
+
+.v33InputModeSwitch button.active {
+    background: var(--yellow);
+    color: #17202c;
+}
+
+.v33AutoHint {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border: 1px dashed rgba(59, 209, 124, .34);
+    border-radius: 11px;
+    padding: 8px 10px;
+    background: rgba(59, 209, 124, .08);
+}
+
+.v33AutoHint strong {
+    color: #8cf4b4;
+    font-size: .72rem;
+}
+
+.v33AutoHint span {
+    color: var(--muted);
+    font-size: .65rem;
+    text-align: right;
+}
+
+.v33PreciseBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-radius: 10px;
+    padding: 6px 8px;
+    background: rgba(244, 206, 97, .1);
+}
+
+.v33PreciseBar span {
+    color: var(--muted);
+    font-size: .7rem;
+}
+
+.v33PreciseBar strong {
+    color: var(--yellow);
+}
+
+.v33PreciseBar button {
+    min-height: 30px;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(255,255,255,.08);
+    color: #fff;
+    padding: 0 9px;
+    font-size: .64rem;
+    font-weight: 900;
+}
+
+@media (max-width: 520px) {
+    .quickCardHeader {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .v33InputModeSwitch {
+        width: 100%;
+    }
+
+    .v33InputModeSwitch button {
+        min-height: 36px;
+    }
+
+    .v33AutoHint {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .v33AutoHint span {
+        text-align: left;
+    }
+}
