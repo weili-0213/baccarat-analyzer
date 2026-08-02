@@ -2017,33 +2017,47 @@ export class Recommendation {
             data.data ??
             {};
 
+
+        /**
+         * 建立時不要傳入 analysis。
+         *
+         * 避免 constructor 的 setAnalysis()
+         * 覆蓋已儲存的 recommendation、
+         * best、ranking 與 shouldBet。
+         */
         const component =
             new Recommendation({
 
                 analysis:
-                    savedData.analysis ??
                     null,
 
                 recommendation:
-                    savedData
-                        .recommendation ??
+                    savedData.recommendation ??
                     null,
 
                 shouldBet:
-                    savedData.shouldBet ??
-                    null,
+                    typeof savedData.shouldBet ===
+                        "boolean"
+
+                        ? savedData.shouldBet
+
+                        : null,
 
                 best:
                     savedData.best ??
                     null,
 
                 ranking:
-                    savedData.ranking ??
-                    [],
+                    Array.isArray(
+                        savedData.ranking
+                    )
+
+                        ? savedData.ranking
+
+                        : [],
 
                 overallConfidence:
-                    savedData
-                        .overallConfidence ??
+                    savedData.overallConfidence ??
                     null,
 
                 ...(
@@ -2055,18 +2069,116 @@ export class Recommendation {
 
             });
 
+
+        /**
+         * Analysis 只是保存供查閱，
+         * 不再透過 setAnalysis() 重新計算資料。
+         */
+        component.data.analysis =
+
+            isObject(
+                savedData.analysis
+            )
+
+                ? {
+                    ...savedData.analysis
+                }
+
+                : null;
+    
+
+        /**
+         * 明確還原 recommendation。
+         */
+        component.data.recommendation =
+
+            isObject(
+                savedData.recommendation
+            )
+
+                ? {
+                    ...savedData.recommendation
+                }
+
+                : null;
+
+
+        /**
+         * 明確還原 shouldBet。
+         */
+        component.data.shouldBet =
+
+            typeof savedData.shouldBet ===
+                "boolean"
+
+                ? savedData.shouldBet
+
+                : null;
+
+
+        /**
+         * 明確還原 best。
+         */
+        component.data.best =
+
+            isObject(
+                savedData.best
+            )
+
+                ? {
+                    ...savedData.best
+                }
+
+                : null;
+
+
+        /**
+         * 明確還原 ranking，
+         * 避免與原 JSON 共用物件引用。
+         */
+        component.data.ranking =
+
+            Array.isArray(
+                savedData.ranking
+            )
+
+                ? savedData.ranking.map(
+                    item =>
+                        isObject(item)
+
+                            ? {
+                                ...item
+                            }
+
+                            : item
+                )
+
+                : [];
+
+
+        /**
+         * 明確還原 Confidence。
+         */
+        component.data.overallConfidence =
+
+            savedData.overallConfidence ??
+            null;
+
+
+        /**
+         * 還原 Ranking 展開狀態。
+         */
         component.state.expanded =
             Boolean(
                 data.expanded
             );
+
 
         component.render();
 
         return component;
 
     }
-
-}
 
 
 /**
