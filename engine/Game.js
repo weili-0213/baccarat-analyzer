@@ -1,137 +1,88 @@
 /**
  * Baccarat Analyzer
  * -----------------------------------------
- * Game Controller
  *
- * 遊戲核心管理器
+ * Game v2
+ *
+ * 百家樂遊戲主控制器
  *
  * 負責整合：
- * - Shoe
- * - Burn
- * - Dealer
- * - CurrentRound
- * - History
- * - Analyzer
  *
- * 不負責：
- * - 實際百家樂補牌規則
- * - 機率數學計算
- * - UI 顯示
+ * 1. Shoe
+ * 2. Burn
+ * 3. Dealer
+ * 4. History
+ * 5. RoadmapAnalyzer
+ *
+ * 每完成一局：
+ *
+ * Dealer.play()
+ *      ↓
+ * RoundResult
+ *      ↓
+ * History.add()
+ *      ↓
+ * RoadmapAnalyzer.add()
  */
 
-import Shoe from "./shoe.js";
-import Burn from "./burn.js";
-import Dealer from "./dealer.js";
-import CurrentRound from "./currentRound.js";
-import History from "./history.js";
+import Shoe
+    from "./shoe.js";
 
-import Analyzer, {
-    AnalysisMode
-} from "../analysis/analyzer.js";
+import Burn
+    from "./burn.js";
 
+import Dealer
+    from "./dealer.js";
 
-const DEFAULT_OPTIONS = Object.freeze({
+import History
+    from "./history.js";
 
-    /**
-     * 牌靴副數
-     */
-    deckCount: 8,
+import RoundResult
+    from "./roundResult.js";
 
-    /**
-     * 初始本金
-     */
-    bankroll: 10000,
-
-    /**
-     * Kelly 使用比例
-     *
-     * 0.5 = Half Kelly
-     */
-    kellyFraction: 0.5,
-
-    /**
-     * 最低下注
-     */
-    minBet: 100,
-
-    /**
-     * 最高下注
-     */
-    maxBet: 5000,
-
-    /**
-     * 單局最多使用本金比例
-     */
-    maxBankrollRatio: 0.05,
-
-    /**
-     * 預設分析方式
-     */
-    analysisMode:
-        AnalysisMode.MONTE_CARLO,
-
-    /**
-     * Monte Carlo 設定
-     */
-    monteCarlo: Object.freeze({
-
-        simulations: 100000,
-
-        batchSize: 1000
-
-    }),
-
-    /**
-     * Exact 設定
-     */
-    exact: Object.freeze({
-
-        batchSize: 8
-
-    }),
-
-    /**
-     * Ranking 設定
-     */
-    ranking: Object.freeze({
-
-        strategy: "balanced",
-
-        minimumEV: 0,
-
-        minimumConfidence: 0.6,
-
-        requirePositiveKelly: true
-
-    }),
-
-    /**
-     * Recommendation 設定
-     */
-    recommendation: Object.freeze({
-
-        minimumEV: 0,
-
-        minimumConfidence: 0.6,
-
-        minimumScore: 0.5,
-
-        requirePositiveKelly: true,
-
-        requirePositiveAmount: true,
-
-        allowProvisionalConfidence: false,
-
-        candidateCount: 3
-
-    })
-
-});
+import RoadmapAnalyzer
+    from "../roadmap/roadmapAnalyzer.js";
 
 
-export {
-    AnalysisMode
-};
+export const GameState =
+    Object.freeze({
+
+        READY: "READY",
+
+        PLAYING: "PLAYING",
+
+        SHOE_FINISHED: "SHOE_FINISHED"
+
+    });
+
+
+const DEFAULT_OPTIONS =
+    Object.freeze({
+
+        deckCount: 8,
+
+        autoShuffle: true,
+
+        autoBurn: true,
+
+        /**
+         * 最少保留牌數。
+         *
+         * 一局最多使用 6 張牌，
+         * 少於 6 張時不再開始新局。
+         */
+        minimumCards: 6,
+
+        /**
+         * Roadmap 列數設定。
+         */
+        beadRows: 6,
+
+        bigRoadRows: 6,
+
+        derivedRows: 6
+
+    });
 
 
 export default class Game {
@@ -142,291 +93,552 @@ export default class Game {
 
             ...DEFAULT_OPTIONS,
 
-            ...options,
-
-            monteCarlo: {
-
-                ...DEFAULT_OPTIONS
-                    .monteCarlo,
-
-                ...(options.monteCarlo ?? {})
-
-            },
-
-            exact: {
-
-                ...DEFAULT_OPTIONS
-                    .exact,
-
-                ...(options.exact ?? {})
-
-            },
-
-            ranking: {
-
-                ...DEFAULT_OPTIONS
-                    .ranking,
-
-                ...(options.ranking ?? {})
-
-            },
-
-            recommendation: {
-
-                ...DEFAULT_OPTIONS
-                    .recommendation,
-
-                ...(
-                    options
-                        .recommendation ??
-                    {}
-                )
-
-            }
+            ...options
 
         };
 
         this.validateOptions();
 
-        /**
-         * 遊戲狀態
-         */
-        this.started = false;
+        this.shoe = null;
 
-        this.analysisRunning = false;
+        this.burn = null;
 
-        this.lastAnalysis = null;
+        this.dealer = null;
 
-        this.analysisController = null;
+        this.history =
+            new History();
 
-        /**
-         * 建立第一副牌靴。
-         */
-        this.newShoe();
+        this.roadmapAnalyzer =
+            new RoadmapAnalyzer({
+
+                beadRows:
+                    this.options.beadRows,
+
+                bigRoadRows:
+                    this.options.bigRoadRows,
+
+                derivedRows:
+                    this.options.derivedRows
+
+            });
+
+        this.state =
+            GameState.READY;
+
+        this.lastResult = null;
+
+        this.shoeNumber = 0;
+
+        this.startedAt = null;
+
+        this.lastRoundAt = null;
+
+        this.startNewShoe();
 
     }
 
+
     /**
-     * 驗證 Game 設定
+     * 驗證設定
      */
     validateOptions() {
 
-        const {
-            deckCount,
-            bankroll,
-            kellyFraction,
-            minBet,
-            maxBet,
-            maxBankrollRatio,
-            analysisMode
-        } = this.options;
-
         if (
-            !Number.isInteger(deckCount) ||
-            deckCount < 1
-        ) {
-
-            throw new RangeError(
-                "deckCount must be a positive integer"
-            );
-
-        }
-
-        if (
-            !Number.isFinite(bankroll) ||
-            bankroll < 0
-        ) {
-
-            throw new RangeError(
-                "bankroll must be a non-negative number"
-            );
-
-        }
-
-        if (
-            !Number.isFinite(
-                kellyFraction
+            !Number.isInteger(
+                this.options.deckCount
             ) ||
-            kellyFraction < 0 ||
-            kellyFraction > 1
+            this.options.deckCount < 1
         ) {
 
             throw new RangeError(
-                "kellyFraction must be between 0 and 1"
+                "deckCount must be a positive integer."
             );
 
         }
 
         if (
-            !Number.isFinite(minBet) ||
-            minBet < 0
-        ) {
-
-            throw new RangeError(
-                "minBet must be a non-negative number"
-            );
-
-        }
-
-        if (
-            maxBet !== Infinity &&
-            (
-                !Number.isFinite(maxBet) ||
-                maxBet < minBet
-            )
-        ) {
-
-            throw new RangeError(
-                "maxBet must be greater than or equal to minBet"
-            );
-
-        }
-
-        if (
-            !Number.isFinite(
-                maxBankrollRatio
+            !Number.isInteger(
+                this.options.minimumCards
             ) ||
-            maxBankrollRatio < 0 ||
-            maxBankrollRatio > 1
+            this.options.minimumCards < 1
         ) {
 
             throw new RangeError(
-                "maxBankrollRatio must be between 0 and 1"
+                "minimumCards must be a positive integer."
             );
 
         }
 
-        if (
-            !Object.values(
-                AnalysisMode
-            ).includes(
-                analysisMode
-            )
+        const rowOptions = [
+
+            "beadRows",
+
+            "bigRoadRows",
+
+            "derivedRows"
+
+        ];
+
+        for (
+            const option of
+            rowOptions
         ) {
 
-            throw new Error(
-                `Unknown analysis mode: ${analysisMode}`
-            );
+            if (
+                !Number.isInteger(
+                    this.options[option]
+                ) ||
+                this.options[option] < 1
+            ) {
 
-        }
-
-    }
-
-    /**
-     * 建立 Analyzer
-     */
-    createAnalyzer() {
-
-        return new Analyzer({
-
-            shoe:
-                this.shoe,
-
-            history:
-                this.history,
-
-            analyzerOptions: {
-
-                mode:
-                    this.options
-                        .analysisMode,
-
-                monteCarlo: {
-
-                    ...this.options
-                        .monteCarlo
-
-                },
-
-                exact: {
-
-                    ...this.options
-                        .exact
-
-                }
-
-            },
-
-            kellyOptions: {
-
-                bankroll:
-                    this.options
-                        .bankroll,
-
-                fraction:
-                    this.options
-                        .kellyFraction,
-
-                minBet:
-                    this.options
-                        .minBet,
-
-                maxBet:
-                    this.options
-                        .maxBet,
-
-                maxBankrollRatio:
-                    this.options
-                        .maxBankrollRatio
-
-            },
-
-            rankingOptions: {
-
-                ...this.options
-                    .ranking
-
-            },
-
-            recommendationOptions: {
-
-                ...this.options
-                    .recommendation
+                throw new RangeError(
+                    `${option} must be a positive integer.`
+                );
 
             }
 
-        });
+        }
 
     }
+
 
     /**
      * 建立新牌靴
      *
-     * 會清除：
-     * - 燒牌狀態
-     * - 目前牌局
-     * - 歷史紀錄
-     * - 上一次分析
+     * 預設會：
+     *
+     * 1. 建立牌靴
+     * 2. 洗牌
+     * 3. 燒牌
+     * 4. 建立 Dealer
+     * 5. 清空 History
+     * 6. 清空 Roadmap
      */
-    newShoe(
-        deckCount =
-            this.options.deckCount
-    ) {
+    startNewShoe({
 
+        clearHistory = true,
+
+        shuffle =
+            this.options.autoShuffle,
+
+        burn =
+            this.options.autoBurn
+
+    } = {}) {
+
+        const shoe =
+            new Shoe(
+                this.options.deckCount
+            );
+
+
+        /**
+         * 相容兩種 Shoe 實作：
+         *
+         * 1. constructor 已自動 create()
+         * 2. constructor 尚未 create()
+         */
         if (
-            !Number.isInteger(deckCount) ||
-            deckCount < 1
+            shoe.remaining === 0 &&
+            typeof shoe.create ===
+                "function"
         ) {
 
-            throw new RangeError(
-                "deckCount must be a positive integer"
+            shoe.create();
+
+        }
+
+
+        if (
+            shuffle &&
+            typeof shoe.shuffle ===
+                "function"
+        ) {
+
+            shoe.shuffle();
+
+        }
+
+
+        this.shoe = shoe;
+
+        this.burn =
+            new Burn(
+                this.shoe
+            );
+
+
+        if (burn) {
+
+            this.burn.execute();
+
+        }
+
+
+        this.dealer =
+            new Dealer(
+                this.shoe
+            );
+
+
+        if (clearHistory) {
+
+            this.clearHistory();
+
+        }
+
+
+        this.lastResult = null;
+
+        this.shoeNumber++;
+
+        this.startedAt =
+            Date.now();
+
+        this.lastRoundAt =
+            null;
+
+        this.state =
+            GameState.PLAYING;
+
+        return this;
+
+    }
+
+
+    /**
+     * 新牌靴別名
+     */
+    newShoe(options = {}) {
+
+        return this.startNewShoe(
+            options
+        );
+
+    }
+
+
+    /**
+     * 是否有足夠牌數開始新局
+     */
+    get canPlay() {
+
+        return (
+
+            this.state ===
+                GameState.PLAYING &&
+
+            this.shoe !== null &&
+
+            this.dealer !== null &&
+
+            this.shoe.remaining >=
+                this.options.minimumCards
+
+        );
+
+    }
+
+
+    /**
+     * 檢查是否可進行下一局
+     */
+    ensurePlayable() {
+
+        if (!this.shoe) {
+
+            throw new Error(
+                "Shoe not found."
             );
 
         }
 
-        /**
-         * 若正在分析，
-         * 先取消。
-         */
-        this.cancelAnalysis();
+        if (!this.dealer) {
 
-        this.options.deckCount =
-            deckCount;
+            throw new Error(
+                "Dealer not found."
+            );
+
+        }
+
+        if (
+            this.state ===
+            GameState.SHOE_FINISHED
+        ) {
+
+            throw new Error(
+                "The shoe has finished."
+            );
+
+        }
+
+        if (
+            this.shoe.remaining <
+            this.options.minimumCards
+        ) {
+
+            this.state =
+                GameState.SHOE_FINISHED;
+
+            throw new Error(
+                "Not enough cards remaining to play a round."
+            );
+
+        }
+
+        return true;
+
+    }
+
+
+    /**
+     * 儲存完成的一局
+     *
+     * 統一更新：
+     *
+     * - History
+     * - RoadmapAnalyzer
+     * - lastResult
+     */
+    recordResult(result) {
+
+        if (!result) {
+
+            throw new Error(
+                "Round result is required."
+            );
+
+        }
+
+        this.history.add(
+            result
+        );
+
+        this.roadmapAnalyzer.add(
+            result
+        );
+
+        this.lastResult =
+            result;
+
+        this.lastRoundAt =
+            Date.now();
+
+        return result;
+
+    }
+
+
+    /**
+     * 完成一局
+     *
+     * 回傳 RoundResult
+     */
+    playRound() {
+
+        this.ensurePlayable();
+
+        const result =
+            this.dealer.play();
+
+        if (!result) {
+
+            throw new Error(
+                "Dealer did not return a round result."
+            );
+
+        }
+
+        this.recordResult(
+            result
+        );
+
+
+        /**
+         * 打完這局後檢查剩餘牌數。
+         */
+        if (
+            this.shoe.remaining <
+            this.options.minimumCards
+        ) {
+
+            this.state =
+                GameState.SHOE_FINISHED;
+
+        }
+
+        return result;
+
+    }
+
+
+    /**
+     * play() 作為 playRound() 別名
+     */
+    play() {
+
+        return this.playRound();
+
+    }
+
+
+    /**
+     * 一次模擬多局
+     *
+     * 若牌數不足會提前停止。
+     */
+    playMany(count = 1) {
+
+        if (
+            !Number.isInteger(count) ||
+            count < 0
+        ) {
+
+            throw new RangeError(
+                "count must be a non-negative integer."
+            );
+
+        }
+
+        const results = [];
+
+        for (
+            let index = 0;
+            index < count;
+            index++
+        ) {
+
+            if (!this.canPlay) {
+
+                break;
+
+            }
+
+            results.push(
+                this.playRound()
+            );
+
+        }
+
+        return results;
+
+    }
+
+
+    /**
+     * 匯入外部結果
+     *
+     * 適合：
+     *
+     * - 手動輸入牌局
+     * - 還原歷史
+     * - 外部 API 結果
+     */
+    addResult(result) {
+
+        return this.recordResult(
+            result
+        );
+
+    }
+
+
+    /**
+     * 一次匯入多筆結果
+     */
+    addResults(results = []) {
+
+        if (!Array.isArray(results)) {
+
+            throw new TypeError(
+                "results must be an array."
+            );
+
+        }
+
+        for (
+            const result of
+            results
+        ) {
+
+            this.recordResult(
+                result
+            );
+
+        }
+
+        return this;
+
+    }
+
+
+    /**
+     * 清空歷史與所有路單
+     *
+     * 不更換目前牌靴。
+     */
+    clearHistory() {
+
+        this.history.clear();
+
+        this.roadmapAnalyzer.clear();
+
+        this.lastResult = null;
+
+        this.lastRoundAt = null;
+
+        return this;
+
+    }
+
+
+    /**
+     * 根據 History 重新建立全部路單
+     */
+    rebuildRoadmaps() {
+
+        this.roadmapAnalyzer.build(
+            this.history
+        );
+
+        return this.roadmapAnalyzer;
+
+    }
+
+
+    /**
+     * 替換牌靴
+     *
+     * 可用於測試固定牌序。
+     */
+    setShoe(
+        shoe,
+        {
+            clearHistory = true
+        } = {}
+    ) {
+
+        if (!shoe) {
+
+            throw new Error(
+                "Shoe is required."
+            );
+
+        }
+
+        if (
+            typeof shoe.draw !==
+            "function"
+        ) {
+
+            throw new TypeError(
+                "Invalid shoe."
+            );
+
+        }
 
         this.shoe =
-            new Shoe(
-                deckCount
-            );
+            shoe;
 
         this.burn =
             new Burn(
@@ -438,792 +650,84 @@ export default class Game {
                 this.shoe
             );
 
-        this.currentRound =
-            new CurrentRound();
+        if (clearHistory) {
 
-        this.history =
-            new History();
+            this.clearHistory();
 
-        this.started = false;
+        }
 
-        this.analysisRunning =
-            false;
+        this.state =
+            GameState.PLAYING;
 
-        this.lastAnalysis =
-            null;
+        this.lastResult = null;
 
-        this.analysisController =
-            null;
-
-        this.analyzer =
-            this.createAnalyzer();
+        this.startedAt =
+            Date.now();
 
         return this;
 
     }
 
+
     /**
-     * 開始牌靴
-     *
-     * 執行開靴燒牌。
+     * 目前局數
      */
-    start() {
+    get roundCount() {
 
-        if (this.started) {
-
-            throw new Error(
-                "Game already started"
-            );
-
-        }
-
-        if (!this.shoe) {
-
-            throw new Error(
-                "Shoe has not been created"
-            );
-
-        }
-
-        const burnResult =
-            this.burn.execute();
-
-        this.started = true;
-
-        /**
-         * 燒牌後剩餘牌靴改變，
-         * 更新 Analyzer context。
-         */
-        this.syncAnalyzerContext();
-
-        return {
-
-            started:
-                true,
-
-            indicator:
-                burnResult.indicator,
-
-            amount:
-                burnResult.amount,
-
-            remainingCards:
-                this.remainingCards
-
-        };
+        return this.history.count;
 
     }
 
-    /**
-     * 是否已開始
-     */
-    get isStarted() {
 
-        return this.started;
+    /**
+     * 是否尚未有牌局
+     */
+    get isEmpty() {
+
+        return this.history.isEmpty;
 
     }
 
-    /**
-     * 是否正在分析
-     */
-    get isAnalyzing() {
-
-        return this.analysisRunning;
-
-    }
 
     /**
-     * 從 Dealer 輸出取得 RoundResult
-     *
-     * 支援：
-     * 1. Dealer.play() 直接回傳 RoundResult
-     * 2. Dealer.play() 回傳 Round，
-     *    Round.result 是 RoundResult
+     * 最後一局
      */
-    extractRoundResult(output) {
-
-        if (!output) {
-
-            throw new Error(
-                "Dealer returned no round result"
-            );
-
-        }
-
-        if (
-            typeof output.winner ===
-            "string"
-        ) {
-
-            return output;
-
-        }
-
-        if (
-            output.result &&
-            typeof output.result.winner ===
-            "string"
-        ) {
-
-            return output.result;
-
-        }
-
-        throw new Error(
-            "Unable to extract RoundResult from Dealer output"
-        );
-
-    }
-
-    /**
-     * 更新 CurrentRound
-     *
-     * 為了兼容不同版本 CurrentRound：
-     * - set(result)
-     * - complete(result)
-     * - result 屬性
-     */
-    updateCurrentRound(result) {
-
-        if (
-            typeof this.currentRound.set ===
-            "function"
-        ) {
-
-            this.currentRound.set(
-                result
-            );
-
-            return;
-
-        }
-
-        if (
-            typeof this.currentRound.complete ===
-            "function"
-        ) {
-
-            this.currentRound.complete(
-                result
-            );
-
-            return;
-
-        }
-
-        /**
-         * 若 CurrentRound 沒有 set/complete，
-         * 最後使用直接指定。
-         */
-        this.currentRound.result =
-            result;
-
-    }
-
-    /**
-     * 進行一局
-     */
-    play() {
-
-        if (!this.started) {
-
-            throw new Error(
-                "Game has not started"
-            );
-
-        }
-
-        if (this.analysisRunning) {
-
-            throw new Error(
-                "Cannot play while analysis is running"
-            );
-
-        }
-
-        if (
-            this.remainingCards < 6
-        ) {
-
-            throw new Error(
-                "Not enough cards remaining to safely play another round"
-            );
-
-        }
-
-        const dealerOutput =
-            this.dealer.play();
-
-        const result =
-            this.extractRoundResult(
-                dealerOutput
-            );
-
-        this.updateCurrentRound(
-            result
-        );
-
-        this.history.add(
-            result
-        );
-
-        /**
-         * 真實牌靴已經改變，
-         * 下一次分析必須使用最新 Shoe。
-         */
-        this.syncAnalyzerContext();
-
-        /**
-         * 前一局分析已失效。
-         */
-        this.lastAnalysis =
-            null;
-
-        return result;
-
-    }
-
-    /**
-     * 同步 Analyzer 的 Shoe 與 History
-     */
-    syncAnalyzerContext() {
-
-        if (!this.analyzer) {
-
-            this.analyzer =
-                this.createAnalyzer();
-
-            return this;
-
-        }
-
-        this.analyzer
-            .updateGameContext({
-
-                shoe:
-                    this.shoe,
-
-                history:
-                    this.history
-
-            });
-
-        return this;
-
-    }
-
-    /**
-     * 非同步分析下一局
-     *
-     * 手機正式版應使用這個方法。
-     */
-    async analyze({
-
-        mode =
-            this.options
-                .analysisMode,
-
-        probability = null,
-
-        monteCarloResult = null,
-
-        exactResult = null,
-
-        monteCarloOptions = {},
-
-        exactOptions = {},
-
-        bankroll =
-            this.options.bankroll,
-
-        fraction =
-            this.options
-                .kellyFraction,
-
-        minBet =
-            this.options.minBet,
-
-        maxBet =
-            this.options.maxBet,
-
-        maxBankrollRatio =
-            this.options
-                .maxBankrollRatio,
-
-        signal = null,
-
-        onMonteCarloProgress =
-            null,
-
-        onExactProgress =
-            null
-
-    } = {}) {
-
-        if (!this.started) {
-
-            throw new Error(
-                "Game has not been started"
-            );
-
-        }
-
-        if (this.analysisRunning) {
-
-            throw new Error(
-                "Analysis is already running"
-            );
-
-        }
-
-        if (
-            this.remainingCards < 6
-        ) {
-
-            throw new Error(
-                "Not enough cards remaining for analysis"
-            );
-
-        }
-
-        this.syncAnalyzerContext();
-
-        this.analysisRunning =
-            true;
-
-        /**
-         * 若外部沒有傳 signal，
-         * Game 自己建立 AbortController。
-         */
-        this.analysisController =
-            signal
-                ? null
-                : new AbortController();
-
-        const activeSignal =
-            signal ??
-            this.analysisController
-                ?.signal ??
-            null;
-
-        try {
-
-            const result =
-                await this.analyzer
-                    .analyze({
-
-                        mode,
-
-                        probability,
-
-                        monteCarloResult,
-
-                        exactResult,
-
-                        monteCarloOptions,
-
-                        exactOptions,
-
-                        bankroll,
-
-                        fraction,
-
-                        minBet,
-
-                        maxBet,
-
-                        maxBankrollRatio,
-
-                        signal:
-                            activeSignal,
-
-                        onMonteCarloProgress,
-
-                        onExactProgress
-
-                    });
-
-            this.lastAnalysis =
-                result;
-
-            return result;
-
-        }
-        finally {
-
-            this.analysisRunning =
-                false;
-
-            this.analysisController =
-                null;
-
-        }
-
-    }
-
-    /**
-     * 同步分析
-     *
-     * 適合：
-     * - 測試
-     * - Web Worker
-     *
-     * 不建議手機主執行緒執行大量模擬或 Exact。
-     */
-    analyzeSync({
-
-        mode =
-            AnalysisMode
-                .MONTE_CARLO,
-
-        probability = null,
-
-        simulations =
-            this.options
-                .monteCarlo
-                .simulations,
-
-        random =
-            Math.random,
-
-        bankroll =
-            this.options.bankroll,
-
-        fraction =
-            this.options
-                .kellyFraction,
-
-        minBet =
-            this.options.minBet,
-
-        maxBet =
-            this.options.maxBet,
-
-        maxBankrollRatio =
-            this.options
-                .maxBankrollRatio
-
-    } = {}) {
-
-        if (!this.started) {
-
-            throw new Error(
-                "Game has not been started"
-            );
-
-        }
-
-        if (this.analysisRunning) {
-
-            throw new Error(
-                "Analysis is already running"
-            );
-
-        }
-
-        this.syncAnalyzerContext();
-
-        this.analysisRunning =
-            true;
-
-        try {
-
-            const result =
-                this.analyzer
-                    .analyzeSync({
-
-                        mode,
-
-                        probability,
-
-                        simulations,
-
-                        random,
-
-                        bankroll,
-
-                        fraction,
-
-                        minBet,
-
-                        maxBet,
-
-                        maxBankrollRatio
-
-                    });
-
-            this.lastAnalysis =
-                result;
-
-            return result;
-
-        }
-        finally {
-
-            this.analysisRunning =
-                false;
-
-        }
-
-    }
-
-    /**
-     * 取消目前分析
-     */
-    cancelAnalysis() {
-
-        if (
-            this.analysisController
-        ) {
-
-            this.analysisController
-                .abort();
-
-        }
-
-        return this;
-
-    }
-
-    /**
-     * 是否為取消分析錯誤
-     */
-    isAbortError(error) {
+    get lastRound() {
 
         return (
-            error?.name ===
-            "AbortError"
+            this.history.last ??
+            null
         );
 
     }
 
+
     /**
-     * 設定預設分析模式
+     * 最後勝方
      */
-    setAnalysisMode(mode) {
+    get winner() {
 
-        if (
-            !Object.values(
-                AnalysisMode
-            ).includes(mode)
-        ) {
-
-            throw new Error(
-                `Unknown analysis mode: ${mode}`
-            );
-
-        }
-
-        this.options.analysisMode =
-            mode;
-
-        this.analyzer.setMode(
-            mode
+        return (
+            this.lastResult?.winner ??
+            null
         );
 
-        return this;
-
     }
+
 
     /**
-     * 更新本金
+     * 目前牌局
      */
-    setBankroll(bankroll) {
+    get currentRound() {
 
-        if (
-            !Number.isFinite(bankroll) ||
-            bankroll < 0
-        ) {
-
-            throw new RangeError(
-                "bankroll must be a non-negative number"
-            );
-
-        }
-
-        this.options.bankroll =
-            bankroll;
-
-        this.analyzer
-            .setKellyConfig({
-
-                ...this.analyzer
-                    .kelly
-                    .config,
-
-                bankroll
-
-            });
-
-        return this;
+        return (
+            this.dealer
+                ?.currentRound ??
+            null
+        );
 
     }
 
-    /**
-     * 更新 Kelly 比例
-     */
-    setKellyFraction(fraction) {
-
-        if (
-            !Number.isFinite(fraction) ||
-            fraction < 0 ||
-            fraction > 1
-        ) {
-
-            throw new RangeError(
-                "Kelly fraction must be between 0 and 1"
-            );
-
-        }
-
-        this.options
-            .kellyFraction =
-            fraction;
-
-        this.analyzer
-            .setKellyConfig({
-
-                ...this.analyzer
-                    .kelly
-                    .config,
-
-                fraction
-
-            });
-
-        return this;
-
-    }
-
-    /**
-     * 更新下注限制
-     */
-    setBetLimits({
-
-        minBet =
-            this.options.minBet,
-
-        maxBet =
-            this.options.maxBet,
-
-        maxBankrollRatio =
-            this.options
-                .maxBankrollRatio
-
-    } = {}) {
-
-        if (
-            !Number.isFinite(minBet) ||
-            minBet < 0
-        ) {
-
-            throw new RangeError(
-                "minBet must be a non-negative number"
-            );
-
-        }
-
-        if (
-            maxBet !== Infinity &&
-            (
-                !Number.isFinite(maxBet) ||
-                maxBet < minBet
-            )
-        ) {
-
-            throw new RangeError(
-                "maxBet must be greater than or equal to minBet"
-            );
-
-        }
-
-        if (
-            !Number.isFinite(
-                maxBankrollRatio
-            ) ||
-            maxBankrollRatio < 0 ||
-            maxBankrollRatio > 1
-        ) {
-
-            throw new RangeError(
-                "maxBankrollRatio must be between 0 and 1"
-            );
-
-        }
-
-        this.options.minBet =
-            minBet;
-
-        this.options.maxBet =
-            maxBet;
-
-        this.options
-            .maxBankrollRatio =
-            maxBankrollRatio;
-
-        this.analyzer
-            .setKellyConfig({
-
-                ...this.analyzer
-                    .kelly
-                    .config,
-
-                minBet,
-
-                maxBet,
-
-                maxBankrollRatio
-
-            });
-
-        return this;
-
-    }
-
-    /**
-     * 更新 Ranking 策略
-     */
-    setRankingStrategy(strategy) {
-
-        this.options
-            .ranking
-            .strategy =
-            strategy;
-
-        this.analyzer
-            .setRankingStrategy(
-                strategy
-            );
-
-        return this;
-
-    }
-
-    /**
-     * 更新 Recommendation 設定
-     */
-    setRecommendationOptions(
-        options = {}
-    ) {
-
-        this.options
-            .recommendation = {
-
-                ...this.options
-                    .recommendation,
-
-                ...options
-
-            };
-
-        this.analyzer
-            .setRecommendationOptions(
-                options
-            );
-
-        return this;
-
-    }
 
     /**
      * 剩餘牌數
@@ -1237,6 +741,7 @@ export default class Game {
 
     }
 
+
     /**
      * 已使用牌數
      */
@@ -1249,97 +754,123 @@ export default class Game {
 
     }
 
+
     /**
-     * 已完成局數
+     * 剩餘牌比例
      */
-    get rounds() {
+    get remainingRatio() {
 
         return (
-            this.history?.count ??
+            this.shoe
+                ?.remainingRatio ??
             0
         );
 
     }
 
+
     /**
-     * 最近一局
+     * 是否已完成牌靴
      */
-    get lastResult() {
+    get finished() {
 
-        if (!this.history) {
-
-            return null;
-
-        }
-
-        /**
-         * 兼容 History v5：
-         * last 是 getter。
-         */
-        if (
-            this.history.last !==
-            undefined &&
-            typeof this.history.last !==
-            "function"
-        ) {
-
-            return this.history.last;
-
-        }
-
-        /**
-         * 兼容舊版：
-         * last() 是方法。
-         */
-        if (
-            typeof this.history.last ===
-            "function"
-        ) {
-
-            return this.history.last();
-
-        }
-
-        return null;
+        return (
+            this.state ===
+            GameState.SHOE_FINISHED
+        );
 
     }
+
 
     /**
      * 燒牌資訊
      */
     get burnInfo() {
 
-        return (
-            this.burn?.info ??
-            null
-        );
+        if (!this.burn) {
 
-    }
+            return null;
 
-    /**
-     * 重新開靴
-     */
-    reset() {
-
-        return this.newShoe(
-            this.options.deckCount
-        );
-
-    }
-
-    /**
-     * 遊戲摘要
-     */
-    get summary() {
+        }
 
         return {
 
-            started:
-                this.started,
+            executed:
+                this.burn.isExecuted,
 
-            deckCount:
-                this.options
-                    .deckCount,
+            indicator:
+                this.burn.indicator,
+
+            amount:
+                this.burn.amount,
+
+            count:
+                this.burn.count
+
+        };
+
+    }
+
+
+    /**
+     * 五種 Road 實例
+     */
+    get roads() {
+
+        return this.roadmapAnalyzer
+            .roads;
+
+    }
+
+
+    /**
+     * 五種 Road 矩陣
+     */
+    get roadMatrices() {
+
+        return this.roadmapAnalyzer
+            .matrices;
+
+    }
+
+
+    /**
+     * Roadmap 完整摘要
+     */
+    get roadmapSummary() {
+
+        return this.roadmapAnalyzer
+            .summary;
+
+    }
+
+
+    /**
+     * Roadmap UI ViewModel
+     */
+    get roadmapViewModel() {
+
+        return this.roadmapAnalyzer
+            .toViewModel();
+
+    }
+
+
+    /**
+     * 遊戲統計
+     */
+    get statistics() {
+
+        return {
+
+            shoeNumber:
+                this.shoeNumber,
+
+            state:
+                this.state,
+
+            rounds:
+                this.roundCount,
 
             remainingCards:
                 this.remainingCards,
@@ -1347,100 +878,431 @@ export default class Game {
             usedCards:
                 this.usedCards,
 
-            rounds:
-                this.rounds,
+            remainingRatio:
+                this.remainingRatio,
 
-            bankroll:
-                this.options
-                    .bankroll,
+            winners: {
 
-            analysisMode:
-                this.options
-                    .analysisMode,
+                player:
+                    this.history
+                        .playerWins,
 
-            analysisRunning:
-                this.analysisRunning,
+                banker:
+                    this.history
+                        .bankerWins,
 
-            hasAnalysis:
-                this.lastAnalysis !==
-                null,
+                tie:
+                    this.history
+                        .ties
 
-            burn:
-                this.burnInfo
+            },
+
+            winRate: {
+
+                ...this.history
+                    .winRate
+
+            },
+
+            pairs: {
+
+                player:
+                    this.history
+                        .playerPairs,
+
+                banker:
+                    this.history
+                        .bankerPairs
+
+            },
+
+            naturals: {
+
+                player:
+                    this.history
+                        .playerNaturals,
+
+                banker:
+                    this.history
+                        .bankerNaturals
+
+            },
+
+            super6:
+                this.history
+                    .super6Count,
+
+            dragonBonus:
+                this.history
+                    .dragonBonusCount,
+
+            streak:
+                this.history
+                    .streak,
+
+            lastWinner:
+                this.winner,
+
+            startedAt:
+                this.startedAt,
+
+            lastRoundAt:
+                this.lastRoundAt
 
         };
 
     }
 
+
     /**
-     * JSON 輸出
+     * 路單與 History 一致性檢查
+     */
+    validateConsistency() {
+
+        const roadmap =
+            this.roadmapAnalyzer
+                .validateConsistency();
+
+        const errors = [
+
+            ...roadmap.errors
+
+        ];
+
+
+        if (
+            this.history.count !==
+            this.roadmapAnalyzer
+                .sourceCount
+        ) {
+
+            errors.push(
+                "History count does not match Roadmap source count."
+            );
+
+        }
+
+
+        if (
+            this.history.count !==
+            this.roadmapAnalyzer
+                .beadRoad
+                .count
+        ) {
+
+            errors.push(
+                "History count does not match Bead Road count."
+            );
+
+        }
+
+
+        return {
+
+            valid:
+                errors.length === 0,
+
+            errors
+
+        };
+
+    }
+
+
+    /**
+     * UI 使用資料
+     */
+    toViewModel() {
+
+        return {
+
+            state:
+                this.state,
+
+            canPlay:
+                this.canPlay,
+
+            finished:
+                this.finished,
+
+            statistics:
+                this.statistics,
+
+            burn:
+                this.burnInfo,
+
+            lastResult:
+                this.lastResult
+                    ? this.lastResult
+                        .toJSON()
+                    : null,
+
+            roadmap:
+                this.roadmapViewModel,
+
+            consistency:
+                this.validateConsistency()
+
+        };
+
+    }
+
+
+    /**
+     * JSON
      */
     toJSON() {
 
         return {
 
+            version: 2,
+
             options: {
 
-                deckCount:
-                    this.options
-                        .deckCount,
-
-                bankroll:
-                    this.options
-                        .bankroll,
-
-                kellyFraction:
-                    this.options
-                        .kellyFraction,
-
-                minBet:
-                    this.options
-                        .minBet,
-
-                maxBet:
-                    this.options
-                        .maxBet,
-
-                maxBankrollRatio:
-                    this.options
-                        .maxBankrollRatio,
-
-                analysisMode:
-                    this.options
-                        .analysisMode
+                ...this.options
 
             },
 
-            started:
-                this.started,
+            state:
+                this.state,
+
+            shoeNumber:
+                this.shoeNumber,
+
+            startedAt:
+                this.startedAt,
+
+            lastRoundAt:
+                this.lastRoundAt,
 
             shoe:
                 this.shoe
-                    ?.toJSON() ??
-                null,
+                    ? this.shoe.toJSON()
+                    : null,
 
             burn:
                 this.burn
-                    ?.toJSON() ??
-                null,
+                    ? this.burn.toJSON()
+                    : null,
+
+            dealer:
+                this.dealer
+                    ? this.dealer.toJSON()
+                    : null,
 
             history:
-                this.history
-                    ?.toJSON() ??
-                null,
+                this.history.toJSON(),
 
-            currentRound:
-                this.currentRound
-                    ?.toJSON?.() ??
-                null,
+            roadmap:
+                this.roadmapAnalyzer
+                    .toJSON(),
 
-            lastAnalysis:
-                this.lastAnalysis,
-
-            summary:
-                this.summary
+            lastResult:
+                this.lastResult
+                    ? this.lastResult
+                        .toJSON()
+                    : null
 
         };
+
+    }
+
+
+    /**
+     * JSON 還原
+     */
+    static fromJSON(data) {
+
+        if (
+            !data ||
+            typeof data !== "object" ||
+            Array.isArray(data)
+        ) {
+
+            throw new Error(
+                "Game data is required."
+            );
+
+        }
+
+        if (!data.shoe) {
+
+            throw new Error(
+                "Game shoe data is required."
+            );
+
+        }
+
+        if (
+            data.history !== undefined &&
+            !Array.isArray(
+                data.history
+            )
+        ) {
+
+            throw new Error(
+                "Game history must be an array."
+            );
+
+        }
+
+
+        const game =
+            Object.create(
+                Game.prototype
+            );
+
+
+        game.options = {
+
+            ...DEFAULT_OPTIONS,
+
+            ...data.options
+
+        };
+
+        game.validateOptions();
+
+
+        game.shoe =
+            Shoe.fromJSON(
+                data.shoe
+            );
+
+
+        game.burn =
+            new Burn(
+                game.shoe
+            );
+
+
+        /**
+         * Burn.fromJSON 尚未定義時，
+         * 直接恢復公開資料。
+         */
+        if (data.burn) {
+
+            game.burn.executed =
+                Boolean(
+                    data.burn.executed ??
+                    data.burn.indicator
+                );
+
+            game.burn.amount =
+                Number.isInteger(
+                    data.burn.amount
+                )
+                    ? data.burn.amount
+                    : 0;
+
+        }
+
+
+        game.dealer =
+            data.dealer
+                ? Dealer.fromJSON(
+                    data.dealer,
+                    game.shoe
+                )
+                : new Dealer(
+                    game.shoe
+                );
+
+
+        game.history =
+            new History();
+
+
+        for (
+            const item of
+            data.history ?? []
+        ) {
+
+            const result =
+
+                typeof RoundResult
+                    .fromJSON ===
+                    "function"
+
+                    ? RoundResult.fromJSON(
+                        item
+                    )
+
+                    : item;
+
+            game.history.add(
+                result
+            );
+
+        }
+
+
+        game.roadmapAnalyzer =
+            new RoadmapAnalyzer({
+
+                beadRows:
+                    game.options
+                        .beadRows,
+
+                bigRoadRows:
+                    game.options
+                        .bigRoadRows,
+
+                derivedRows:
+                    game.options
+                        .derivedRows
+
+            });
+
+
+        /**
+         * 使用 History 重建路單，
+         * 確保五種路單一致。
+         */
+        game.roadmapAnalyzer.build(
+            game.history
+        );
+
+
+        game.state =
+            Object.values(
+                GameState
+            ).includes(data.state)
+
+                ? data.state
+
+                : GameState.READY;
+
+
+        game.shoeNumber =
+            Number.isInteger(
+                data.shoeNumber
+            )
+                ? data.shoeNumber
+                : 1;
+
+
+        game.startedAt =
+            Number.isFinite(
+                data.startedAt
+            )
+                ? data.startedAt
+                : null;
+
+
+        game.lastRoundAt =
+            Number.isFinite(
+                data.lastRoundAt
+            )
+                ? data.lastRoundAt
+                : null;
+
+
+        game.lastResult =
+            game.history.last;
+
+
+        return game;
 
     }
 
