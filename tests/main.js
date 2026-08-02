@@ -89,6 +89,24 @@ const TESTS = [
     },
 
     {
+        id: "exact",
+        name: "Exact",
+        run: exactTest
+    },
+
+    {
+        id: "monte-carlo",
+        name: "Monte Carlo",
+        run: monteCarloTest
+    },
+
+    {
+        id: "analyzer",
+        name: "Analyzer",
+        run: analyzerTest
+    },
+
+    {
         id: "bead-road",
         name: "Bead Road",
         run: beadRoadTest
