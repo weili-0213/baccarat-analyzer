@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V3.3 Final
+ * Baccarat Analyzer V3.4.2
  * pages/dashboard.js
  *
  * Casino Dashboard Controller
@@ -30,8 +30,20 @@ import RecommendationPanel
 import StatusPanel
     from "../components/StatusPanel.js";
 
+import GameController
+    from "../controllers/GameController.js";
 
-export const DASHBOARD_VERSION = "3.3.0";
+import UIController
+    from "../controllers/UIController.js";
+
+import AnalysisController
+    from "../controllers/AnalysisController.js";
+
+import InputController
+    from "../controllers/InputController.js";
+
+
+export const DASHBOARD_VERSION = "3.4.2";
 
 export const DashboardMode = AnalysisDisplayMode;
 
@@ -60,27 +72,6 @@ function escapeHTML(value) {
         .replaceAll(">", "&gt;");
 }
 
-function loadMode() {
-    try {
-        const saved = localStorage.getItem("baccarat.dashboardMode");
-        if (Object.values(DashboardMode).includes(saved)) {
-            return saved;
-        }
-    }
-    catch {
-        // ignore
-    }
-    return DashboardMode.QUICK;
-}
-
-function saveMode(mode) {
-    try {
-        localStorage.setItem("baccarat.dashboardMode", mode);
-    }
-    catch {
-        // ignore
-    }
-}
 
 function cardText(card) {
     if (!card) return "—";
@@ -122,17 +113,27 @@ export class Dashboard {
         this.root = this.resolveRoot(root);
         this.game = game ?? new Game(gameOptions);
 
-        this.ui = {
-            busy: false,
-            message: "",
-            messageType: "",
-            selectedRank: "A",
-            selectedSuit: "S",
-            mode: loadMode(),
-            activeRoad: "beadRoad",
-            mobileSection: DashboardSection.INPUT,
-            quickInputMode: QuickInputMode.AUTO
-        };
+        this.uiController =
+            new UIController({
+
+                modeValues:
+                    Object.values(
+                        DashboardMode
+                    ),
+
+                defaultMode:
+                    DashboardMode.QUICK,
+
+                defaultSection:
+                    DashboardSection.INPUT,
+
+                quickInputMode:
+                    QuickInputMode.AUTO
+
+            });
+
+        this.ui =
+            this.uiController.state;
 
         this.components = {
             quickCardInput: null,
@@ -140,6 +141,52 @@ export class Dashboard {
             analysisPanel: new AnalysisPanel(),
             recommendationPanel: new RecommendationPanel()
         };
+
+        this.gameController =
+            new GameController({
+
+                game:
+                    this.game,
+
+                uiController:
+                    this.uiController,
+
+                render:
+                    () =>
+                        this.render()
+
+            });
+
+        this.analysisController =
+            new AnalysisController({
+
+                game:
+                    this.game,
+
+                actionController:
+                    this.gameController,
+
+                uiController:
+                    this.uiController
+
+            });
+
+        this.inputController =
+            new InputController({
+
+                game:
+                    this.game,
+
+                actionController:
+                    this.gameController,
+
+                uiController:
+                    this.uiController,
+
+                inputSection:
+                    DashboardSection.INPUT
+
+            });
 
         this.boundClick = event => this.handleClick(event);
         this.boundChange = event => this.handleChange(event);
@@ -194,59 +241,35 @@ export class Dashboard {
     }
 
     setMode(mode) {
-        if (!Object.values(DashboardMode).includes(mode)) {
-            throw new Error(`Unknown dashboard mode: ${mode}`);
-        }
-
-        this.ui.mode = mode;
-        saveMode(mode);
+        this.uiController.setMode(mode);
         this.render();
         return this;
     }
 
     setMobileSection(section) {
-        if (!Object.values(DashboardSection).includes(section)) {
-            throw new Error(`Unknown dashboard section: ${section}`);
-        }
-
-        this.ui.mobileSection = section;
+        this.uiController.setMobileSection(
+            section,
+            Object.values(DashboardSection)
+        );
         this.render();
         return this;
     }
 
     setMessage(message, type = "info") {
-        this.ui.message = String(message ?? "");
-        this.ui.messageType = type;
+        this.uiController.setMessage(message, type);
         return this;
     }
 
     clearMessage() {
-        this.ui.message = "";
-        this.ui.messageType = "";
+        this.uiController.clearMessage();
         return this;
     }
 
-    async runAction(callback, { successMessage = "", renderBefore = true } = {}) {
-        if (this.ui.busy) return null;
-
-        this.ui.busy = true;
-        this.clearMessage();
-        if (renderBefore) this.render();
-
-        try {
-            const result = await callback();
-            if (successMessage) this.setMessage(successMessage, "success");
-            return result;
-        }
-        catch (error) {
-            console.error("Dashboard action failed", error);
-            this.setMessage(error?.message ?? String(error), "error");
-            return null;
-        }
-        finally {
-            this.ui.busy = false;
-            this.render();
-        }
+    runAction(callback, options = {}) {
+        return this.gameController.run(
+            callback,
+            options
+        );
     }
 
     async handleClick(event) {
@@ -288,7 +311,9 @@ export class Dashboard {
                 this.render();
                 break;
             case "select-road":
-                this.ui.activeRoad = button.dataset.road ?? "beadRoad";
+                this.uiController.setRoad(
+                    button.dataset.road
+                );
                 this.render();
                 break;
         }
@@ -296,10 +321,15 @@ export class Dashboard {
 
     handleChange(event) {
         if (event.target.name === "card-rank") {
-            this.ui.selectedRank = event.target.value;
+            this.uiController.setBurnRank(
+                event.target.value
+            );
         }
+
         if (event.target.name === "card-suit") {
-            this.ui.selectedSuit = event.target.value;
+            this.uiController.setBurnSuit(
+                event.target.value
+            );
         }
     }
 
@@ -348,78 +378,44 @@ export class Dashboard {
     }
 
 
-    async startNewShoe() {
-        return this.runAction(
-            async () => this.game.startNewShoe({ clearHistory: true, shuffle: true }),
-            { successMessage: "已建立新牌靴，請輸入燒牌指示牌。" }
-        );
+    startNewShoe() {
+        return this.inputController
+            .startNewShoe();
     }
 
-    async confirmBurn() {
-        return this.runAction(async () => {
-            this.game.confirmBurnIndicator({
-                rank: this.ui.selectedRank,
-                suit: this.ui.selectedSuit
-            });
-
-            if (!this.game.hasNextAnalysis) {
-                await this.game.analyzeNextRound();
-            }
-            else {
-                await this.game.waitForAnalysis();
-            }
-        }, {
-            successMessage: "燒牌已確認，第一局分析完成。"
-        });
+    confirmBurn() {
+        return this.analysisController
+            .confirmBurn();
     }
 
-    async startRound() {
-        this.ui.mobileSection = DashboardSection.INPUT;
-
-        return this.runAction(
-            async () => this.game.startManualRound(),
-            { successMessage: "已開始輸入本局牌面。" }
-        );
+    startRound() {
+        return this.inputController
+            .startRound();
     }
 
-    async addSelectedCard({ rank, suit }) {
-        return this.runAction(async () => {
-            const side = this.game.nextManualSide;
-            if (!side) throw new Error("目前不需要再輸入牌。");
-            this.game.addManualCard(side, { rank, suit });
-        }, {
-            renderBefore: false
-        });
+    addSelectedCard(card) {
+        return this.inputController
+            .addCard(card);
     }
 
-    async undoCard() {
-        return this.runAction(async () => {
-            const removed = this.game.undoManualCard();
-            if (!removed) throw new Error("目前沒有可復原的牌。");
-        }, {
-            successMessage: "已復原最後一張牌。"
-        });
+    undoCard() {
+        return this.inputController
+            .undoCard();
     }
 
-    async cancelRound() {
-        return this.runAction(
-            async () => this.game.cancelManualRound(),
-            { successMessage: "已取消本局輸入。" }
-        );
+    cancelRound() {
+        return this.inputController
+            .cancelRound();
     }
 
-    async finishRound() {
-        return this.runAction(
-            async () => this.game.finishManualRound({ analyze: true }),
-            { successMessage: "本局已確認，下一局分析已更新。" }
-        );
+    finishRound() {
+        return this.inputController
+            .finishRound();
     }
 
-    async analyze() {
-        return this.runAction(
-            async () => this.game.analyzeNextRound(),
-            { successMessage: "下一局分析完成。" }
-        );
+    analyze() {
+        return this.analysisController
+            .analyze();
     }
 
     render() {
@@ -544,7 +540,7 @@ export class Dashboard {
         return `
             <header class="v3Header dashboardCard">
                 <div>
-                    <small>BACCARAT ANALYZER V3.3</small>
+                    <small>BACCARAT ANALYZER V3.4.2</small>
                     <h1>百家樂分析儀</h1>
                 </div>
 
@@ -871,6 +867,12 @@ export class Dashboard {
             keyboardShortcuts: true,
             autoSuit: this.ui.quickInputMode === QuickInputMode.AUTO,
             version: DASHBOARD_VERSION,
+            controllers: {
+                game: this.gameController.summary,
+                ui: this.uiController.summary,
+                analysis: this.analysisController.summary,
+                input: this.inputController.summary
+            },
             casinoLayout: true,
             mobileSection: this.ui.mobileSection
         };
