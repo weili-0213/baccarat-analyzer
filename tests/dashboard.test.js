@@ -4,17 +4,27 @@
  *
  * tests/dashboard.test.js
  *
- * 對應目前 pages/dashboard.js：
+ * 對應新版 pages/dashboard.js：
  *
- * - 直接操作 DOM 的牌面選單
- * - 直接渲染 Probability、EV、Recommendation
- * - 使用 tests/mocks/gameMock.js
- * - 不使用舊版 components 容器
+ * - 頂部牌靴狀態橫幅
+ * - QuickCardInput 點數牌卡
+ * - 四個花色牌卡
+ * - 選完花色後自動加入牌面
+ * - 主注橫向分析
+ * - 完整分析展開／收合
+ * - Recommendation、History、Roadmap
+ *
+ * 本測試使用 tests/mocks/gameMock.js，
+ * 不重複測試 engine/game.js 的規則細節。
  */
 
 import createDashboard, {
     Dashboard
 } from "../pages/dashboard.js";
+
+import {
+    QuickCardInput
+} from "../components/QuickCardInput.js";
 
 import createGameMock
     from "./mocks/gameMock.js";
@@ -61,6 +71,8 @@ function assertThrows(
         message
     );
 
+    return caught;
+
 }
 
 
@@ -98,7 +110,7 @@ function nextTick() {
 
 async function waitUntilReady(
     dashboard,
-    attempts = 40
+    attempts = 80
 ) {
 
     for (
@@ -110,6 +122,12 @@ async function waitUntilReady(
         await nextTick();
 
         if (!dashboard.ui.busy) {
+
+            /*
+             * 再等一次，確保 finally 裡的 render()
+             * 已完成並重新掛載 QuickCardInput。
+             */
+            await nextTick();
 
             return;
 
@@ -153,6 +171,11 @@ async function clickAction(
         `找不到按鈕：${action}`
     );
 
+    assert(
+        button.disabled !== true,
+        `按鈕目前停用：${action}`
+    );
+
     button.click();
 
     await waitUntilReady(
@@ -162,7 +185,7 @@ async function clickAction(
 }
 
 
-function selectCard(
+function selectBurnCard(
     root,
     rank,
     suit
@@ -180,13 +203,14 @@ function selectCard(
 
     assert(
         rankSelect,
-        "找不到 Rank 選單"
+        "找不到燒牌 Rank 選單"
     );
 
     assert(
         suitSelect,
-        "找不到 Suit 選單"
+        "找不到燒牌 Suit 選單"
     );
+
 
     rankSelect.value =
         rank;
@@ -200,6 +224,7 @@ function selectCard(
             }
         )
     );
+
 
     suitSelect.value =
         suit;
@@ -217,23 +242,102 @@ function selectCard(
 }
 
 
-async function addCard(
+function getQuickRankButton(
+    root,
+    rank
+) {
+
+    return root.querySelector(
+        `[data-quick-rank="${rank}"]`
+    );
+
+}
+
+
+function getQuickSuitButton(
+    root,
+    suit
+) {
+
+    return root.querySelector(
+        `[data-quick-suit="${suit}"]`
+    );
+
+}
+
+
+async function addQuickCard(
     root,
     dashboard,
     rank,
     suit
 ) {
 
-    selectCard(
-        root,
-        rank,
-        suit
+    const rankButton =
+        getQuickRankButton(
+            root,
+            rank
+        );
+
+    assert(
+        rankButton,
+        `找不到點數牌卡：${rank}`
     );
 
-    await clickAction(
-        root,
-        dashboard,
-        "add-card"
+    assert(
+        rankButton.disabled !== true,
+        `點數牌卡已停用：${rank}`
+    );
+
+    rankButton.click();
+
+
+    const selectedRankButton =
+        getQuickRankButton(
+            root,
+            rank
+        );
+
+    assert(
+        selectedRankButton?.classList
+            .contains(
+                "selected"
+            ),
+        `點數 ${rank} 選取後應高亮`
+    );
+
+
+    const suitButtons =
+        root.querySelectorAll(
+            "[data-quick-suit]"
+        );
+
+    assert(
+        suitButtons.length === 4,
+        "花色牌卡應有四個"
+    );
+
+
+    const suitButton =
+        getQuickSuitButton(
+            root,
+            suit
+        );
+
+    assert(
+        suitButton,
+        `找不到花色牌卡：${suit}`
+    );
+
+    assert(
+        suitButton.disabled !== true,
+        `花色牌卡已停用：${suit}`
+    );
+
+    suitButton.click();
+
+    await waitUntilReady(
+        dashboard
     );
 
 }
@@ -251,7 +355,7 @@ export default async function dashboardTest() {
         /**
          * 1. constructor()
          */
-        const gameForConstructor =
+        const constructorGame =
             createGameMock();
 
         const unmounted =
@@ -261,7 +365,7 @@ export default async function dashboardTest() {
                     null,
 
                 game:
-                    gameForConstructor,
+                    constructorGame,
 
                 autoMount:
                     false
@@ -275,13 +379,20 @@ export default async function dashboardTest() {
 
         assert(
             unmounted.game ===
-                gameForConstructor,
+                constructorGame,
             "Dashboard 未保存注入的 Game"
         );
 
         assert(
             unmounted.root === null,
             "未掛載時 root 應為 null"
+        );
+
+        assert(
+            unmounted.components
+                .quickCardInput ===
+                null,
+            "未掛載時 QuickCardInput 應為 null"
         );
 
         messages.push(
@@ -332,7 +443,7 @@ export default async function dashboardTest() {
 
 
         /**
-         * 3. mount()
+         * 3. mount() 與初始 DOM
          */
         const root =
             createRoot();
@@ -354,6 +465,16 @@ export default async function dashboardTest() {
             });
 
         assert(
+            dashboard instanceof Dashboard,
+            "工廠函式應回傳 Dashboard"
+        );
+
+        assert(
+            dashboard.game === game,
+            "Dashboard 應使用注入的 Game"
+        );
+
+        assert(
             root.querySelector(
                 ".dashboardPage"
             ),
@@ -367,26 +488,18 @@ export default async function dashboardTest() {
             "Dashboard 標題未顯示"
         );
 
-        messages.push(
-            "✓ mount() 正確"
-        );
-
-
-        /**
-         * 4. 初始 DOM
-         */
         assert(
             root.querySelector(
-                ".shoePanel"
+                ".dashboardStatusBanner"
             ),
-            "缺少 Shoe Panel"
+            "缺少牌靴狀態橫幅"
         );
 
         assert(
-            root.querySelector(
-                ".burnPanel"
-            ),
-            "缺少 Burn Panel"
+            root.querySelectorAll(
+                ".statusBannerItem"
+            ).length >= 5,
+            "狀態橫幅應顯示牌靴、剩餘、燒牌與局數"
         );
 
         assert(
@@ -412,23 +525,23 @@ export default async function dashboardTest() {
 
         assert(
             root.querySelector(
-                ".statusPanel"
-            ),
-            "缺少 Status Panel"
-        );
-
-        assert(
-            root.querySelector(
                 ".historyPanel"
             ),
             "缺少 History Panel"
         );
 
         assert(
-            root.textContent.includes(
-                "請先輸入燒牌指示牌"
+            root.querySelector(
+                ".roadmapPanel"
             ),
-            "初始畫面應等待燒牌"
+            "缺少 Roadmap Panel"
+        );
+
+        assert(
+            root.textContent.includes(
+                "輸入燒牌指示牌"
+            ),
+            "初始畫面應要求輸入燒牌指示牌"
         );
 
         assert(
@@ -438,15 +551,22 @@ export default async function dashboardTest() {
             "初始 History 應為空"
         );
 
+        assert(
+            dashboard.components
+                .quickCardInput ===
+                null,
+            "燒牌前不應掛載 QuickCardInput"
+        );
+
         messages.push(
-            "✓ 初始 DOM 正確"
+            "✓ mount() 與初始橫幅 DOM 正確"
         );
 
 
         /**
-         * 5. 牌面選單
+         * 4. 燒牌選單
          */
-        selectCard(
+        selectBurnCard(
             root,
             "K",
             "D"
@@ -455,22 +575,22 @@ export default async function dashboardTest() {
         assert(
             dashboard.ui.selectedRank ===
                 "K",
-            "Rank 未同步"
+            "燒牌 Rank 未同步"
         );
 
         assert(
             dashboard.ui.selectedSuit ===
                 "D",
-            "Suit 未同步"
+            "燒牌 Suit 未同步"
         );
 
         messages.push(
-            "✓ 牌面選單正確"
+            "✓ 燒牌選單正確"
         );
 
 
         /**
-         * 6. 新牌靴
+         * 5. 建立新牌靴
          */
         const previousShoeNumber =
             game.shoeNumber;
@@ -482,7 +602,8 @@ export default async function dashboardTest() {
         );
 
         assert(
-            game.calls.startNewShoe === 1,
+            game.calls.startNewShoe ===
+                1,
             "未呼叫 startNewShoe()"
         );
 
@@ -496,18 +617,18 @@ export default async function dashboardTest() {
             root.textContent.includes(
                 "已建立新牌靴"
             ),
-            "新牌靴訊息未顯示"
+            "新牌靴成功訊息未顯示"
         );
 
         messages.push(
-            "✓ 新牌靴正確"
+            "✓ 建立新牌靴正確"
         );
 
 
         /**
-         * 7. 燒牌與第一局分析
+         * 6. 確認燒牌與第一局分析
          */
-        selectCard(
+        selectBurnCard(
             root,
             "A",
             "S"
@@ -521,18 +642,21 @@ export default async function dashboardTest() {
 
         assert(
             game.calls
-                .confirmBurnIndicator === 1,
+                .confirmBurnIndicator ===
+                1,
             "未呼叫 confirmBurnIndicator()"
         );
 
         assert(
-            game.burnConfirmed === true,
+            game.burnConfirmed ===
+                true,
             "burnConfirmed 應為 true"
         );
 
         assert(
             game.calls
-                .analyzeNextRound === 1,
+                .analyzeNextRound ===
+                1,
             "燒牌後應分析第一局"
         );
 
@@ -547,7 +671,7 @@ export default async function dashboardTest() {
             root.textContent.includes(
                 "燒牌已確認"
             ),
-            "燒牌完成訊息未顯示"
+            "燒牌成功訊息未顯示"
         );
 
         messages.push(
@@ -556,20 +680,34 @@ export default async function dashboardTest() {
 
 
         /**
-         * 8. 分析畫面
+         * 7. 橫向主注分析與 Recommendation
          */
+        assert(
+            root.querySelector(
+                ".analysisHorizontal"
+            ),
+            "缺少橫向分析摘要"
+        );
+
+        assert(
+            root.querySelectorAll(
+                ".analysisMetric"
+            ).length === 3,
+            "橫向分析應顯示閒、莊、和三項"
+        );
+
         assert(
             root.textContent.includes(
                 "47.00%"
             ),
-            "Banker 機率未顯示"
+            "莊機率未顯示"
         );
 
         assert(
             root.textContent.includes(
                 "0.0080"
             ),
-            "Banker EV 未顯示"
+            "莊 EV 未顯示"
         );
 
         assert(
@@ -581,18 +719,72 @@ export default async function dashboardTest() {
 
         assert(
             root.textContent.includes(
-                "COMPLETED"
+                "莊"
             ),
-            "分析狀態未顯示 COMPLETED"
+            "Recommendation 未顯示莊"
+        );
+
+        assert(
+            root.textContent.includes(
+                "300"
+            ),
+            "建議金額未顯示"
         );
 
         messages.push(
-            "✓ 分析畫面正確"
+            "✓ 橫向分析與 Recommendation 正確"
         );
 
 
         /**
-         * 9. 開始手動牌局
+         * 8. 完整分析展開／收合
+         */
+        const toggleBefore =
+            findAction(
+                root,
+                "toggle-analysis"
+            );
+
+        assert(
+            toggleBefore,
+            "找不到完整分析切換按鈕"
+        );
+
+        toggleBefore.click();
+
+        assert(
+            dashboard.ui
+                .analysisExpanded ===
+                true,
+            "完整分析應展開"
+        );
+
+        assert(
+            root.querySelectorAll(
+                ".analysisSection"
+            ).length >= 2,
+            "展開後應顯示機率與 EV 詳細資料"
+        );
+
+        findAction(
+            root,
+            "toggle-analysis"
+        ).click();
+
+        assert(
+            dashboard.ui
+                .analysisExpanded ===
+                false,
+            "完整分析應收合"
+        );
+
+        messages.push(
+            "✓ 完整分析展開與收合正確"
+        );
+
+
+        /**
+         * 9. 開始手動牌局與 QuickCardInput
          */
         await clickAction(
             root,
@@ -602,7 +794,8 @@ export default async function dashboardTest() {
 
         assert(
             game.calls
-                .startManualRound === 1,
+                .startManualRound ===
+                1,
             "未呼叫 startManualRound()"
         );
 
@@ -619,15 +812,64 @@ export default async function dashboardTest() {
             "第一張提示未顯示"
         );
 
+        assert(
+            dashboard.components
+                .quickCardInput instanceof
+                QuickCardInput,
+            "QuickCardInput 應成功掛載"
+        );
+
+        assert(
+            root.querySelectorAll(
+                "[data-quick-rank]"
+            ).length === 13,
+            "點數牌卡應有十三個"
+        );
+
+        assert(
+            root.querySelectorAll(
+                "[data-quick-suit]"
+            ).length === 4,
+            "花色牌卡應有四個"
+        );
+
+        assert(
+            root.querySelector(
+                '[data-quick-suit="S"]'
+            ),
+            "缺少黑桃牌卡"
+        );
+
+        assert(
+            root.querySelector(
+                '[data-quick-suit="H"]'
+            ),
+            "缺少紅心牌卡"
+        );
+
+        assert(
+            root.querySelector(
+                '[data-quick-suit="D"]'
+            ),
+            "缺少方塊牌卡"
+        );
+
+        assert(
+            root.querySelector(
+                '[data-quick-suit="C"]'
+            ),
+            "缺少梅花牌卡"
+        );
+
         messages.push(
-            "✓ 開始手動牌局正確"
+            "✓ QuickCardInput 點數與四花色牌卡正確"
         );
 
 
         /**
-         * 10. 加牌與復原
+         * 10. 快速輸牌與自動加入
          */
-        await addCard(
+        await addQuickCard(
             root,
             dashboard,
             "9",
@@ -635,17 +877,65 @@ export default async function dashboardTest() {
         );
 
         assert(
-            game.manualCards.length === 1,
-            "加入後應有一張牌"
+            game.calls
+                .addManualCard ===
+                1,
+            "選完花色後應呼叫 addManualCard()"
+        );
+
+        assert(
+            game.manualCards.length ===
+                1,
+            "快速加入後應有一張牌"
+        );
+
+        assert(
+            game.manualCards[0]
+                .side ===
+                "player",
+            "第一張應加入 Player"
+        );
+
+        assert(
+            game.manualCards[0]
+                .card.rank ===
+                "9" &&
+            game.manualCards[0]
+                .card.suit ===
+                "H",
+            "快速輸入牌面資料錯誤"
         );
 
         assert(
             root.textContent.includes(
                 "9♥"
             ),
-            "加入的牌未顯示"
+            "快速加入的牌未顯示"
         );
 
+        assert(
+            root.textContent.includes(
+                "Banker 第 1 張"
+            ),
+            "加入後應自動切到下一張"
+        );
+
+        assert(
+            !findAction(
+                root,
+                "add-card"
+            ),
+            "新版快速輸牌不應顯示加入按鈕"
+        );
+
+        messages.push(
+            "✓ 點數加花色後自動加入正確"
+        );
+
+
+        /**
+         * 11. 復原一張
+         */
         await clickAction(
             root,
             dashboard,
@@ -653,8 +943,16 @@ export default async function dashboardTest() {
         );
 
         assert(
-            game.manualCards.length === 0,
-            "復原後應為零張"
+            game.calls
+                .undoManualCard ===
+                1,
+            "未呼叫 undoManualCard()"
+        );
+
+        assert(
+            game.manualCards.length ===
+                0,
+            "復原後手動牌應為空"
         );
 
         assert(
@@ -665,14 +963,14 @@ export default async function dashboardTest() {
         );
 
         messages.push(
-            "✓ 加牌與復原正確"
+            "✓ 復原牌面正確"
         );
 
 
         /**
-         * 11. 取消牌局
+         * 12. 取消本局
          */
-        await addCard(
+        await addQuickCard(
             root,
             dashboard,
             "8",
@@ -686,23 +984,31 @@ export default async function dashboardTest() {
         );
 
         assert(
+            game.calls
+                .cancelManualRound ===
+                1,
+            "未呼叫 cancelManualRound()"
+        );
+
+        assert(
             game.isManualRoundActive ===
                 false,
             "取消後牌局應停止"
         );
 
         assert(
-            game.manualCards.length === 0,
+            game.manualCards.length ===
+                0,
             "取消後手動牌應清空"
         );
 
         messages.push(
-            "✓ 取消牌局正確"
+            "✓ 取消本局正確"
         );
 
 
         /**
-         * 12. 完整四張牌
+         * 13. 完整四張牌
          */
         await clickAction(
             root,
@@ -729,7 +1035,7 @@ export default async function dashboardTest() {
 
             [
                 "2",
-                "C"
+                "S"
             ]
 
         ];
@@ -741,7 +1047,7 @@ export default async function dashboardTest() {
             ] of cards
         ) {
 
-            await addCard(
+            await addQuickCard(
                 root,
                 dashboard,
                 rank,
@@ -753,7 +1059,7 @@ export default async function dashboardTest() {
         assert(
             game.canFinishManualRound ===
                 true,
-            "四張牌後應可完成"
+            "四張牌後應可確認本局"
         );
 
         assert(
@@ -764,13 +1070,20 @@ export default async function dashboardTest() {
             "應顯示確認本局按鈕"
         );
 
+        assert(
+            dashboard.components
+                .quickCardInput ===
+                null,
+            "牌面完成後 QuickCardInput 應卸載"
+        );
+
         messages.push(
-            "✓ 完整四張牌正確"
+            "✓ 完整四張快速輸牌正確"
         );
 
 
         /**
-         * 13. 完成牌局
+         * 14. 完成本局
          */
         await clickAction(
             root,
@@ -780,17 +1093,20 @@ export default async function dashboardTest() {
 
         assert(
             game.calls
-                .finishManualRound === 1,
+                .finishManualRound ===
+                1,
             "未呼叫 finishManualRound()"
         );
 
         assert(
-            game.history.count === 1,
-            "History 應有一局"
+            game.history.count ===
+                1,
+            "History 應新增一局"
         );
 
         assert(
-            game.winner === "Player",
+            game.winner ===
+                "Player",
             "測試牌局應為 Player 勝"
         );
 
@@ -802,12 +1118,12 @@ export default async function dashboardTest() {
         );
 
         messages.push(
-            "✓ 完成牌局正確"
+            "✓ 完成本局正確"
         );
 
 
         /**
-         * 14. History 與 Roadmap
+         * 15. History 與 Roadmap
          */
         assert(
             root.querySelectorAll(
@@ -820,7 +1136,7 @@ export default async function dashboardTest() {
             root.querySelector(
                 ".historyItem.player"
             ),
-            "History 應為 Player 樣式"
+            "History 應套用 Player 樣式"
         );
 
         assert(
@@ -836,7 +1152,7 @@ export default async function dashboardTest() {
 
 
         /**
-         * 15. 重新分析
+         * 16. 重新分析
          */
         const analyzeCalls =
             game.calls
@@ -861,7 +1177,7 @@ export default async function dashboardTest() {
 
 
         /**
-         * 16. 路單切換
+         * 17. 路單切換
          */
         const smallRoadButton =
             root.querySelector(
@@ -883,7 +1199,7 @@ export default async function dashboardTest() {
 
         assert(
             root.textContent.includes(
-                "尚無小路資料"
+                "小路尚無資料"
             ),
             "空小路提示未顯示"
         );
@@ -894,12 +1210,17 @@ export default async function dashboardTest() {
 
 
         /**
-         * 17. History limit
+         * 18. History limit
          */
         const historyLimit =
             root.querySelector(
                 '[name="history-limit"]'
             );
+
+        assert(
+            historyLimit,
+            "找不到 History limit"
+        );
 
         historyLimit.value =
             "10";
@@ -915,7 +1236,8 @@ export default async function dashboardTest() {
         );
 
         assert(
-            dashboard.ui.historyLimit === 10,
+            dashboard.ui.historyLimit ===
+                10,
             "History limit 未更新"
         );
 
@@ -925,7 +1247,7 @@ export default async function dashboardTest() {
 
 
         /**
-         * 18. 訊息
+         * 19. 訊息顯示與清除
          */
         dashboard.setMessage(
             "測試訊息",
@@ -947,7 +1269,8 @@ export default async function dashboardTest() {
         ).click();
 
         assert(
-            dashboard.ui.message === "",
+            dashboard.ui.message ===
+                "",
             "訊息未清除"
         );
 
@@ -957,7 +1280,7 @@ export default async function dashboardTest() {
 
 
         /**
-         * 19. Busy
+         * 20. Busy 狀態
          */
         dashboard.ui.busy =
             true;
@@ -968,8 +1291,9 @@ export default async function dashboardTest() {
             findAction(
                 root,
                 "new-shoe"
-            ).disabled === true,
-            "Busy 時按鈕應停用"
+            ).disabled ===
+                true,
+            "Busy 時新牌靴按鈕應停用"
         );
 
         dashboard.ui.busy =
@@ -983,13 +1307,63 @@ export default async function dashboardTest() {
 
 
         /**
-         * 20. destroy()
+         * 21. summary
+         */
+        const summary =
+            dashboard.summary;
+
+        assert(
+            summary &&
+            typeof summary ===
+                "object",
+            "summary 應為物件"
+        );
+
+        assert(
+            summary.mounted ===
+                true,
+            "summary.mounted 錯誤"
+        );
+
+        assert(
+            summary.roundCount ===
+                1,
+            "summary.roundCount 錯誤"
+        );
+
+        assert(
+            summary.hasAnalysis ===
+                true,
+            "summary.hasAnalysis 錯誤"
+        );
+
+        assert(
+            summary.historyLimit ===
+                10,
+            "summary.historyLimit 錯誤"
+        );
+
+        messages.push(
+            "✓ summary 正確"
+        );
+
+
+        /**
+         * 22. destroy()
          */
         dashboard.destroy();
 
         assert(
-            root.innerHTML === "",
+            root.innerHTML ===
+                "",
             "destroy() 應清空 root"
+        );
+
+        assert(
+            dashboard.components
+                .quickCardInput ===
+                null,
+            "destroy() 應清除 QuickCardInput"
         );
 
         messages.push(
@@ -1001,6 +1375,15 @@ export default async function dashboardTest() {
 ${messages.join("\n")}
 
 Dashboard 測試完成
+
+新版介面：
+狀態橫幅：通過
+主注橫向分析：通過
+QuickCardInput：通過
+點數牌卡：13
+花色牌卡：4
+選完花色自動加入：通過
+完整分析展開／收合：通過
 
 Game 呼叫次數：
 startNewShoe：${game.calls.startNewShoe}
