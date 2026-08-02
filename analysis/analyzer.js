@@ -440,72 +440,29 @@ export default class Analyzer {
      */
     updateGameContext({
 
-        shoe =
-            this.context.shoe,
+        shoe = this.context.shoe,
 
-        history =
-            this.context.history
+        history = this.context.history,
+
+        payouts = this.context.payouts
 
     } = {}) {
 
-        this.context = {
+        this.setContext({
 
             ...this.context,
 
             shoe,
 
-            history
+            history,
 
-        };
+            payouts
 
-        if (
-            this.monteCarlo &&
-            typeof this.monteCarlo
-                .setContext ===
-                "function"
-        ) {
-
-            this.monteCarlo
-                .setContext({
-
-                    ...(
-                        this.monteCarlo
-                            .context ??
-                        {}
-                    ),
-
-                    shoe
-
-                });
-
-        }
-
-        if (
-            this.exact &&
-            typeof this.exact
-                .setContext ===
-                "function"
-        ) {
-
-            this.exact
-                .setContext({
-
-                    ...(
-                        this.exact
-                            .context ??
-                        {}
-                    ),
-
-                    shoe
-
-                });
-
-        }
+        });
 
         return this;
 
     }
-
 
     /**
      * 驗證 Analyzer 設定。
@@ -578,11 +535,11 @@ export default class Analyzer {
          * 因此機率引擎仍使用 shoe.cards 的可觀察牌池。
          */
         if (
-            shoe.cards.length < 6
+            shoe.cards.length === 0
         ) {
 
             throw new Error(
-                "At least 6 observable cards are required for analysis."
+                "No observable cards remain in the shoe."
             );
 
         }
@@ -2176,8 +2133,11 @@ export default class Analyzer {
                 0,
 
             roundCount:
-                this.context.history
-                    ?.count ??
+
+                this.context.roundCount ??
+
+                this.context.history?.count ??
+
                 0
 
         };
