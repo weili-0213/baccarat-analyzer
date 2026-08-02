@@ -1070,10 +1070,16 @@ export default async function bigRoadTest() {
         "矩陣 ties 陣列應為副本"
     );
 
+    assert(
+        tieMatrix[0][0].ties[0] !==
+            tieRoad.get(0).ties[0],
+        "矩陣中的 Tie 物件也應為副本"
+    );
+
     const originalBankerPair =
-    tieRoad.get(0)
-        .ties[0]
-        .bankerPair;
+        tieRoad.get(0)
+            .ties[0]
+            .bankerPair;
 
     tieMatrix[0][0]
         .ties[0]
@@ -1101,7 +1107,6 @@ export default async function bigRoadTest() {
     details.push(
         "toMatrix()：PASS"
     );
-
 
     /*
      * 測試 13：
