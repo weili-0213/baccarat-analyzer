@@ -25,7 +25,9 @@
  */
 
 import Analyzer, {
-    AnalysisMode
+    AnalysisMode,
+    MAIN_RECOMMENDATION_BETS,
+    SIDE_BETS
 } from "../analysis/analyzer.js";
 
 import Shoe
@@ -587,11 +589,14 @@ export default async function analyzerTest() {
             "method",
             "probability",
             "ev",
+            "evStatus",
             "kelly",
             "risk",
             "confidence",
             "overallConfidence",
             "ranking",
+            "mainRanking",
+            "sideBetAnalysis",
             "best",
             "recommendation",
             "shouldBet",
@@ -631,13 +636,187 @@ export default async function analyzerTest() {
         "shouldBet 應為 boolean"
     );
 
+    assert(
+        Array.isArray(
+            providedResult.mainRanking
+        ),
+        "mainRanking 應為陣列"
+    );
+
+    assert(
+        providedResult.ranking ===
+            providedResult.mainRanking,
+        "ranking 應維持為 mainRanking 的相容別名"
+    );
+
+    assert(
+        providedResult.sideBetAnalysis &&
+        typeof providedResult
+            .sideBetAnalysis ===
+            "object",
+        "sideBetAnalysis 應為物件"
+    );
+
     messages.push(
-        "✓ Probability、EV、Kelly、Risk、Confidence、Ranking、Recommendation 輸出完整"
+        "✓ Probability、EV、Kelly、Risk、Confidence、主注排名、邊注分析與 Recommendation 輸出完整"
     );
 
 
     /**
-     * 6. 新版 Shoe 欄位。
+     * 6. 主注與邊注必須完全分離。
+     */
+    const mainRankingNames =
+        providedResult
+            .mainRanking
+            .map(
+                item =>
+                    item.name
+            );
+
+    assert(
+        mainRankingNames.every(
+            name =>
+                MAIN_RECOMMENDATION_BETS
+                    .includes(name)
+        ),
+        "mainRanking 只能包含 player、banker、tie"
+    );
+
+    assert(
+        mainRankingNames.every(
+            name =>
+                !SIDE_BETS.includes(name)
+        ),
+        "mainRanking 不可包含任何邊注"
+    );
+
+    for (
+        const name of
+        SIDE_BETS
+    ) {
+
+        assert(
+            name in
+                providedResult
+                    .sideBetAnalysis,
+            `sideBetAnalysis 缺少 ${name}`
+        );
+
+        assert(
+            providedResult
+                .sideBetAnalysis[
+                    name
+                ]
+                .recommendationEligible ===
+                false,
+            `${name} 不可成為主推薦`
+        );
+
+    }
+
+    assert(
+        providedResult
+            .ev
+            .playerDragonBonus === 0 &&
+        providedResult
+            .ev
+            .bankerDragonBonus === 0,
+        "Dragon Bonus 未完成分級 EV 前必須固定為 0"
+    );
+
+    assert(
+        providedResult
+            .evStatus
+            .playerDragonBonus ===
+            "unavailable",
+        "閒龍寶 EV 狀態應為 unavailable"
+    );
+
+    assert(
+        providedResult
+            .evStatus
+            .bankerDragonBonus ===
+            "unavailable",
+        "莊龍寶 EV 狀態應為 unavailable"
+    );
+
+    assert(
+        providedResult
+            .sideBetAnalysis
+            .playerDragonBonus
+            .available === false &&
+        providedResult
+            .sideBetAnalysis
+            .playerDragonBonus
+            .ev === null,
+        "閒龍寶應顯示為不可用，EV 應為 null"
+    );
+
+    assert(
+        providedResult
+            .sideBetAnalysis
+            .bankerDragonBonus
+            .available === false &&
+        providedResult
+            .sideBetAnalysis
+            .bankerDragonBonus
+            .ev === null,
+        "莊龍寶應顯示為不可用，EV 應為 null"
+    );
+
+    assert(
+        providedResult.best === null ||
+        MAIN_RECOMMENDATION_BETS
+            .includes(
+                providedResult
+                    .best
+                    .name
+            ),
+        "best 只能是主注或 null"
+    );
+
+    assert(
+        providedResult
+            .recommendation
+            .bet === null ||
+        MAIN_RECOMMENDATION_BETS
+            .includes(
+                providedResult
+                    .recommendation
+                    .bet
+            ),
+        "Recommendation 不可推薦邊注"
+    );
+
+    /**
+     * 此組機率的三個主注 EV 都不是正值。
+     * 即使龍寶機率存在，也必須選擇不下注。
+     */
+    assert(
+        providedResult.shouldBet ===
+            false,
+        "主注皆無正 EV 時應建議不下注"
+    );
+
+    assert(
+        providedResult
+            .recommendation
+            .bet === null,
+        "主注皆無正 EV 時 recommendation.bet 應為 null"
+    );
+
+    messages.push(
+        "✓ 主注與邊注分離，Dragon Bonus 不會進入推薦"
+    );
+
+
+    /**
+     * 7. 新版 Shoe 欄位。
+     */
+
+
+    /**
+     * 7. 新版 Shoe 欄位。
      */
     assert(
         providedResult
@@ -679,7 +858,7 @@ export default async function analyzerTest() {
 
 
     /**
-     * 7. analyzeContext()。
+     * 8. analyzeContext()。
      */
     const contextResult =
         await analyzer.analyzeContext(
@@ -712,7 +891,7 @@ export default async function analyzerTest() {
 
 
     /**
-     * 8. run() 別名。
+     * 9. run() 別名。
      */
     const runResult =
         await analyzer.run(
@@ -738,7 +917,7 @@ export default async function analyzerTest() {
 
 
     /**
-     * 9. Monte Carlo 模式。
+     * 10. Monte Carlo 模式。
      */
     const beforeMonteCarlo =
         snapshotShoe(shoe);
@@ -822,7 +1001,7 @@ export default async function analyzerTest() {
 
 
     /**
-     * 10. Exact 模式。
+     * 11. Exact 模式。
      *
      * 使用完整一副牌進行精確列舉。
      */
@@ -900,7 +1079,7 @@ export default async function analyzerTest() {
 
 
     /**
-     * 11. setMode()。
+     * 12. setMode()。
      */
     analyzer.setMode(
         AnalysisMode.MONTE_CARLO
@@ -940,7 +1119,7 @@ export default async function analyzerTest() {
 
 
     /**
-     * 12. updateGameContext()。
+     * 13. updateGameContext()。
      */
     const updatedShoe =
         createTestShoe();
@@ -997,7 +1176,7 @@ export default async function analyzerTest() {
 
 
     /**
-     * 13. 未知燒牌與 summary。
+     * 14. 未知燒牌與 summary。
      */
     updatedShoe
         .registerUnknownBurn(
@@ -1074,8 +1253,12 @@ Player：${exactResult.probability.player}
 Banker：${exactResult.probability.banker}
 Tie：${exactResult.probability.tie}
 
-Ranking 數量：${providedResult.ranking.length}
+主注 Ranking 數量：${providedResult.mainRanking.length}
+邊注分析數量：${Object.keys(providedResult.sideBetAnalysis).length}
+閒龍寶 EV 狀態：${providedResult.evStatus.playerDragonBonus}
+莊龍寶 EV 狀態：${providedResult.evStatus.bankerDragonBonus}
 建議下注：${providedResult.shouldBet}
+建議選項：${providedResult.recommendation.bet ?? "不下注"}
 
 可觀察牌數：${summary.observableRemaining}
 物理剩餘牌數：${summary.physicalRemaining}
