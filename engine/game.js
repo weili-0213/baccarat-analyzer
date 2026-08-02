@@ -2,27 +2,19 @@
  * Baccarat Analyzer
  * -----------------------------------------
  *
- * Game v2
+ * Game v3
  *
  * 百家樂遊戲主控制器
  *
- * 負責整合：
+ * 支援：
  *
- * 1. Shoe
- * 2. Burn
- * 3. Dealer
- * 4. History
- * 5. RoadmapAnalyzer
- *
- * 每完成一局：
- *
- * Dealer.play()
- *      ↓
- * RoundResult
- *      ↓
- * History.add()
- *      ↓
- * RoadmapAnalyzer.add()
+ * 1. 自動模擬牌局
+ * 2. 荷官手動輸入牌局
+ * 3. Shoe
+ * 4. Burn
+ * 5. Dealer
+ * 6. History
+ * 7. RoadmapAnalyzer
  */
 
 import Shoe
@@ -37,8 +29,22 @@ import Dealer
 import History
     from "./history.js";
 
+import Round
+    from "./round.js";
+
 import RoundResult
     from "./roundResult.js";
+
+import Card
+    from "./card.js";
+
+import {
+    playerMustDraw
+} from "./rules/playerRule.js";
+
+import {
+    bankerMustDraw
+} from "./rules/bankerRule.js";
 
 import RoadmapAnalyzer
     from "../roadmap/roadmapAnalyzer.js";
@@ -56,6 +62,41 @@ export const GameState =
     });
 
 
+/**
+ * 手動牌局狀態
+ */
+export const ManualRoundState =
+    Object.freeze({
+
+        IDLE: "IDLE",
+
+        INITIAL: "INITIAL",
+
+        PLAYER_THIRD: "PLAYER_THIRD",
+
+        BANKER_THIRD: "BANKER_THIRD",
+
+        READY_TO_FINISH:
+            "READY_TO_FINISH",
+
+        FINISHED: "FINISHED"
+
+    });
+
+
+/**
+ * 手動輸入方位
+ */
+export const HandSide =
+    Object.freeze({
+
+        PLAYER: "player",
+
+        BANKER: "banker"
+
+    });
+
+
 const DEFAULT_OPTIONS =
     Object.freeze({
 
@@ -66,16 +107,10 @@ const DEFAULT_OPTIONS =
         autoBurn: true,
 
         /**
-         * 最少保留牌數。
-         *
-         * 一局最多使用 6 張牌，
-         * 少於 6 張時不再開始新局。
+         * 一局最多可能使用六張牌。
          */
         minimumCards: 6,
 
-        /**
-         * Roadmap 列數設定。
-         */
         beadRows: 6,
 
         bigRoadRows: 6,
@@ -109,18 +144,7 @@ export default class Game {
             new History();
 
         this.roadmapAnalyzer =
-            new RoadmapAnalyzer({
-
-                beadRows:
-                    this.options.beadRows,
-
-                bigRoadRows:
-                    this.options.bigRoadRows,
-
-                derivedRows:
-                    this.options.derivedRows
-
-            });
+            this.createRoadmapAnalyzer();
 
         this.state =
             GameState.READY;
@@ -133,7 +157,44 @@ export default class Game {
 
         this.lastRoundAt = null;
 
+
+        /**
+         * 手動牌局資料
+         */
+        this.manualRound = null;
+
+        this.manualState =
+            ManualRoundState.IDLE;
+
+        this.manualCards = [];
+
+        this.manualResult = null;
+
+
         this.startNewShoe();
+
+    }
+
+
+    /**
+     * 建立 RoadmapAnalyzer
+     */
+    createRoadmapAnalyzer() {
+
+        return new RoadmapAnalyzer({
+
+            beadRows:
+                this.options.beadRows,
+
+            bigRoadRows:
+                this.options
+                    .bigRoadRows,
+
+            derivedRows:
+                this.options
+                    .derivedRows
+
+        });
 
     }
 
@@ -204,15 +265,6 @@ export default class Game {
 
     /**
      * 建立新牌靴
-     *
-     * 預設會：
-     *
-     * 1. 建立牌靴
-     * 2. 洗牌
-     * 3. 燒牌
-     * 4. 建立 Dealer
-     * 5. 清空 History
-     * 6. 清空 Roadmap
      */
     startNewShoe({
 
@@ -232,12 +284,6 @@ export default class Game {
             );
 
 
-        /**
-         * 相容兩種 Shoe 實作：
-         *
-         * 1. constructor 已自動 create()
-         * 2. constructor 尚未 create()
-         */
         if (
             shoe.remaining === 0 &&
             typeof shoe.create ===
@@ -288,6 +334,8 @@ export default class Game {
         }
 
 
+        this.resetManualRound();
+
         this.lastResult = null;
 
         this.shoeNumber++;
@@ -295,8 +343,7 @@ export default class Game {
         this.startedAt =
             Date.now();
 
-        this.lastRoundAt =
-            null;
+        this.lastRoundAt = null;
 
         this.state =
             GameState.PLAYING;
@@ -330,8 +377,6 @@ export default class Game {
 
             this.shoe !== null &&
 
-            this.dealer !== null &&
-
             this.shoe.remaining >=
                 this.options.minimumCards
 
@@ -341,7 +386,7 @@ export default class Game {
 
 
     /**
-     * 檢查是否可進行下一局
+     * 檢查牌靴是否可開始新局
      */
     ensurePlayable() {
 
@@ -349,14 +394,6 @@ export default class Game {
 
             throw new Error(
                 "Shoe not found."
-            );
-
-        }
-
-        if (!this.dealer) {
-
-            throw new Error(
-                "Dealer not found."
             );
 
         }
@@ -392,13 +429,7 @@ export default class Game {
 
 
     /**
-     * 儲存完成的一局
-     *
-     * 統一更新：
-     *
-     * - History
-     * - RoadmapAnalyzer
-     * - lastResult
+     * 儲存完成牌局
      */
     recordResult(result) {
 
@@ -424,42 +455,11 @@ export default class Game {
         this.lastRoundAt =
             Date.now();
 
-        return result;
 
-    }
-
-
-    /**
-     * 完成一局
-     *
-     * 回傳 RoundResult
-     */
-    playRound() {
-
-        this.ensurePlayable();
-
-        const result =
-            this.dealer.play();
-
-        if (!result) {
-
-            throw new Error(
-                "Dealer did not return a round result."
-            );
-
-        }
-
-        this.recordResult(
-            result
-        );
-
-
-        /**
-         * 打完這局後檢查剩餘牌數。
-         */
         if (
+            this.shoe &&
             this.shoe.remaining <
-            this.options.minimumCards
+                this.options.minimumCards
         ) {
 
             this.state =
@@ -472,8 +472,51 @@ export default class Game {
     }
 
 
+    /* =====================================
+       自動模擬牌局
+       ===================================== */
+
+
     /**
-     * play() 作為 playRound() 別名
+     * 自動完成一局
+     *
+     * 用於：
+     * - 測試
+     * - 模擬
+     * - Monte Carlo
+     */
+    playRound() {
+
+        this.ensurePlayable();
+
+        if (this.isManualRoundActive) {
+
+            throw new Error(
+                "Cannot auto-play while a manual round is active."
+            );
+
+        }
+
+        const result =
+            this.dealer.play();
+
+        if (!result) {
+
+            throw new Error(
+                "Dealer did not return a round result."
+            );
+
+        }
+
+        return this.recordResult(
+            result
+        );
+
+    }
+
+
+    /**
+     * play() 為自動牌局別名
      */
     play() {
 
@@ -483,9 +526,7 @@ export default class Game {
 
 
     /**
-     * 一次模擬多局
-     *
-     * 若牌數不足會提前停止。
+     * 自動模擬多局
      */
     playMany(count = 1) {
 
@@ -496,6 +537,14 @@ export default class Game {
 
             throw new RangeError(
                 "count must be a non-negative integer."
+            );
+
+        }
+
+        if (this.isManualRoundActive) {
+
+            throw new Error(
+                "Cannot auto-play while a manual round is active."
             );
 
         }
@@ -525,14 +574,911 @@ export default class Game {
     }
 
 
+    /* =====================================
+       手動輸入牌局
+       ===================================== */
+
+
+    /**
+     * 重置手動牌局資料
+     */
+    resetManualRound() {
+
+        this.manualRound = null;
+
+        this.manualCards = [];
+
+        this.manualResult = null;
+
+        this.manualState =
+            ManualRoundState.IDLE;
+
+        return this;
+
+    }
+
+
+    /**
+     * 是否正在輸入手動牌局
+     */
+    get isManualRoundActive() {
+
+        return [
+
+            ManualRoundState.INITIAL,
+
+            ManualRoundState.PLAYER_THIRD,
+
+            ManualRoundState.BANKER_THIRD,
+
+            ManualRoundState
+                .READY_TO_FINISH
+
+        ].includes(
+            this.manualState
+        );
+
+    }
+
+
+    /**
+     * 開始荷官手動牌局
+     */
+    startManualRound() {
+
+        this.ensurePlayable();
+
+        if (this.isManualRoundActive) {
+
+            throw new Error(
+                "A manual round is already active."
+            );
+
+        }
+
+        this.manualRound =
+            new Round();
+
+        this.manualCards = [];
+
+        this.manualResult = null;
+
+        this.manualState =
+            ManualRoundState.INITIAL;
+
+        return this.manualRound;
+
+    }
+
+
+    /**
+     * 驗證 side
+     */
+    validateSide(side) {
+
+        if (
+            !Object.values(
+                HandSide
+            ).includes(side)
+        ) {
+
+            throw new Error(
+                `Invalid hand side: ${side}`
+            );
+
+        }
+
+        return side;
+
+    }
+
+
+    /**
+     * 手動輸入的下一方
+     */
+    get nextManualSide() {
+
+        if (!this.manualRound) {
+
+            return null;
+
+        }
+
+        const count =
+            this.manualCards.length;
+
+
+        /**
+         * 初始四張固定順序：
+         *
+         * Player
+         * Banker
+         * Player
+         * Banker
+         */
+        if (count === 0) {
+
+            return HandSide.PLAYER;
+
+        }
+
+        if (count === 1) {
+
+            return HandSide.BANKER;
+
+        }
+
+        if (count === 2) {
+
+            return HandSide.PLAYER;
+
+        }
+
+        if (count === 3) {
+
+            return HandSide.BANKER;
+
+        }
+
+
+        if (
+            this.manualState ===
+            ManualRoundState.PLAYER_THIRD
+        ) {
+
+            return HandSide.PLAYER;
+
+        }
+
+
+        if (
+            this.manualState ===
+            ManualRoundState.BANKER_THIRD
+        ) {
+
+            return HandSide.BANKER;
+
+        }
+
+        return null;
+
+    }
+
+
+    /**
+     * 下一張牌的顯示名稱
+     */
+    get nextManualInput() {
+
+        const side =
+            this.nextManualSide;
+
+        if (!side) {
+
+            return null;
+
+        }
+
+        const hand =
+
+            side === HandSide.PLAYER
+
+                ? this.manualRound?.player
+
+                : this.manualRound?.banker;
+
+        const cardNumber =
+            (hand?.count ?? 0) + 1;
+
+        return {
+
+            side,
+
+            cardNumber,
+
+            label:
+                side === HandSide.PLAYER
+                    ? `Player 第 ${cardNumber} 張`
+                    : `Banker 第 ${cardNumber} 張`
+
+        };
+
+    }
+
+
+    /**
+     * 解析手動輸入牌
+     *
+     * 支援：
+     *
+     * Card
+     *
+     * {
+     *     rank: "A",
+     *     suit: "S",
+     *     deck: 1
+     * }
+     *
+     * {
+     *     rank: "A",
+     *     suit: "S"
+     * }
+     *
+     * 沒有提供 deck 時，
+     * 會從牌靴找到第一張相同 rank / suit。
+     */
+    resolveManualCard(input) {
+
+        if (!input) {
+
+            throw new Error(
+                "Card is required."
+            );
+
+        }
+
+
+        let rank;
+
+        let suit;
+
+        let deckNumber;
+
+
+        if (input instanceof Card) {
+
+            rank = input.rank;
+
+            suit = input.suit;
+
+            deckNumber =
+                input.deck ??
+                input.deckNumber;
+
+        }
+        else if (
+            typeof input === "object" &&
+            !Array.isArray(input)
+        ) {
+
+            rank = input.rank;
+
+            suit = input.suit;
+
+            deckNumber =
+                input.deck ??
+                input.deckNumber;
+
+        }
+        else {
+
+            throw new TypeError(
+                "Manual card must be a Card or card data object."
+            );
+
+        }
+
+
+        if (!rank || !suit) {
+
+            throw new Error(
+                "Card rank and suit are required."
+            );
+
+        }
+
+
+        const remainingCards =
+
+            typeof this.shoe.peek ===
+                "function"
+
+                ? this.shoe.peek()
+
+                : [...this.shoe.cards];
+
+
+        const matched =
+            remainingCards.find(
+                card => {
+
+                    const sameRank =
+                        card.rank === rank;
+
+                    const sameSuit =
+                        card.suit === suit;
+
+                    const sameDeck =
+
+                        deckNumber ===
+                            undefined ||
+
+                        deckNumber ===
+                            null ||
+
+                        card.deck ===
+                            deckNumber ||
+
+                        card.deckNumber ===
+                            deckNumber;
+
+                    return (
+                        sameRank &&
+                        sameSuit &&
+                        sameDeck
+                    );
+
+                }
+            );
+
+
+        if (!matched) {
+
+            throw new Error(
+                `Card is not available in shoe: ${rank}${suit}`
+            );
+
+        }
+
+        return matched;
+
+    }
+
+
+    /**
+     * 從牌靴移除手動輸入牌
+     */
+    consumeManualCard(card) {
+
+        const before =
+            this.shoe.remaining;
+
+        this.shoe.remove(
+            card
+        );
+
+        if (
+            this.shoe.remaining !==
+            before - 1
+        ) {
+
+            throw new Error(
+                "Failed to remove manual card from shoe."
+            );
+
+        }
+
+        return card;
+
+    }
+
+
+    /**
+     * 將牌放回牌靴
+     *
+     * 用於撤銷上一張。
+     */
+    restoreManualCard(card) {
+
+        if (!card) {
+
+            return this;
+
+        }
+
+        if (
+            !Array.isArray(
+                this.shoe.cards
+            ) ||
+            !Array.isArray(
+                this.shoe.discarded
+            )
+        ) {
+
+            throw new Error(
+                "Shoe does not support card restoration."
+            );
+
+        }
+
+
+        const discardedIndex =
+            this.shoe.discarded
+                .findLastIndex(
+                    item =>
+                        typeof item.equals ===
+                            "function"
+                            ? item.equals(card)
+                            : item.id === card.id
+                );
+
+
+        if (discardedIndex >= 0) {
+
+            this.shoe.discarded.splice(
+                discardedIndex,
+                1
+            );
+
+        }
+
+
+        const alreadyExists =
+            this.shoe.cards.some(
+                item =>
+                    typeof item.equals ===
+                        "function"
+                        ? item.equals(card)
+                        : item.id === card.id
+            );
+
+
+        if (!alreadyExists) {
+
+            this.shoe.cards.push(
+                card
+            );
+
+        }
+
+        return this;
+
+    }
+
+
+    /**
+     * 新增荷官發出的牌
+     */
+    addManualCard(
+        side,
+        input
+    ) {
+
+        if (!this.isManualRoundActive) {
+
+            throw new Error(
+                "Manual round is not active."
+            );
+
+        }
+
+        this.validateSide(
+            side
+        );
+
+        const expected =
+            this.nextManualSide;
+
+        if (!expected) {
+
+            throw new Error(
+                "No more cards are required for this round."
+            );
+
+        }
+
+        if (side !== expected) {
+
+            throw new Error(
+                `Expected ${expected}, received ${side}.`
+            );
+
+        }
+
+
+        const card =
+            this.resolveManualCard(
+                input
+            );
+
+
+        /**
+         * 先確認 Round 可接受這張牌，
+         * 再從 Shoe 移除。
+         */
+        this.manualRound.deal(
+            side,
+            card
+        );
+
+
+        try {
+
+            this.consumeManualCard(
+                card
+            );
+
+        }
+        catch (error) {
+
+            const hand =
+
+                side === HandSide.PLAYER
+
+                    ? this.manualRound.player
+
+                    : this.manualRound.banker;
+
+            hand.remove(
+                card
+            );
+
+            throw error;
+
+        }
+
+
+        this.manualCards.push({
+
+            side,
+
+            card
+
+        });
+
+
+        this.updateManualState();
+
+        return card;
+
+    }
+
+
+    /**
+     * 依規則更新手動牌局狀態
+     */
+    updateManualState() {
+
+        if (!this.manualRound) {
+
+            this.manualState =
+                ManualRoundState.IDLE;
+
+            return this.manualState;
+
+        }
+
+
+        const total =
+            this.manualCards.length;
+
+
+        /**
+         * 初始四張尚未完成。
+         */
+        if (total < 4) {
+
+            this.manualState =
+                ManualRoundState.INITIAL;
+
+            return this.manualState;
+
+        }
+
+
+        /**
+         * Natural 不補牌。
+         */
+        if (this.manualRound.isNatural) {
+
+            this.manualState =
+                ManualRoundState
+                    .READY_TO_FINISH;
+
+            return this.manualState;
+
+        }
+
+
+        const player =
+            this.manualRound.player;
+
+        const banker =
+            this.manualRound.banker;
+
+
+        /**
+         * Player 需要第三張。
+         */
+        if (
+            player.count === 2 &&
+            playerMustDraw(player)
+        ) {
+
+            this.manualState =
+                ManualRoundState
+                    .PLAYER_THIRD;
+
+            return this.manualState;
+
+        }
+
+
+        const playerThirdCard =
+
+            player.count === 3
+
+                ? player.lastCard
+
+                : null;
+
+
+        /**
+         * Banker 需要第三張。
+         */
+        if (
+            banker.count === 2 &&
+            bankerMustDraw(
+                banker,
+                playerThirdCard
+            )
+        ) {
+
+            this.manualState =
+                ManualRoundState
+                    .BANKER_THIRD;
+
+            return this.manualState;
+
+        }
+
+
+        this.manualState =
+            ManualRoundState
+                .READY_TO_FINISH;
+
+        return this.manualState;
+
+    }
+
+
+    /**
+     * 是否可完成手動牌局
+     */
+    get canFinishManualRound() {
+
+        return (
+
+            this.manualRound !== null &&
+
+            this.manualState ===
+                ManualRoundState
+                    .READY_TO_FINISH
+
+        );
+
+    }
+
+
+    /**
+     * 完成手動牌局
+     */
+    finishManualRound() {
+
+        if (!this.manualRound) {
+
+            throw new Error(
+                "Manual round not found."
+            );
+
+        }
+
+        if (!this.canFinishManualRound) {
+
+            throw new Error(
+                "Manual round is not ready to finish."
+            );
+
+        }
+
+
+        const result =
+            this.manualRound.finish();
+
+
+        this.manualResult =
+            result;
+
+        this.manualState =
+            ManualRoundState.FINISHED;
+
+
+        this.recordResult(
+            result
+        );
+
+        return result;
+
+    }
+
+
+    /**
+     * 撤銷手動輸入的上一張牌
+     */
+    undoManualCard() {
+
+        if (!this.manualRound) {
+
+            return null;
+
+        }
+
+        if (
+            this.manualState ===
+            ManualRoundState.FINISHED
+        ) {
+
+            throw new Error(
+                "Finished round cannot be edited."
+            );
+
+        }
+
+
+        const removed =
+            this.manualCards.pop();
+
+        if (!removed) {
+
+            return null;
+
+        }
+
+
+        this.restoreManualCard(
+            removed.card
+        );
+
+
+        this.rebuildManualRound();
+
+        return removed;
+
+    }
+
+
+    /**
+     * 依輸入紀錄重建 Round
+     */
+    rebuildManualRound() {
+
+        const round =
+            new Round();
+
+
+        for (
+            const item of
+            this.manualCards
+        ) {
+
+            round.deal(
+                item.side,
+                item.card
+            );
+
+        }
+
+
+        this.manualRound =
+            round;
+
+        this.manualResult =
+            null;
+
+        this.updateManualState();
+
+        return this.manualRound;
+
+    }
+
+
+    /**
+     * 取消目前手動牌局
+     *
+     * 已輸入的牌會放回牌靴。
+     */
+    cancelManualRound() {
+
+        if (
+            this.manualState ===
+            ManualRoundState.FINISHED
+        ) {
+
+            throw new Error(
+                "Finished round cannot be cancelled."
+            );
+
+        }
+
+
+        for (
+            let index =
+                this.manualCards.length - 1;
+
+            index >= 0;
+
+            index--
+        ) {
+
+            this.restoreManualCard(
+                this.manualCards[index]
+                    .card
+            );
+
+        }
+
+
+        this.resetManualRound();
+
+        return this;
+
+    }
+
+
+    /**
+     * 手動牌局進度
+     */
+    get manualProgress() {
+
+        return {
+
+            state:
+                this.manualState,
+
+            active:
+                this.isManualRoundActive,
+
+            canFinish:
+                this.canFinishManualRound,
+
+            nextInput:
+                this.nextManualInput,
+
+            totalCards:
+                this.manualCards.length,
+
+            playerCards:
+                this.manualRound
+                    ?.player
+                    ?.getCards() ??
+                [],
+
+            bankerCards:
+                this.manualRound
+                    ?.banker
+                    ?.getCards() ??
+                [],
+
+            playerScore:
+                this.manualRound
+                    ?.playerScore ??
+                null,
+
+            bankerScore:
+                this.manualRound
+                    ?.bankerScore ??
+                null,
+
+            isNatural:
+                this.manualRound
+                    ?.isNatural ??
+                false,
+
+            result:
+                this.manualResult
+
+        };
+
+    }
+
+
+    /* =====================================
+       外部結果與歷史
+       ===================================== */
+
+
     /**
      * 匯入外部結果
-     *
-     * 適合：
-     *
-     * - 手動輸入牌局
-     * - 還原歷史
-     * - 外部 API 結果
      */
     addResult(result) {
 
@@ -544,7 +1490,7 @@ export default class Game {
 
 
     /**
-     * 一次匯入多筆結果
+     * 匯入多筆結果
      */
     addResults(results = []) {
 
@@ -573,9 +1519,7 @@ export default class Game {
 
 
     /**
-     * 清空歷史與所有路單
-     *
-     * 不更換目前牌靴。
+     * 清空歷史與路單
      */
     clearHistory() {
 
@@ -593,7 +1537,7 @@ export default class Game {
 
 
     /**
-     * 根據 History 重新建立全部路單
+     * 重新建立所有路單
      */
     rebuildRoadmaps() {
 
@@ -608,8 +1552,6 @@ export default class Game {
 
     /**
      * 替換牌靴
-     *
-     * 可用於測試固定牌序。
      */
     setShoe(
         shoe,
@@ -637,8 +1579,15 @@ export default class Game {
 
         }
 
-        this.shoe =
-            shoe;
+
+        if (this.isManualRoundActive) {
+
+            this.cancelManualRound();
+
+        }
+
+
+        this.shoe = shoe;
 
         this.burn =
             new Burn(
@@ -650,11 +1599,15 @@ export default class Game {
                 this.shoe
             );
 
+
         if (clearHistory) {
 
             this.clearHistory();
 
         }
+
+
+        this.resetManualRound();
 
         this.state =
             GameState.PLAYING;
@@ -669,9 +1622,11 @@ export default class Game {
     }
 
 
-    /**
-     * 目前局數
-     */
+    /* =====================================
+       Getter
+       ===================================== */
+
+
     get roundCount() {
 
         return this.history.count;
@@ -679,9 +1634,6 @@ export default class Game {
     }
 
 
-    /**
-     * 是否尚未有牌局
-     */
     get isEmpty() {
 
         return this.history.isEmpty;
@@ -689,9 +1641,6 @@ export default class Game {
     }
 
 
-    /**
-     * 最後一局
-     */
     get lastRound() {
 
         return (
@@ -702,9 +1651,6 @@ export default class Game {
     }
 
 
-    /**
-     * 最後勝方
-     */
     get winner() {
 
         return (
@@ -715,10 +1661,13 @@ export default class Game {
     }
 
 
-    /**
-     * 目前牌局
-     */
     get currentRound() {
+
+        if (this.manualRound) {
+
+            return this.manualRound;
+
+        }
 
         return (
             this.dealer
@@ -729,9 +1678,6 @@ export default class Game {
     }
 
 
-    /**
-     * 剩餘牌數
-     */
     get remainingCards() {
 
         return (
@@ -742,9 +1688,6 @@ export default class Game {
     }
 
 
-    /**
-     * 已使用牌數
-     */
     get usedCards() {
 
         return (
@@ -755,9 +1698,6 @@ export default class Game {
     }
 
 
-    /**
-     * 剩餘牌比例
-     */
     get remainingRatio() {
 
         return (
@@ -769,9 +1709,6 @@ export default class Game {
     }
 
 
-    /**
-     * 是否已完成牌靴
-     */
     get finished() {
 
         return (
@@ -782,9 +1719,6 @@ export default class Game {
     }
 
 
-    /**
-     * 燒牌資訊
-     */
     get burnInfo() {
 
         if (!this.burn) {
@@ -812,9 +1746,6 @@ export default class Game {
     }
 
 
-    /**
-     * 五種 Road 實例
-     */
     get roads() {
 
         return this.roadmapAnalyzer
@@ -823,9 +1754,6 @@ export default class Game {
     }
 
 
-    /**
-     * 五種 Road 矩陣
-     */
     get roadMatrices() {
 
         return this.roadmapAnalyzer
@@ -834,9 +1762,6 @@ export default class Game {
     }
 
 
-    /**
-     * Roadmap 完整摘要
-     */
     get roadmapSummary() {
 
         return this.roadmapAnalyzer
@@ -845,9 +1770,6 @@ export default class Game {
     }
 
 
-    /**
-     * Roadmap UI ViewModel
-     */
     get roadmapViewModel() {
 
         return this.roadmapAnalyzer
@@ -899,8 +1821,7 @@ export default class Game {
 
             winRate: {
 
-                ...this.history
-                    .winRate
+                ...this.history.winRate
 
             },
 
@@ -937,8 +1858,7 @@ export default class Game {
                     .dragonBonusCount,
 
             streak:
-                this.history
-                    .streak,
+                this.history.streak,
 
             lastWinner:
                 this.winner,
@@ -947,7 +1867,10 @@ export default class Game {
                 this.startedAt,
 
             lastRoundAt:
-                this.lastRoundAt
+                this.lastRoundAt,
+
+            manual:
+                this.manualProgress
 
         };
 
@@ -955,7 +1878,7 @@ export default class Game {
 
 
     /**
-     * 路單與 History 一致性檢查
+     * 一致性檢查
      */
     validateConsistency() {
 
@@ -1010,7 +1933,7 @@ export default class Game {
 
 
     /**
-     * UI 使用資料
+     * UI ViewModel
      */
     toViewModel() {
 
@@ -1033,9 +1956,12 @@ export default class Game {
 
             lastResult:
                 this.lastResult
-                    ? this.lastResult
-                        .toJSON()
-                    : null,
+                    ?.toJSON?.() ??
+                this.lastResult ??
+                null,
+
+            manual:
+                this.manualProgress,
 
             roadmap:
                 this.roadmapViewModel,
@@ -1048,14 +1974,16 @@ export default class Game {
     }
 
 
-    /**
-     * JSON
-     */
+    /* =====================================
+       JSON
+       ===================================== */
+
+
     toJSON() {
 
         return {
 
-            version: 2,
+            version: 3,
 
             options: {
 
@@ -1099,9 +2027,29 @@ export default class Game {
 
             lastResult:
                 this.lastResult
-                    ? this.lastResult
-                        .toJSON()
-                    : null
+                    ?.toJSON?.() ??
+                this.lastResult ??
+                null,
+
+            manual: {
+
+                state:
+                    this.manualState,
+
+                cards:
+                    this.manualCards.map(
+                        item => ({
+
+                            side:
+                                item.side,
+
+                            card:
+                                item.card.toJSON()
+
+                        })
+                    )
+
+            }
 
         };
 
@@ -1176,10 +2124,6 @@ export default class Game {
             );
 
 
-        /**
-         * Burn.fromJSON 尚未定義時，
-         * 直接恢復公開資料。
-         */
         if (data.burn) {
 
             game.burn.executed =
@@ -1238,27 +2182,8 @@ export default class Game {
 
 
         game.roadmapAnalyzer =
-            new RoadmapAnalyzer({
+            game.createRoadmapAnalyzer();
 
-                beadRows:
-                    game.options
-                        .beadRows,
-
-                bigRoadRows:
-                    game.options
-                        .bigRoadRows,
-
-                derivedRows:
-                    game.options
-                        .derivedRows
-
-            });
-
-
-        /**
-         * 使用 History 重建路單，
-         * 確保五種路單一致。
-         */
         game.roadmapAnalyzer.build(
             game.history
         );
@@ -1301,6 +2226,58 @@ export default class Game {
         game.lastResult =
             game.history.last;
 
+
+        game.manualRound = null;
+
+        game.manualCards = [];
+
+        game.manualResult = null;
+
+        game.manualState =
+            ManualRoundState.IDLE;
+
+
+        if (
+            Array.isArray(
+                data.manual?.cards
+            ) &&
+            data.manual.cards.length > 0
+        ) {
+
+            game.manualRound =
+                new Round();
+
+
+            for (
+                const item of
+                data.manual.cards
+            ) {
+
+                const card =
+                    Card.fromJSON(
+                        item.card
+                    );
+
+                game.manualRound.deal(
+                    item.side,
+                    card
+                );
+
+                game.manualCards.push({
+
+                    side:
+                        item.side,
+
+                    card
+
+                });
+
+            }
+
+
+            game.updateManualState();
+
+        }
 
         return game;
 
