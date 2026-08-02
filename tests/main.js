@@ -37,6 +37,9 @@ import smallRoadTest
 import cockroachRoadTest
     from "./cockroachRoad.test.js";
 
+import roadmapAnalyzerTest
+    from "./roadmapAnalyzer.test.js";
+
 
 /**
  * 新增測試時，只需：
@@ -92,8 +95,14 @@ const TESTS = [
         id: "cockroach-road",
         name: "Cockroach Road",
         run: cockroachRoadTest
-    }
+    },
 
+    {
+        id: "roadmap-analyzer",
+        name: "Roadmap Analyzer",
+        run: roadmapAnalyzerTest
+    }
+    
 ];
 
 const elements = {
