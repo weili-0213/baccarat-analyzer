@@ -11,7 +11,8 @@ import Game, {
 } from "../engine/game.js";
 
 import createQuickCardInput, {
-    QuickCardInput
+    QuickCardInput,
+    QuickInputMode
 } from "../components/QuickCardInput.js";
 
 import AnalysisPanel, {
@@ -122,7 +123,8 @@ export class Dashboard {
             selectedSuit: "S",
             mode: loadMode(),
             activeRoad: "beadRoad",
-            mobileSection: DashboardSection.INPUT
+            mobileSection: DashboardSection.INPUT,
+            quickInputMode: QuickInputMode.AUTO
         };
 
         this.components = {
@@ -522,6 +524,7 @@ export class Dashboard {
             root,
             shoe: this.game.shoe,
             keyboard: true,
+            mode: this.ui.quickInputMode,
             disabled: this.ui.busy ||
                 !this.game.isManualRoundActive ||
                 this.game.canFinishManualRound
@@ -859,6 +862,7 @@ export class Dashboard {
             quickCardMounted: this.components.quickCardInput instanceof QuickCardInput,
             fastInput: true,
             keyboardShortcuts: true,
+            autoSuit: this.ui.quickInputMode === QuickInputMode.AUTO,
             casinoLayout: true,
             mobileSection: this.ui.mobileSection
         };
