@@ -2437,7 +2437,7 @@ export default class Analyzer {
             roundCount:
                 this.context.history
                     ?.count ??
-                0
+                0,
 
             remainingCards:
                 this.context.shoe
@@ -2456,7 +2456,7 @@ export default class Analyzer {
             rounds:
                 this.context.history
                     ?.count ??
-                0,
+                0
 
         };
 
