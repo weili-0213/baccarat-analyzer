@@ -1,51 +1,106 @@
 /**
  * Baccarat Analyzer
  * -----------------------------------------
- * Exact Probability Engine
  *
- * 根據目前剩餘牌靴的 Rank 數量，
+ * Exact Probability Engine v2
+ *
+ * 根據目前可觀察牌池的 Rank 數量，
  * 完整列舉下一局所有可能發牌結果。
  *
  * 使用「條件機率 × 分支機率」累加，
  * 不修改真實 Shoe。
  *
  * 職責：
- * - 精確計算下一局事件機率
+ *
+ * 1. 精確計算下一局所有主要與側注事件機率
+ * 2. 支援同步與非同步分批計算
+ * 3. 支援 AbortSignal 與進度回呼
+ * 4. 區分可觀察牌池與實體牌靴剩餘數
  *
  * 不負責：
+ *
  * - EV
  * - Kelly
  * - Risk
  * - Confidence
  * - Ranking
  * - Recommendation
+ *
+ * 未知燒牌說明：
+ *
+ * shoe.cards 代表可觀察牌池。
+ *
+ * unknownBurnedCount 只表示實際已離開物理牌靴、
+ * 但牌面身分未知的牌數。
+ *
+ * Exact 以可觀察牌池計算條件機率；
+ * 不會任意虛構未知燒牌的具體牌面。
  */
 
 const RANKS = Object.freeze([
+
     "A",
+
     "2",
+
     "3",
+
     "4",
+
     "5",
+
     "6",
+
     "7",
+
     "8",
+
     "9",
+
     "10",
+
     "J",
+
     "Q",
+
     "K"
+
 ]);
 
-const DEFAULT_OPTIONS = Object.freeze({
 
-    /**
-     * 非同步模式每批處理多少個
-     * P1/B1 起始分支。
-     */
-    batchSize: 8
+const DEFAULT_OPTIONS =
+    Object.freeze({
 
-});
+        /**
+         * 非同步模式每批處理多少個
+         * P1 / B1 起始分支。
+         */
+        batchSize:
+            8,
+
+        /**
+         * 浮點誤差容許值。
+         */
+        probabilityTolerance:
+            1e-9
+
+    });
+
+
+function isObject(value) {
+
+    return (
+
+        value !== null &&
+
+        typeof value ===
+            "object" &&
+
+        !Array.isArray(value)
+
+    );
+
+}
 
 
 export default class Exact {
@@ -62,6 +117,10 @@ export default class Exact {
         options = {}
     ) {
 
+        this.context = {};
+
+        this.shoe = null;
+
         this.options = {
 
             ...DEFAULT_OPTIONS,
@@ -70,16 +129,27 @@ export default class Exact {
 
         };
 
-        this.setContext(context);
+        this.setContext(
+            context
+        );
 
         this.validateOptions();
 
     }
 
+
     /**
      * 更新分析環境
      */
     setContext(context = {}) {
+
+        if (!isObject(context)) {
+
+            throw new TypeError(
+                "Exact context must be an object."
+            );
+
+        }
 
         this.context = {
 
@@ -88,11 +158,13 @@ export default class Exact {
         };
 
         this.shoe =
-            context.shoe ?? null;
+            context.shoe ??
+            null;
 
         return this;
 
     }
+
 
     /**
      * 驗證設定
@@ -107,44 +179,22 @@ export default class Exact {
         ) {
 
             throw new RangeError(
-                "batchSize must be a positive integer"
+                "batchSize must be a positive integer."
             );
 
         }
 
-    }
+        if (
+            !Number.isFinite(
+                this.options
+                    .probabilityTolerance
+            ) ||
+            this.options
+                .probabilityTolerance <= 0
+        ) {
 
-    /**
-     * 驗證 Shoe
-     */
-    validateShoe(shoe = this.shoe) {
-
-        if (!shoe) {
-
-            throw new Error(
-                "Exact analysis requires a Shoe"
-            );
-
-        }
-
-        if (!Array.isArray(shoe.cards)) {
-
-            throw new TypeError(
-                "Shoe cards must be an array"
-            );
-
-        }
-
-        /**
-         * 一局最多使用六張牌。
-         *
-         * 為了保證每個可能分支都能完成，
-         * Exact 至少要求六張剩餘牌。
-         */
-        if (shoe.cards.length < 6) {
-
-            throw new Error(
-                "Exact analysis requires at least 6 remaining cards"
+            throw new RangeError(
+                "probabilityTolerance must be a positive number."
             );
 
         }
@@ -152,6 +202,220 @@ export default class Exact {
         return true;
 
     }
+
+
+    /**
+     * 取得可觀察牌池張數
+     */
+    getObservableRemaining(
+        shoe = this.shoe
+    ) {
+
+        if (!shoe) {
+
+            return 0;
+
+        }
+
+        const value =
+
+            shoe.observableRemaining ??
+
+            shoe.knownRemaining ??
+
+            shoe.remaining ??
+
+            (
+                Array.isArray(
+                    shoe.cards
+                )
+                    ? shoe.cards.length
+                    : null
+            );
+
+        if (
+            !Number.isInteger(value) ||
+            value < 0
+        ) {
+
+            throw new TypeError(
+                "Invalid Shoe observable remaining count."
+            );
+
+        }
+
+        return value;
+
+    }
+
+
+    /**
+     * 取得物理牌靴剩餘張數
+     */
+    getPhysicalRemaining(
+        shoe = this.shoe
+    ) {
+
+        if (!shoe) {
+
+            return 0;
+
+        }
+
+        const observableRemaining =
+            this.getObservableRemaining(
+                shoe
+            );
+
+        const value =
+
+            shoe.physicalRemaining ??
+
+            observableRemaining;
+
+        if (
+            !Number.isInteger(value) ||
+            value < 0
+        ) {
+
+            throw new TypeError(
+                "Invalid Shoe physical remaining count."
+            );
+
+        }
+
+        if (
+            value >
+            observableRemaining
+        ) {
+
+            throw new RangeError(
+                "Physical remaining cards cannot exceed observable remaining cards."
+            );
+
+        }
+
+        return value;
+
+    }
+
+
+    /**
+     * 取得未知燒牌張數
+     */
+    getUnknownBurnedCount(
+        shoe = this.shoe
+    ) {
+
+        if (!shoe) {
+
+            return 0;
+
+        }
+
+        const value =
+            shoe.unknownBurnedCount ??
+            0;
+
+        if (
+            !Number.isInteger(value) ||
+            value < 0
+        ) {
+
+            throw new TypeError(
+                "Invalid Shoe unknown burned count."
+            );
+
+        }
+
+        return value;
+
+    }
+
+
+    /**
+     * 驗證 Shoe
+     */
+    validateShoe(
+        shoe = this.shoe
+    ) {
+
+        if (!shoe) {
+
+            throw new Error(
+                "Exact analysis requires a Shoe."
+            );
+
+        }
+
+        if (
+            !Array.isArray(
+                shoe.cards
+            )
+        ) {
+
+            throw new TypeError(
+                "Shoe cards must be an array."
+            );
+
+        }
+
+        const observableRemaining =
+            this.getObservableRemaining(
+                shoe
+            );
+
+        const physicalRemaining =
+            this.getPhysicalRemaining(
+                shoe
+            );
+
+        const unknownBurnedCount =
+            this.getUnknownBurnedCount(
+                shoe
+            );
+
+        /**
+         * Exact 必須完整列舉所有可能分支。
+         *
+         * 一局最多使用六張，因此可觀察牌池與
+         * 實體牌靴均至少需要六張。
+         */
+        if (
+            observableRemaining < 6
+        ) {
+
+            throw new Error(
+                "Exact analysis requires at least 6 observable cards."
+            );
+
+        }
+
+        if (
+            physicalRemaining < 6
+        ) {
+
+            throw new Error(
+                "Exact analysis requires at least 6 physical cards."
+            );
+
+        }
+
+        if (
+            unknownBurnedCount >
+            observableRemaining
+        ) {
+
+            throw new RangeError(
+                "Unknown burned count exceeds observable remaining cards."
+            );
+
+        }
+
+        return true;
+
+    }
+
 
     /**
      * Rank 轉百家樂點數
@@ -175,14 +439,38 @@ export default class Exact {
 
         }
 
-        return Number(rank);
+        const value =
+            Number(rank);
+
+        if (
+            !Number.isInteger(value) ||
+            value < 2 ||
+            value > 9
+        ) {
+
+            throw new Error(
+                `Invalid baccarat rank: ${rank}`
+            );
+
+        }
+
+        return value;
 
     }
+
 
     /**
      * 手牌點數
      */
     handScore(rankIndexes) {
+
+        if (!Array.isArray(rankIndexes)) {
+
+            throw new TypeError(
+                "rankIndexes must be an array."
+            );
+
+        }
 
         let total = 0;
 
@@ -190,6 +478,18 @@ export default class Exact {
             const index of
             rankIndexes
         ) {
+
+            if (
+                !Number.isInteger(index) ||
+                index < 0 ||
+                index >= RANKS.length
+            ) {
+
+                throw new RangeError(
+                    `Invalid rank index: ${index}`
+                );
+
+            }
 
             total +=
                 this.rankValue(
@@ -202,12 +502,16 @@ export default class Exact {
 
     }
 
+
     /**
      * 是否 Natural
      */
     isNatural(rankIndexes) {
 
-        if (rankIndexes.length !== 2) {
+        if (
+            !Array.isArray(rankIndexes) ||
+            rankIndexes.length !== 2
+        ) {
 
             return false;
 
@@ -224,6 +528,7 @@ export default class Exact {
         );
 
     }
+
 
     /**
      * Player 是否補牌
@@ -247,6 +552,7 @@ export default class Exact {
         );
 
     }
+
 
     /**
      * Banker 是否補牌
@@ -282,6 +588,21 @@ export default class Exact {
 
         }
 
+        if (
+            !Number.isInteger(
+                playerThirdIndex
+            ) ||
+            playerThirdIndex < 0 ||
+            playerThirdIndex >=
+                RANKS.length
+        ) {
+
+            throw new RangeError(
+                "Invalid player third-card rank index."
+            );
+
+        }
+
         const playerThirdRank =
             RANKS[playerThirdIndex];
 
@@ -302,12 +623,19 @@ export default class Exact {
         if (bankerScore === 4) {
 
             return [
+
                 "2",
+
                 "3",
+
                 "4",
+
                 "5",
+
                 "6",
+
                 "7"
+
             ].includes(
                 playerThirdRank
             );
@@ -317,10 +645,15 @@ export default class Exact {
         if (bankerScore === 5) {
 
             return [
+
                 "4",
+
                 "5",
+
                 "6",
+
                 "7"
+
             ].includes(
                 playerThirdRank
             );
@@ -330,8 +663,11 @@ export default class Exact {
         if (bankerScore === 6) {
 
             return (
+
                 playerThirdRank === "6" ||
+
                 playerThirdRank === "7"
+
             );
 
         }
@@ -340,6 +676,7 @@ export default class Exact {
 
     }
 
+
     /**
      * 統計目前剩餘牌的 Rank 數量
      */
@@ -347,14 +684,19 @@ export default class Exact {
         shoe = this.shoe
     ) {
 
-        this.validateShoe(shoe);
+        this.validateShoe(
+            shoe
+        );
 
         const counts =
             new Array(
                 RANKS.length
             ).fill(0);
 
-        for (const card of shoe.cards) {
+        for (
+            const card of
+            shoe.cards
+        ) {
 
             const index =
                 RANKS.indexOf(
@@ -377,6 +719,7 @@ export default class Exact {
 
     }
 
+
     /**
      * 建立空機率累加器
      */
@@ -384,41 +727,58 @@ export default class Exact {
 
         return {
 
-            player: 0,
+            player:
+                0,
 
-            banker: 0,
+            banker:
+                0,
 
-            tie: 0,
+            tie:
+                0,
 
-            playerPair: 0,
+            playerPair:
+                0,
 
-            bankerPair: 0,
+            bankerPair:
+                0,
 
-            eitherPair: 0,
+            eitherPair:
+                0,
 
-            super6: 0,
+            super6:
+                0,
 
-            playerNatural: 0,
+            playerNatural:
+                0,
 
-            bankerNatural: 0,
+            bankerNatural:
+                0,
 
-            natural: 0,
+            natural:
+                0,
 
-            big: 0,
+            big:
+                0,
 
-            small: 0,
+            small:
+                0,
 
-            playerDragonBonus: 0,
+            playerDragonBonus:
+                0,
 
-            bankerDragonBonus: 0,
+            bankerDragonBonus:
+                0,
 
-            totalProbability: 0,
+            totalProbability:
+                0,
 
-            terminalBranches: 0
+            terminalBranches:
+                0
 
         };
 
     }
+
 
     /**
      * 遍歷一次可能抽牌
@@ -432,10 +792,32 @@ export default class Exact {
         callback
     ) {
 
-        if (remaining <= 0) {
+        if (!Array.isArray(counts)) {
+
+            throw new TypeError(
+                "counts must be an array."
+            );
+
+        }
+
+        if (
+            !Number.isInteger(remaining) ||
+            remaining <= 0
+        ) {
 
             throw new Error(
-                "No cards remaining in exact branch"
+                "No cards remaining in exact branch."
+            );
+
+        }
+
+        if (
+            typeof callback !==
+            "function"
+        ) {
+
+            throw new TypeError(
+                "callback must be a function."
             );
 
         }
@@ -456,29 +838,37 @@ export default class Exact {
             }
 
             const probability =
-                count / remaining;
+                count /
+                remaining;
 
             counts[index]--;
 
-            callback(
-                index,
-                probability
-            );
+            try {
 
-            counts[index]++;
+                callback(
+                    index,
+                    probability
+                );
+
+            }
+            finally {
+
+                counts[index]++;
+
+            }
 
         }
 
     }
 
+
     /**
      * 閒龍寶是否為中獎事件
      *
      * 暫定：
+     *
      * - 閒家獲勝
      * - 閒家 Natural，或勝差至少 4
-     *
-     * 分級賠率之後交給 sidebets.js。
      */
     isPlayerDragonBonus({
 
@@ -491,14 +881,19 @@ export default class Exact {
     }) {
 
         return (
+
             winner === "Player" &&
+
             (
                 playerNatural ||
+
                 margin >= 4
             )
+
         );
 
     }
+
 
     /**
      * 莊龍寶是否為中獎事件
@@ -514,14 +909,19 @@ export default class Exact {
     }) {
 
         return (
+
             winner === "Banker" &&
+
             (
                 bankerNatural ||
+
                 margin >= 4
             )
+
         );
 
     }
+
 
     /**
      * 記錄一個完成分支
@@ -532,6 +932,17 @@ export default class Exact {
         bankerRanks,
         probability
     ) {
+
+        if (
+            !Number.isFinite(probability) ||
+            probability < 0
+        ) {
+
+            throw new RangeError(
+                "Terminal branch probability must be non-negative."
+            );
+
+        }
 
         const playerScore =
             this.handScore(
@@ -550,7 +961,8 @@ export default class Exact {
             bankerScore
         ) {
 
-            winner = "Player";
+            winner =
+                "Player";
 
             accumulator.player +=
                 probability;
@@ -561,7 +973,8 @@ export default class Exact {
             playerScore
         ) {
 
-            winner = "Banker";
+            winner =
+                "Banker";
 
             accumulator.banker +=
                 probability;
@@ -569,7 +982,8 @@ export default class Exact {
         }
         else {
 
-            winner = "Tie";
+            winner =
+                "Tie";
 
             accumulator.tie +=
                 probability;
@@ -588,17 +1002,24 @@ export default class Exact {
 
         const playerNatural =
             this.isNatural(
-                playerRanks.slice(0, 2)
+                playerRanks.slice(
+                    0,
+                    2
+                )
             );
 
         const bankerNatural =
             this.isNatural(
-                bankerRanks.slice(0, 2)
+                bankerRanks.slice(
+                    0,
+                    2
+                )
             );
 
         const natural =
 
             playerNatural ||
+
             bankerNatural;
 
         const margin =
@@ -610,6 +1031,7 @@ export default class Exact {
         const cardCount =
 
             playerRanks.length +
+
             bankerRanks.length;
 
         if (playerPair) {
@@ -727,6 +1149,7 @@ export default class Exact {
 
     }
 
+
     /**
      * 初始四張完成後，
      * 列舉所有第三張牌分支。
@@ -814,8 +1237,8 @@ export default class Exact {
                         remaining - 1;
 
                     /**
-                     * Banker 依 Player
-                     * 第三張牌決定是否補牌。
+                     * Banker 依 Player 第三張
+                     * 決定是否補牌。
                      */
                     if (
                         this.bankerMustDraw(
@@ -845,9 +1268,11 @@ export default class Exact {
                                     nextPlayerRanks,
 
                                     [
+
                                         ...bankerRanks,
 
                                         bankerThirdIndex
+
                                     ],
 
                                     nextProbability *
@@ -917,9 +1342,11 @@ export default class Exact {
                         playerRanks,
 
                         [
+
                             ...bankerRanks,
 
                             bankerThirdIndex
+
                         ],
 
                         branchProbability *
@@ -953,6 +1380,7 @@ export default class Exact {
 
     }
 
+
     /**
      * 處理已固定 P1、B1 的分支。
      */
@@ -981,6 +1409,17 @@ export default class Exact {
         counts[playerFirstIndex]--;
 
         counts[bankerFirstIndex]--;
+
+        if (
+            counts[playerFirstIndex] < 0 ||
+            counts[bankerFirstIndex] < 0
+        ) {
+
+            throw new Error(
+                "Invalid exact prefix card counts."
+            );
+
+        }
 
         const remainingAfterPrefix =
             totalCards - 2;
@@ -1065,13 +1504,33 @@ export default class Exact {
 
     }
 
+
     /**
-     * 建立所有 P1/B1 起始分支
+     * 建立所有 P1 / B1 起始分支
      */
     createPrefixes(
         counts,
         totalCards
     ) {
+
+        if (!Array.isArray(counts)) {
+
+            throw new TypeError(
+                "counts must be an array."
+            );
+
+        }
+
+        if (
+            !Number.isInteger(totalCards) ||
+            totalCards < 2
+        ) {
+
+            throw new RangeError(
+                "totalCards must be at least 2."
+            );
+
+        }
 
         const prefixes = [];
 
@@ -1097,51 +1556,104 @@ export default class Exact {
 
             counts[playerIndex]--;
 
-            for (
-                let bankerIndex = 0;
-                bankerIndex < counts.length;
-                bankerIndex++
-            ) {
+            try {
 
-                if (
-                    counts[bankerIndex] <= 0
+                for (
+                    let bankerIndex = 0;
+                    bankerIndex < counts.length;
+                    bankerIndex++
                 ) {
 
-                    continue;
+                    if (
+                        counts[bankerIndex] <= 0
+                    ) {
+
+                        continue;
+
+                    }
+
+                    const bankerProbability =
+
+                        counts[bankerIndex] /
+
+                        (
+                            totalCards - 1
+                        );
+
+                    prefixes.push({
+
+                        playerFirstIndex:
+                            playerIndex,
+
+                        bankerFirstIndex:
+                            bankerIndex,
+
+                        probability:
+
+                            playerProbability *
+
+                            bankerProbability
+
+                    });
 
                 }
 
-                const bankerProbability =
+            }
+            finally {
 
-                    counts[bankerIndex] /
-
-                    (totalCards - 1);
-
-                prefixes.push({
-
-                    playerFirstIndex:
-                        playerIndex,
-
-                    bankerFirstIndex:
-                        bankerIndex,
-
-                    probability:
-
-                        playerProbability *
-
-                        bankerProbability
-
-                });
+                counts[playerIndex]++;
 
             }
-
-            counts[playerIndex]++;
 
         }
 
         return prefixes;
 
     }
+
+
+    /**
+     * 正規化事件機率
+     */
+    normalizeProbability(
+        probability,
+        totalProbability
+    ) {
+
+        if (
+            !Number.isFinite(
+                totalProbability
+            ) ||
+            totalProbability <= 0
+        ) {
+
+            throw new Error(
+                "Exact analysis produced no terminal probability."
+            );
+
+        }
+
+        const normalized = {};
+
+        for (
+            const [
+                name,
+                value
+            ] of Object.entries(
+                probability
+            )
+        ) {
+
+            normalized[name] =
+                value /
+                totalProbability;
+
+        }
+
+        return normalized;
+
+    }
+
 
     /**
      * 建立最終輸出
@@ -1152,32 +1664,70 @@ export default class Exact {
 
         startedAt,
 
-        completedAt,
-
-        remainingCards
+        completedAt
 
     }) {
 
         const {
+
             totalProbability,
+
             terminalBranches,
-            ...probability
+
+            ...rawProbability
+
         } = accumulator;
+
+        const probability =
+            this.normalizeProbability(
+
+                rawProbability,
+
+                totalProbability
+
+            );
+
+        const observableRemaining =
+            this.getObservableRemaining(
+                this.shoe
+            );
+
+        const physicalRemaining =
+            this.getPhysicalRemaining(
+                this.shoe
+            );
+
+        const unknownBurnedCount =
+            this.getUnknownBurnedCount(
+                this.shoe
+            );
+
+        const probabilityError =
+            Math.abs(
+                1 -
+                totalProbability
+            );
 
         return {
 
-            method: "exact",
+            method:
+                "exact",
 
             probability,
 
+            /**
+             * 原始、尚未正規化的機率總和。
+             */
             totalProbability,
 
-            probabilityError:
+            probabilityError,
 
-                Math.abs(
-                    1 -
-                    totalProbability
-                ),
+            withinTolerance:
+
+                probabilityError <=
+
+                this.options
+                    .probabilityTolerance,
 
             terminalBranches,
 
@@ -1186,7 +1736,27 @@ export default class Exact {
                 completedAt -
                 startedAt,
 
-            remainingCards,
+            /**
+             * 舊版相容：
+             * 顯示實體牌靴剩餘數。
+             */
+            remainingCards:
+                physicalRemaining,
+
+            /**
+             * 機率引擎使用的可觀察牌池張數。
+             */
+            observableRemaining,
+
+            /**
+             * 賭桌牌靴實際剩餘張數。
+             */
+            physicalRemaining,
+
+            /**
+             * 身分未知的隱藏燒牌張數。
+             */
+            unknownBurnedCount,
 
             generatedAt:
 
@@ -1198,10 +1768,12 @@ export default class Exact {
 
     }
 
+
     /**
      * 同步精確計算
      *
      * 建議：
+     *
      * - 測試
      * - Web Worker
      * - 桌面瀏覽器
@@ -1216,12 +1788,16 @@ export default class Exact {
             this.getRankCounts();
 
         const totalCards =
-            this.shoe.cards.length;
+            this.getObservableRemaining(
+                this.shoe
+            );
 
         const prefixes =
             this.createPrefixes(
 
-                [...counts],
+                [
+                    ...counts
+                ],
 
                 totalCards
 
@@ -1271,14 +1847,12 @@ export default class Exact {
 
             startedAt,
 
-            completedAt,
-
-            remainingCards:
-                totalCards
+            completedAt
 
         });
 
     }
+
 
     /**
      * 非同步分批精確計算
@@ -1290,9 +1864,11 @@ export default class Exact {
         batchSize =
             this.options.batchSize,
 
-        signal = null,
+        signal =
+            null,
 
-        onProgress = null
+        onProgress =
+            null
 
     } = {}) {
 
@@ -1306,7 +1882,19 @@ export default class Exact {
         ) {
 
             throw new RangeError(
-                "batchSize must be a positive integer"
+                "batchSize must be a positive integer."
+            );
+
+        }
+
+        if (
+            signal !== null &&
+            typeof signal !==
+                "object"
+        ) {
+
+            throw new TypeError(
+                "signal must be an AbortSignal-compatible object or null."
             );
 
         }
@@ -1314,11 +1902,11 @@ export default class Exact {
         if (
             onProgress !== null &&
             typeof onProgress !==
-            "function"
+                "function"
         ) {
 
             throw new TypeError(
-                "onProgress must be a function or null"
+                "onProgress must be a function or null."
             );
 
         }
@@ -1327,12 +1915,16 @@ export default class Exact {
             this.getRankCounts();
 
         const totalCards =
-            this.shoe.cards.length;
+            this.getObservableRemaining(
+                this.shoe
+            );
 
         const prefixes =
             this.createPrefixes(
 
-                [...counts],
+                [
+                    ...counts
+                ],
 
                 totalCards
 
@@ -1351,11 +1943,13 @@ export default class Exact {
             prefixes.length
         ) {
 
-            if (signal?.aborted) {
+            if (
+                signal?.aborted
+            ) {
 
                 const error =
                     new Error(
-                        "Exact analysis aborted"
+                        "Exact analysis aborted."
                     );
 
                 error.name =
@@ -1376,8 +1970,11 @@ export default class Exact {
                 );
 
             for (
-                let index = completed;
+                let index =
+                    completed;
+
                 index < end;
+
                 index++
             ) {
 
@@ -1408,7 +2005,8 @@ export default class Exact {
 
             }
 
-            completed = end;
+            completed =
+                end;
 
             if (onProgress) {
 
@@ -1422,26 +2020,34 @@ export default class Exact {
                     ratio:
 
                         completed /
+
                         prefixes.length,
 
                     percent:
 
                         (
                             completed /
+
                             prefixes.length
                         ) * 100,
 
                     accumulatedProbability:
 
                         accumulator
-                            .totalProbability
+                            .totalProbability,
+
+                    terminalBranches:
+
+                        accumulator
+                            .terminalBranches
 
                 });
 
             }
 
             /**
-             * 讓瀏覽器更新畫面。
+             * 將控制權交還瀏覽器，
+             * 讓 UI 有機會更新。
              */
             await new Promise(
                 resolve =>
@@ -1462,19 +2068,25 @@ export default class Exact {
 
             startedAt,
 
-            completedAt,
-
-            remainingCards:
-                totalCards
+            completedAt
 
         });
 
     }
 
+
     /**
      * 更新設定
      */
     setOptions(options = {}) {
+
+        if (!isObject(options)) {
+
+            throw new TypeError(
+                "Exact options must be an object."
+            );
+
+        }
 
         this.options = {
 
@@ -1489,6 +2101,7 @@ export default class Exact {
         return this;
 
     }
+
 
     /**
      * 複製 Exact Engine
@@ -1513,6 +2126,56 @@ export default class Exact {
 
     }
 
+
+    /**
+     * 引擎摘要
+     */
+    get summary() {
+
+        return {
+
+            batchSize:
+                this.options
+                    .batchSize,
+
+            probabilityTolerance:
+                this.options
+                    .probabilityTolerance,
+
+            hasShoe:
+                Boolean(
+                    this.shoe
+                ),
+
+            observableRemaining:
+                this.shoe
+                    ? this
+                        .getObservableRemaining(
+                            this.shoe
+                        )
+                    : 0,
+
+            physicalRemaining:
+                this.shoe
+                    ? this
+                        .getPhysicalRemaining(
+                            this.shoe
+                        )
+                    : 0,
+
+            unknownBurnedCount:
+                this.shoe
+                    ? this
+                        .getUnknownBurnedCount(
+                            this.shoe
+                        )
+                    : 0
+
+        };
+
+    }
+
+
     /**
      * 輸出設定
      */
@@ -1521,7 +2184,12 @@ export default class Exact {
         return {
 
             batchSize:
-                this.options.batchSize
+                this.options
+                    .batchSize,
+
+            probabilityTolerance:
+                this.options
+                    .probabilityTolerance
 
         };
 
