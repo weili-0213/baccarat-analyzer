@@ -25,6 +25,9 @@ import historyTest
 import beadRoadTest
     from "./beadRoad.test.js";
 
+import bigRoadTest
+    from "./bigRoad.test.js";
+
 
 /**
  * 新增測試時，只需：
@@ -56,6 +59,12 @@ const TESTS = [
         id: "bead-road",
         name: "Bead Road",
         run: beadRoadTest
+    }
+
+    {
+        id: "big-road",
+        name: "Big Road",
+        run: bigRoadTest
     }
 
 ];
