@@ -2,7 +2,7 @@
  * Baccarat Analyzer
  * -----------------------------------------
  *
- * Analyzer v5
+ * Analyzer
  *
  * 分析層總控制器
  *
@@ -27,8 +27,12 @@ import EV from "./ev.js";
 import Kelly from "./kelly.js";
 import Risk from "./risk.js";
 import Confidence from "./confidence.js";
-import Ranking from "./ranking.js";
+import Ranking, {
+    MAIN_RECOMMENDATION_BETS,
+    SIDE_BETS
+} from "./ranking.js";
 import Recommendation from "./recommendation.js";
+import dragonBonus from "./dragonBonus.js";
 
 
 /**
@@ -60,11 +64,20 @@ export const BET_CONFIG = Object.freeze({
         label:
             "閒",
 
+        group:
+            "main",
+
         netOdds:
             1,
 
         pushKey:
-            "tie"
+            "tie",
+
+        recommendationEligible:
+            true,
+
+        analysisAvailable:
+            true
 
     }),
 
@@ -73,11 +86,20 @@ export const BET_CONFIG = Object.freeze({
         label:
             "莊",
 
+        group:
+            "main",
+
         netOdds:
             0.95,
 
         pushKey:
-            "tie"
+            "tie",
+
+        recommendationEligible:
+            true,
+
+        analysisAvailable:
+            true
 
     }),
 
@@ -86,11 +108,20 @@ export const BET_CONFIG = Object.freeze({
         label:
             "和",
 
+        group:
+            "main",
+
         netOdds:
             8,
 
         pushKey:
-            null
+            null,
+
+        recommendationEligible:
+            true,
+
+        analysisAvailable:
+            true
 
     }),
 
@@ -99,11 +130,20 @@ export const BET_CONFIG = Object.freeze({
         label:
             "閒對",
 
+        group:
+            "side",
+
         netOdds:
             11,
 
         pushKey:
-            null
+            null,
+
+        recommendationEligible:
+            false,
+
+        analysisAvailable:
+            true
 
     }),
 
@@ -112,11 +152,20 @@ export const BET_CONFIG = Object.freeze({
         label:
             "莊對",
 
+        group:
+            "side",
+
         netOdds:
             11,
 
         pushKey:
-            null
+            null,
+
+        recommendationEligible:
+            false,
+
+        analysisAvailable:
+            true
 
     }),
 
@@ -125,11 +174,20 @@ export const BET_CONFIG = Object.freeze({
         label:
             "超級 6",
 
+        group:
+            "side",
+
         netOdds:
             12,
 
         pushKey:
-            null
+            null,
+
+        recommendationEligible:
+            false,
+
+        analysisAvailable:
+            true
 
     }),
 
@@ -138,14 +196,23 @@ export const BET_CONFIG = Object.freeze({
         label:
             "閒龍寶",
 
+        group:
+            "side",
+
         netOdds:
-            30,
+            null,
 
         pushKey:
             null,
 
         provisional:
-            true
+            true,
+
+        recommendationEligible:
+            false,
+
+        analysisAvailable:
+            false
 
     }),
 
@@ -154,18 +221,33 @@ export const BET_CONFIG = Object.freeze({
         label:
             "莊龍寶",
 
+        group:
+            "side",
+
         netOdds:
-            30,
+            null,
 
         pushKey:
             null,
 
         provisional:
-            true
+            true,
+
+        recommendationEligible:
+            false,
+
+        analysisAvailable:
+            false
 
     })
 
 });
+
+
+export {
+    MAIN_RECOMMENDATION_BETS,
+    SIDE_BETS
+};
 
 
 const DEFAULT_OPTIONS = Object.freeze({
@@ -240,23 +322,7 @@ export default class Analyzer {
 
         this.context = {};
 
-        this.options = {
-
-            ...DEFAULT_OPTIONS,
-
-            monteCarlo: {
-
-                ...DEFAULT_OPTIONS.monteCarlo
-
-            },
-
-            exact: {
-
-                ...DEFAULT_OPTIONS.exact
-
-            }
-
-        };
+        this.options = {};
 
         this.monteCarlo = null;
 
@@ -274,16 +340,9 @@ export default class Analyzer {
 
         this.recommendation = null;
 
-        if (
-            isObject(context) &&
-            Object.keys(context).length > 0
-        ) {
-
-            this.setContext(
-                context
-            );
-
-        }
+        this.setContext(
+            context
+        );
 
     }
 
@@ -297,14 +356,6 @@ export default class Analyzer {
 
             throw new TypeError(
                 "Analyzer context must be an object."
-            );
-
-        }
-
-        if (!context.shoe) {
-
-            throw new Error(
-                "Analyzer context requires a Shoe."
             );
 
         }
@@ -419,16 +470,30 @@ export default class Analyzer {
             );
 
         this.ranking =
-            new Ranking(
-                context.rankingOptions ??
-                {}
-            );
+            new Ranking({
+
+                ...(
+                    context.rankingOptions ??
+                    {}
+                ),
+
+                allowedNames:
+                    MAIN_RECOMMENDATION_BETS
+
+            });
 
         this.recommendation =
-            new Recommendation(
-                context.recommendationOptions ??
-                {}
-            );
+            new Recommendation({
+
+                ...(
+                    context.recommendationOptions ??
+                    {}
+                ),
+
+                allowedBets:
+                    MAIN_RECOMMENDATION_BETS
+
+            });
 
         return this;
 
@@ -440,29 +505,72 @@ export default class Analyzer {
      */
     updateGameContext({
 
-        shoe = this.context.shoe,
+        shoe =
+            this.context.shoe,
 
-        history = this.context.history,
-
-        payouts = this.context.payouts
+        history =
+            this.context.history
 
     } = {}) {
 
-        this.setContext({
+        this.context = {
 
             ...this.context,
 
             shoe,
 
-            history,
+            history
 
-            payouts
+        };
 
-        });
+        if (
+            this.monteCarlo &&
+            typeof this.monteCarlo
+                .setContext ===
+                "function"
+        ) {
+
+            this.monteCarlo
+                .setContext({
+
+                    ...(
+                        this.monteCarlo
+                            .context ??
+                        {}
+                    ),
+
+                    shoe
+
+                });
+
+        }
+
+        if (
+            this.exact &&
+            typeof this.exact
+                .setContext ===
+                "function"
+        ) {
+
+            this.exact
+                .setContext({
+
+                    ...(
+                        this.exact
+                            .context ??
+                        {}
+                    ),
+
+                    shoe
+
+                });
+
+        }
 
         return this;
 
     }
+
 
     /**
      * 驗證 Analyzer 設定。
@@ -535,11 +643,11 @@ export default class Analyzer {
          * 因此機率引擎仍使用 shoe.cards 的可觀察牌池。
          */
         if (
-            shoe.cards.length === 0
+            shoe.cards.length < 6
         ) {
 
             throw new Error(
-                "No observable cards remain in the shoe."
+                "At least 6 observable cards are required for analysis."
             );
 
         }
@@ -969,8 +1077,36 @@ export default class Analyzer {
 
     /**
      * 計算全部 EV。
+     *
+     * Dragon Bonus 尚未具備完整分差機率，
+     * 因此保留欄位但固定為 0，並由 evStatus 標示 unavailable。
      */
     getEV(probability) {
+
+        const result =
+            this.ev.all(
+                probability
+            );
+
+        return {
+
+            ...result,
+
+            playerDragonBonus:
+                0,
+
+            bankerDragonBonus:
+                0
+
+        };
+
+    }
+
+
+    /**
+     * 建立 EV 可用狀態。
+     */
+    getEVStatus() {
 
         const result = {};
 
@@ -981,32 +1117,9 @@ export default class Analyzer {
             )
         ) {
 
-            if (
-                !Number.isFinite(
-                    probability[name]
-                )
-            ) {
-
-                continue;
-
-            }
-
-            const method =
-                this.ev[name];
-
-            if (
-                typeof method !==
-                "function"
-            ) {
-
-                continue;
-
-            }
-
             result[name] =
-                method.call(
-                    this.ev,
-                    probability
+                this.ev.getStatus(
+                    name
                 );
 
         }
@@ -1031,6 +1144,18 @@ export default class Analyzer {
                 BET_CONFIG
             )
         ) {
+
+            if (
+                config.analysisAvailable ===
+                    false ||
+                !Number.isFinite(
+                    config.netOdds
+                )
+            ) {
+
+                continue;
+
+            }
 
             const winProbability =
                 probability[name];
@@ -1447,6 +1572,17 @@ export default class Analyzer {
                 label:
                     config.label,
 
+                group:
+                    config.group,
+
+                recommendationEligible:
+                    config.recommendationEligible ===
+                    true,
+
+                analysisAvailable:
+                    config.analysisAvailable !==
+                    false,
+
                 provisionalBet:
                     config.provisional ??
                     false,
@@ -1527,6 +1663,129 @@ export default class Analyzer {
 
 
     /**
+     * 建立邊注分析。
+     *
+     * 邊注只供完整分析畫面參考，
+     * 不會進入主推薦 Ranking。
+     */
+    buildSideBetAnalysis({
+
+        probability,
+
+        ev,
+
+        evStatus,
+
+        kelly,
+
+        risk,
+
+        confidence
+
+    }) {
+
+        const dragon =
+            dragonBonus();
+
+        const result = {};
+
+        for (
+            const name of
+            SIDE_BETS
+        ) {
+
+            const config =
+                BET_CONFIG[name];
+
+            const available =
+                config.analysisAvailable !==
+                false &&
+                evStatus[name] ===
+                    "available";
+
+            result[name] = {
+
+                name,
+
+                label:
+                    config.label,
+
+                group:
+                    "side",
+
+                probability:
+                    Number.isFinite(
+                        probability[name]
+                    )
+                        ? probability[name]
+                        : null,
+
+                ev:
+                    available &&
+                    Number.isFinite(
+                        ev[name]
+                    )
+                        ? ev[name]
+                        : null,
+
+                evStatus:
+                    evStatus[name] ??
+                    "unavailable",
+
+                available,
+
+                provisional:
+                    config.provisional ??
+                    false,
+
+                recommendationEligible:
+                    false,
+
+                kelly:
+                    available
+                        ? (
+                            kelly[name]
+                                ?.appliedKelly ??
+                            0
+                        )
+                        : 0,
+
+                amount:
+                    0,
+
+                risk:
+                    available
+                        ? (
+                            risk[name]
+                                ?.relativeRisk ??
+                            null
+                        )
+                        : null,
+
+                confidence:
+                    confidence[name]
+                        ?.confidenceScore ??
+                    null,
+
+                reason:
+                    name ===
+                        "playerDragonBonus"
+                        ? dragon.player.reason
+                        : name ===
+                            "bankerDragonBonus"
+                            ? dragon.banker.reason
+                            : null
+
+            };
+
+        }
+
+        return result;
+
+    }
+
+
+    /**
      * 執行 Ranking。
      */
     getRanking(rankingInput) {
@@ -1554,10 +1813,12 @@ export default class Analyzer {
 
             ranking.find(
                 item =>
-                    item.eligible
+                    item.eligible &&
+                    MAIN_RECOMMENDATION_BETS
+                        .includes(
+                            item.name
+                        )
             ) ??
-
-            ranking[0] ??
 
             null
 
@@ -1666,6 +1927,9 @@ export default class Analyzer {
                 finalProbability
             );
 
+        const evStatus =
+            this.getEVStatus();
+
         const kelly =
             this.getKelly(
 
@@ -1731,19 +1995,40 @@ export default class Analyzer {
 
             });
 
-        const ranking =
+        const mainRanking =
             this.getRanking(
                 rankingInput
             );
 
+        const ranking =
+            mainRanking;
+
+        const sideBetAnalysis =
+            this.buildSideBetAnalysis({
+
+                probability:
+                    finalProbability,
+
+                ev,
+
+                evStatus,
+
+                kelly,
+
+                risk,
+
+                confidence
+
+            });
+
         const best =
             this.getBestFromRanking(
-                ranking
+                mainRanking
             );
 
         const recommendation =
             this.getRecommendation(
-                ranking
+                mainRanking
             );
 
         const completedAt =
@@ -1768,6 +2053,8 @@ export default class Analyzer {
 
             ev,
 
+            evStatus,
+
             kelly,
 
             risk,
@@ -1776,7 +2063,14 @@ export default class Analyzer {
 
             overallConfidence,
 
+            /**
+             * 舊版相容：ranking 仍指向主注排名。
+             */
             ranking,
+
+            mainRanking,
+
+            sideBetAnalysis,
 
             best,
 
@@ -1786,13 +2080,6 @@ export default class Analyzer {
                 recommendation
                     ?.shouldBet ??
                 false,
-
-            /**
-             * 舊版相容：實體牌靴剩餘數量。
-             */
-            remainingCards:
-                shoe.physicalRemaining ??
-                shoe.remaining,
 
             /**
              * 可觀察牌池數量。
@@ -1818,12 +2105,6 @@ export default class Analyzer {
                     ?.count ??
                 0,
 
-            generatedAfterRound:
-                this.context.roundCount ??
-                this.context.history
-                    ?.count ??
-                0,
-
             durationMs:
                 completedAt -
                 startedAt,
@@ -1842,6 +2123,16 @@ export default class Analyzer {
 
             output.rankingInput =
                 rankingInput;
+
+            output.mainRecommendationBets =
+                [
+                    ...MAIN_RECOMMENDATION_BETS
+                ];
+
+            output.sideBetNames =
+                [
+                    ...SIDE_BETS
+                ];
 
             output.contextSummary = {
 
@@ -1928,11 +2219,6 @@ export default class Analyzer {
             monteCarloOptions: {
 
                 ...(
-                    analyzerOptions.monteCarlo ??
-                    {}
-                ),
-
-                ...(
                     context
                         .monteCarloOptions ??
                     {}
@@ -1947,11 +2233,6 @@ export default class Analyzer {
             },
 
             exactOptions: {
-
-                ...(
-                    analyzerOptions.exact ??
-                    {}
-                ),
 
                 ...(
                     context
@@ -2133,11 +2414,8 @@ export default class Analyzer {
                 0,
 
             roundCount:
-
-                this.context.roundCount ??
-
-                this.context.history?.count ??
-
+                this.context.history
+                    ?.count ??
                 0
 
         };
