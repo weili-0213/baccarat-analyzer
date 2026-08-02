@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V3.4.2
+ * Baccarat Analyzer V3.4.3
  * pages/dashboard.js
  *
  * Casino Dashboard Controller
@@ -11,9 +11,8 @@
  * - History 與 Roadmap
  */
 
-import Game, {
-    ManualRoundState
-} from "../engine/game.js";
+import Game
+    from "../engine/game.js";
 
 import createQuickCardInput, {
     QuickCardInput,
@@ -42,8 +41,20 @@ import AnalysisController
 import InputController
     from "../controllers/InputController.js";
 
+import DashboardRenderer
+    from "../renderers/DashboardRenderer.js";
 
-export const DASHBOARD_VERSION = "3.4.2";
+import RoundRenderer
+    from "../renderers/RoundRenderer.js";
+
+import HistoryRenderer
+    from "../renderers/HistoryRenderer.js";
+
+import RoadmapRenderer
+    from "../renderers/RoadmapRenderer.js";
+
+
+export const DASHBOARD_VERSION = "3.4.3";
 
 export const DashboardMode = AnalysisDisplayMode;
 
@@ -53,43 +64,6 @@ export const DashboardSection = Object.freeze({
     ROADMAP: "roadmap"
 });
 
-const RANKS = Object.freeze([
-    "A", "2", "3", "4", "5", "6", "7",
-    "8", "9", "10", "J", "Q", "K"
-]);
-
-const SUITS = Object.freeze([
-    { value: "S", symbol: "♠", label: "黑桃" },
-    { value: "H", symbol: "♥", label: "紅心" },
-    { value: "D", symbol: "♦", label: "方塊" },
-    { value: "C", symbol: "♣", label: "梅花" }
-]);
-
-function escapeHTML(value) {
-    return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;");
-}
-
-
-function cardText(card) {
-    if (!card) return "—";
-    if (typeof card.toString === "function") return card.toString();
-    const symbol = SUITS.find(item => item.value === card.suit)?.symbol ?? card.suit ?? "";
-    return `${card.rank ?? ""}${symbol}`;
-}
-
-function getManualCards(game) {
-    return Array.isArray(game?.manualCards) ? game.manualCards : [];
-}
-
-function winnerLabel(winner) {
-    return winner === "Player" ? "閒"
-        : winner === "Banker" ? "莊"
-        : winner === "Tie" ? "和"
-        : "—";
-}
 
 export class Dashboard {
     constructor({
@@ -187,6 +161,38 @@ export class Dashboard {
                     DashboardSection.INPUT
 
             });
+
+        this.renderers = {
+
+            dashboard:
+                new DashboardRenderer({
+
+                    version:
+                        DASHBOARD_VERSION,
+
+                    sections:
+                        DashboardSection,
+
+                    modes:
+                        DashboardMode
+
+                }),
+
+            round:
+                new RoundRenderer(),
+
+            history:
+                new HistoryRenderer({
+
+                    limit:
+                        20
+
+                }),
+
+            roadmap:
+                new RoadmapRenderer()
+
+        };
 
         this.boundClick = event => this.handleClick(event);
         this.boundChange = event => this.handleChange(event);
@@ -358,7 +364,7 @@ export class Dashboard {
         if (event.key === "Backspace") {
             event.preventDefault();
 
-            if (getManualCards(this.game).length > 0) {
+            if (this.inputController.canUndo()) {
                 await this.undoCard();
             }
 
@@ -419,105 +425,137 @@ export class Dashboard {
     }
 
     render() {
-        if (!this.root) return this;
+        if (!this.root) {
+            return this;
+        }
 
-        this.components.quickCardInput?.destroy();
-        this.components.quickCardInput = null;
+        this.components.quickCardInput
+            ?.destroy();
 
-        const analysis = this.game.nextAnalysis ?? null;
+        this.components.quickCardInput =
+            null;
 
-        this.components.statusPanel.setGame(this.game);
-        this.components.analysisPanel.setData({
-            analysis,
-            mode: this.ui.mode,
-            busy: this.game.isAnalyzing
-        });
-        this.components.recommendationPanel.setData({
-            analysis,
-            mode: this.ui.mode,
-            minBet: 100,
-            maxBet: 10000
-        });
 
-        this.root.innerHTML = `
-            <main
-                class="dashboardV33"
-                data-mobile-section="${escapeHTML(this.ui.mobileSection)}"
-            >
-                ${this.renderHeader()}
-                ${this.renderMessage()}
-                ${this.components.statusPanel.render()}
-                ${this.renderMobileNavigation()}
+        const analysis =
+            this.game.nextAnalysis ??
+            null;
 
-                <div class="v33CasinoGrid">
-                    <section
-                        class="v33InputZone"
-                        data-v33-section="input"
-                    >
-                        ${this.renderRoundPanel()}
-                    </section>
 
-                    <section
-                        class="v33InsightZone"
-                        data-v33-section="insight"
-                    >
-                        ${this.components.recommendationPanel.render()}
-                        ${this.components.analysisPanel.render()}
-                    </section>
+        this.components.statusPanel
+            .setGame(
+                this.game
+            );
 
-                    <aside class="v33HistoryZone">
-                        ${this.renderHistoryPanel()}
-                    </aside>
+        this.components.analysisPanel
+            .setData({
 
-                    <section
-                        class="v33RoadZone"
-                        data-v33-section="roadmap"
-                    >
-                        ${this.renderRoadmapPanel()}
-                    </section>
-                </div>
-            </main>
-        `;
+                analysis,
+
+                mode:
+                    this.ui.mode,
+
+                busy:
+                    this.game.isAnalyzing
+
+            });
+
+        this.components.recommendationPanel
+            .setData({
+
+                analysis,
+
+                mode:
+                    this.ui.mode,
+
+                minBet:
+                    100,
+
+                maxBet:
+                    10000
+
+            });
+
+
+        this.root.innerHTML =
+            this.renderers.dashboard
+                .renderShell({
+
+                    ui:
+                        this.ui,
+
+                    statusHTML:
+                        this.components
+                            .statusPanel
+                            .render(),
+
+                    roundHTML:
+                        this.renderers
+                            .round
+                            .render({
+
+                                game:
+                                    this.game,
+
+                                ui:
+                                    this.ui
+
+                            }),
+
+                    recommendationHTML:
+                        this.components
+                            .recommendationPanel
+                            .render(),
+
+                    analysisHTML:
+                        this.components
+                            .analysisPanel
+                            .render(),
+
+                    historyHTML:
+                        this.renderers
+                            .history
+                            .render(
+                                this.game
+                            ),
+
+                    roadmapHTML:
+                        this.renderers
+                            .roadmap
+                            .render({
+
+                                game:
+                                    this.game,
+
+                                activeRoad:
+                                    this.ui
+                                        .activeRoad
+
+                            }),
+
+                    roundCount:
+                        this.game
+                            .roundCount ??
+                        0,
+
+                    hasAnalysis:
+                        Boolean(
+                            analysis
+                        ),
+
+                    isManualRoundActive:
+                        Boolean(
+                            this.game
+                                .isManualRoundActive
+                        )
+
+                });
+
 
         this.mountQuickCardInput();
+
         return this;
     }
 
-    renderMobileNavigation() {
-        const items = [
-            {
-                section: DashboardSection.INPUT,
-                label: "輸牌",
-                hint: this.game.isManualRoundActive ? "本局輸入中" : "牌局操作"
-            },
-            {
-                section: DashboardSection.INSIGHT,
-                label: "分析",
-                hint: this.game.nextAnalysis ? "建議已更新" : "等待分析"
-            },
-            {
-                section: DashboardSection.ROADMAP,
-                label: "路單",
-                hint: `${this.game.roundCount ?? 0} 局`
-            }
-        ];
-
-        return `
-            <nav class="v33MobileNav" aria-label="手機 Dashboard 區域">
-                ${items.map(item => `
-                    <button
-                        type="button"
-                        class="${this.ui.mobileSection === item.section ? "active" : ""}"
-                        data-action="set-mobile-section"
-                        data-section="${item.section}"
-                    >
-                        <strong>${item.label}</strong>
-                        <small>${item.hint}</small>
-                    </button>
-                `).join("")}
-            </nav>
-        `;
-    }
 
     mountQuickCardInput() {
         const root = this.root?.querySelector("[data-quick-card-root]");
@@ -534,322 +572,6 @@ export class Dashboard {
         });
 
         return this;
-    }
-
-    renderHeader() {
-        return `
-            <header class="v3Header dashboardCard">
-                <div>
-                    <small>BACCARAT ANALYZER V3.4.2</small>
-                    <h1>百家樂分析儀</h1>
-                </div>
-
-                <div class="v3HeaderActions">
-                    <span class="v31FastBadge" title="Casino Fast Input 已啟用">
-                        FAST INPUT
-                    </span>
-
-                    <div class="v3ModeSwitch" role="group" aria-label="分析模式">
-                        ${this.modeButton("quick", "快速")}
-                        ${this.modeButton("full", "完整")}
-                    </div>
-
-                    <button
-                        type="button"
-                        class="button primary"
-                        data-action="new-shoe"
-                        ${this.ui.busy ? "disabled" : ""}
-                    >
-                        新牌靴
-                    </button>
-                </div>
-            </header>
-        `;
-    }
-
-    modeButton(mode, label) {
-        return `
-            <button
-                type="button"
-                class="${this.ui.mode === mode ? "active" : ""}"
-                data-action="set-dashboard-mode"
-                data-mode="${mode}"
-            >
-                ${label}
-            </button>
-        `;
-    }
-
-    renderMessage() {
-        if (!this.ui.message) return "";
-
-        return `
-            <div class="v3Message ${escapeHTML(this.ui.messageType)}" role="status">
-                <span>${escapeHTML(this.ui.message)}</span>
-                <button type="button" data-action="clear-message">×</button>
-            </div>
-        `;
-    }
-
-    renderRoundPanel() {
-        if (!this.game.burnConfirmed) {
-            return this.renderBurnPanel();
-        }
-
-        if (
-            !this.game.isManualRoundActive &&
-            this.game.manualState !== ManualRoundState.FINISHED
-        ) {
-            return `
-                <section class="dashboardCard v3RoundPanel">
-                    <header class="v3PanelHeader">
-                        <div><small>ROUND</small><h2>等待下一局</h2></div>
-                        <span class="v3Badge">READY</span>
-                    </header>
-
-                    <button
-                        type="button"
-                        class="button primary full"
-                        data-action="start-round"
-                        ${this.game.canStartManualRound && !this.ui.busy ? "" : "disabled"}
-                    >
-                        開始輸入本局
-                    </button>
-                </section>
-            `;
-        }
-
-        if (this.game.manualState === ManualRoundState.FINISHED) {
-            return `
-                <section class="dashboardCard v3RoundPanel">
-                    <header class="v3PanelHeader">
-                        <div><small>ROUND</small><h2>本局完成</h2></div>
-                        <span class="v3Badge success">${winnerLabel(this.game.winner)}勝</span>
-                    </header>
-
-                    ${this.renderHands()}
-
-                    <button
-                        type="button"
-                        class="button primary full"
-                        data-action="start-round"
-                        ${this.game.canStartManualRound && !this.ui.busy ? "" : "disabled"}
-                    >
-                        開始輸入下一局
-                    </button>
-                </section>
-            `;
-        }
-
-        const ready = this.game.canFinishManualRound;
-        const next = this.game.nextManualInput;
-
-        return `
-            <section class="dashboardCard v3RoundPanel">
-                <header class="v3PanelHeader">
-                    <div>
-                        <small>ROUND</small>
-                        <h2>${ready ? "本局牌面完成" : escapeHTML(next?.label ?? "輸入牌面")}</h2>
-                    </div>
-                    <span class="v3Badge ${ready ? "success" : "warning"}">
-                        ${ready ? "可確認" : "輸入中"}
-                    </span>
-                </header>
-
-                ${this.renderHands()}
-
-                ${ready ? "" : `<div data-quick-card-root></div>`}
-
-                <div class="v31ShortcutHint">
-                    <span>Backspace 復原</span>
-                    <span>Esc 取消</span>
-                    ${ready ? "<span>Enter 確認</span>" : ""}
-                </div>
-
-                <div class="v3RoundActions">
-                    ${ready
-                        ? `<button type="button" class="button primary" data-action="finish-round">確認本局</button>`
-                        : ""}
-
-                    <button
-                        type="button"
-                        class="button secondary"
-                        data-action="undo-card"
-                        ${getManualCards(this.game).length === 0 ? "disabled" : ""}
-                    >
-                        復原一張
-                    </button>
-
-                    <button type="button" class="button danger" data-action="cancel-round">
-                        取消本局
-                    </button>
-                </div>
-            </section>
-        `;
-    }
-
-    renderBurnPanel() {
-        const rankOptions = RANKS.map(rank => `
-            <option value="${rank}" ${rank === this.ui.selectedRank ? "selected" : ""}>
-                ${rank}
-            </option>
-        `).join("");
-
-        const suitOptions = SUITS.map(suit => `
-            <option value="${suit.value}" ${suit.value === this.ui.selectedSuit ? "selected" : ""}>
-                ${suit.symbol} ${suit.label}
-            </option>
-        `).join("");
-
-        return `
-            <section class="dashboardCard v3RoundPanel">
-                <header class="v3PanelHeader">
-                    <div><small>BURN</small><h2>輸入燒牌指示牌</h2></div>
-                    <span class="v3Badge warning">等待輸入</span>
-                </header>
-
-                <div class="v3BurnSelector">
-                    <label>
-                        <span>點數</span>
-                        <select name="card-rank">${rankOptions}</select>
-                    </label>
-
-                    <label>
-                        <span>花色</span>
-                        <select name="card-suit">${suitOptions}</select>
-                    </label>
-
-                    <div class="v3BurnPreview">
-                        ${escapeHTML(this.ui.selectedRank)}
-                        ${SUITS.find(item => item.value === this.ui.selectedSuit)?.symbol ?? ""}
-                    </div>
-                </div>
-
-                <button type="button" class="button primary full" data-action="confirm-burn">
-                    確認燒牌
-                </button>
-            </section>
-        `;
-    }
-
-    renderHands() {
-        const progress = this.game.manualProgress ?? {};
-
-        return `
-            <div class="v3Hands">
-                ${this.renderHand("player", "閒家", progress.playerCards ?? [], progress.playerScore)}
-                ${this.renderHand("banker", "莊家", progress.bankerCards ?? [], progress.bankerScore)}
-            </div>
-        `;
-    }
-
-    renderHand(side, label, cards, score) {
-        return `
-            <section class="v3Hand ${side}">
-                <header>
-                    <strong>${label}</strong>
-                    <span>${Number.isFinite(score) ? `${score} 點` : "—"}</span>
-                </header>
-
-                <div>
-                    ${[0, 1, 2].map(index => `
-                        <span class="${cards[index] ? "filled" : ""}">
-                            ${cards[index] ? escapeHTML(cardText(cards[index])) : "—"}
-                        </span>
-                    `).join("")}
-                </div>
-            </section>
-        `;
-    }
-
-    renderHistoryPanel() {
-        const rounds = typeof this.game.history?.lastRounds === "function"
-            ? this.game.history.lastRounds(20)
-            : [];
-
-        return `
-            <section class="dashboardCard v3HistoryPanel">
-                <header class="v3PanelHeader">
-                    <div><small>HISTORY</small><h2>最近牌局</h2></div>
-                </header>
-
-                ${rounds.length
-                    ? `<div class="v3HistoryRoad">
-                        ${rounds.map(result => `
-                            <span class="${String(result.winner ?? "").toLowerCase()}">
-                                ${winnerLabel(result.winner)}
-                            </span>
-                        `).join("")}
-                    </div>`
-                    : `<p class="v3Empty">尚無牌局紀錄。</p>`}
-            </section>
-        `;
-    }
-
-    renderRoadmapPanel() {
-        const labels = {
-            beadRoad: "珠盤路",
-            bigRoad: "大路",
-            bigEyeRoad: "大眼仔",
-            smallRoad: "小路",
-            cockroachRoad: "曱甴路"
-        };
-
-        const roads = this.game.roadmapViewModel?.roads ?? this.game.roadMatrices ?? {};
-        const matrix = roads[this.ui.activeRoad] ?? [];
-
-        return `
-            <section class="dashboardCard v3RoadmapPanel">
-                <div class="v3RoadTabs">
-                    ${Object.entries(labels).map(([key, label]) => `
-                        <button
-                            type="button"
-                            class="${key === this.ui.activeRoad ? "active" : ""}"
-                            data-action="select-road"
-                            data-road="${key}"
-                        >
-                            ${label}
-                        </button>
-                    `).join("")}
-                </div>
-
-                <div class="v3RoadViewport">
-                    ${this.renderRoadMatrix(matrix)}
-                </div>
-            </section>
-        `;
-    }
-
-    renderRoadMatrix(matrix) {
-        if (!Array.isArray(matrix) || matrix.length === 0) {
-            return `<p class="v3Empty">尚無路單資料。</p>`;
-        }
-
-        const rows = matrix.length;
-        const columns = Math.max(0, ...matrix.map(row => Array.isArray(row) ? row.length : 0));
-        const cells = [];
-
-        for (let column = 0; column < columns; column++) {
-            for (let row = 0; row < rows; row++) {
-                const cell = matrix[row]?.[column] ?? null;
-                const winner = String(cell?.winner ?? cell?.result ?? cell?.value ?? "").toLowerCase();
-                const className = winner.includes("player") ? "player"
-                    : winner.includes("banker") ? "banker"
-                    : winner.includes("tie") ? "tie"
-                    : cell ? "derived" : "empty";
-
-                cells.push(`<span class="${className}"></span>`);
-            }
-        }
-
-        return `
-            <div
-                class="v3RoadMatrix"
-                style="--road-rows:${rows};--road-columns:${columns}"
-            >
-                ${cells.join("")}
-            </div>
-        `;
     }
 
     get summary() {
@@ -872,6 +594,12 @@ export class Dashboard {
                 ui: this.uiController.summary,
                 analysis: this.analysisController.summary,
                 input: this.inputController.summary
+            },
+            renderers: {
+                dashboard: this.renderers.dashboard.summary,
+                round: this.renderers.round.summary,
+                history: this.renderers.history.summary,
+                roadmap: this.renderers.roadmap.summary
             },
             casinoLayout: true,
             mobileSection: this.ui.mobileSection
