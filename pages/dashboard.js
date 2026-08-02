@@ -128,6 +128,7 @@ export class Dashboard {
         this.boundClick = event => this.handleClick(event);
         this.boundChange = event => this.handleChange(event);
         this.boundQuickCardSelect = event => this.handleQuickCardSelect(event);
+        this.boundKeyDown = event => this.handleDashboardKeyDown(event);
 
         if (autoMount && this.root) {
             this.mount();
@@ -155,6 +156,7 @@ export class Dashboard {
         this.root.addEventListener("click", this.boundClick);
         this.root.addEventListener("change", this.boundChange);
         this.root.addEventListener("quick-card:select", this.boundQuickCardSelect);
+        window.addEventListener("keydown", this.boundKeyDown);
         this.render();
         return this;
     }
@@ -163,6 +165,7 @@ export class Dashboard {
         this.root?.removeEventListener("click", this.boundClick);
         this.root?.removeEventListener("change", this.boundChange);
         this.root?.removeEventListener("quick-card:select", this.boundQuickCardSelect);
+        window.removeEventListener("keydown", this.boundKeyDown);
         this.components.quickCardInput?.destroy();
         this.components.quickCardInput = null;
         return this;
@@ -276,6 +279,45 @@ export class Dashboard {
         if (!rank || !suit) return;
         await this.addSelectedCard({ rank, suit });
     }
+
+    async handleDashboardKeyDown(event) {
+        const target = event.target;
+
+        if (
+            target instanceof HTMLInputElement ||
+            target instanceof HTMLTextAreaElement ||
+            target instanceof HTMLSelectElement ||
+            target?.isContentEditable === true
+        ) {
+            return;
+        }
+
+        if (!this.game.isManualRoundActive || this.ui.busy) {
+            return;
+        }
+
+        if (event.key === "Backspace") {
+            event.preventDefault();
+
+            if (getManualCards(this.game).length > 0) {
+                await this.undoCard();
+            }
+
+            return;
+        }
+
+        if (event.key === "Enter" && this.game.canFinishManualRound) {
+            event.preventDefault();
+            await this.finishRound();
+            return;
+        }
+
+        if (event.key === "Escape" && !this.components.quickCardInput?.selectedRank) {
+            event.preventDefault();
+            await this.cancelRound();
+        }
+    }
+
 
     async startNewShoe() {
         return this.runAction(
@@ -403,6 +445,7 @@ export class Dashboard {
         this.components.quickCardInput = createQuickCardInput({
             root,
             shoe: this.game.shoe,
+            keyboard: true,
             disabled: this.ui.busy ||
                 !this.game.isManualRoundActive ||
                 this.game.canFinishManualRound
@@ -420,6 +463,10 @@ export class Dashboard {
                 </div>
 
                 <div class="v3HeaderActions">
+                    <span class="v31FastBadge" title="Casino Fast Input 已啟用">
+                        FAST INPUT
+                    </span>
+
                     <div class="v3ModeSwitch" role="group" aria-label="分析模式">
                         ${this.modeButton("quick", "快速")}
                         ${this.modeButton("full", "完整")}
@@ -530,6 +577,12 @@ export class Dashboard {
                 ${this.renderHands()}
 
                 ${ready ? "" : `<div data-quick-card-root></div>`}
+
+                <div class="v31ShortcutHint">
+                    <span>Backspace 復原</span>
+                    <span>Esc 取消</span>
+                    ${ready ? "<span>Enter 確認</span>" : ""}
+                </div>
 
                 <div class="v3RoundActions">
                     ${ready
@@ -727,7 +780,9 @@ export class Dashboard {
             burnConfirmed: Boolean(this.game.burnConfirmed),
             roundCount: this.game.roundCount ?? 0,
             hasAnalysis: Boolean(this.game.nextAnalysis),
-            quickCardMounted: this.components.quickCardInput instanceof QuickCardInput
+            quickCardMounted: this.components.quickCardInput instanceof QuickCardInput,
+            fastInput: true,
+            keyboardShortcuts: true
         };
     }
 }
