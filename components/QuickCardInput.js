@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V3.3
+ * Baccarat Analyzer V3.3 Final
  * components/QuickCardInput.js
  *
  * Casino Speed Input：
@@ -18,6 +18,8 @@
  * - S/H/D/C：精準花色
  * - Esc：清除
  */
+
+export const QUICK_CARD_INPUT_VERSION = "3.3.0";
 
 export const QUICK_CARD_RANKS = Object.freeze([
     "A", "2", "3", "4", "5", "6", "7",
@@ -382,7 +384,7 @@ export class QuickCardInput {
         this.root.innerHTML = `
             <section
                 class="quickCardInput casinoFastInput v33FastInput"
-                aria-label="V3.3 一鍵快速牌面輸入"
+                aria-label="一鍵快速牌面輸入"
                 data-mode="${this.mode}"
                 data-stage="${preciseStage ? "suit" : "rank"}"
             >
@@ -500,6 +502,7 @@ export class QuickCardInput {
             lastCard: this.lastCard ? { ...this.lastCard } : null,
             disabled: this.disabled,
             keyboard: this.keyboard,
+            version: QUICK_CARD_INPUT_VERSION,
             autoSuit: this.mode === QuickInputMode.AUTO
         };
     }
