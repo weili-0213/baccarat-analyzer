@@ -952,119 +952,246 @@
 
 
 /* =====================================
-   Baccarat Analyzer V3.1 Fast Input
+   Baccarat Analyzer V3.2 Casino Dashboard
    ===================================== */
 
-.v31FastBadge {
-    display: inline-flex;
-    align-items: center;
-    min-height: 28px;
-    border: 1px solid rgba(59,209,124,.4);
-    border-radius: 999px;
-    padding: 3px 8px;
-    background: rgba(59,209,124,.12);
-    color: #8cf4b4;
-    font-size: .58rem;
-    font-weight: 950;
-    letter-spacing: .08em;
+.dashboardV32 {
+    --v32-header-height: 58px;
+    --v32-status-height: 52px;
+}
+
+.v32CasinoGrid {
+    min-width: 0;
+    display: grid;
+    gap: 10px;
+    grid-template-areas:
+        "input"
+        "insight"
+        "history"
+        "road";
+}
+
+.v32InputZone {
+    grid-area: input;
+    min-width: 0;
+}
+
+.v32InsightZone {
+    grid-area: insight;
+    min-width: 0;
+    display: grid;
+    align-content: start;
+    gap: 10px;
+}
+
+.v32HistoryZone {
+    grid-area: history;
+    min-width: 0;
+}
+
+.v32RoadZone {
+    grid-area: road;
+    min-width: 0;
+}
+
+.v32MobileNav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    position: sticky;
+    top: 5px;
+    z-index: 30;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 5px;
+    background: rgba(4, 35, 19, .92);
+    backdrop-filter: blur(14px);
+}
+
+.v32MobileNav button {
+    min-height: 43px;
+    display: grid;
+    place-items: center;
+    gap: 1px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.v32MobileNav button strong {
+    font-size: .75rem;
+}
+
+.v32MobileNav button small {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: .56rem;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.quickStageIndicator {
-    display: grid;
-    grid-template-columns: max-content 1fr max-content;
-    align-items: center;
-    gap: 7px;
-}
-
-.quickStageIndicator span {
-    min-height: 24px;
-    display: inline-flex;
-    align-items: center;
-    border-radius: 999px;
-    padding: 3px 8px;
-    background: rgba(255,255,255,.055);
-    color: var(--muted);
-    font-size: .62rem;
-    font-weight: 900;
-}
-
-.quickStageIndicator span.active {
+.v32MobileNav button.active {
     background: var(--yellow);
     color: #17202c;
 }
 
-.quickStageIndicator span.done {
-    background: rgba(59,209,124,.16);
-    color: #8cf4b4;
+.v32InputZone > .v3RoundPanel,
+.v32InsightZone > .v3AnalysisPanel,
+.v32InsightZone > .v3RecommendationPanel,
+.v32HistoryZone > .v3HistoryPanel,
+.v32RoadZone > .v3RoadmapPanel {
+    height: 100%;
 }
 
-.quickStageIndicator i {
-    height: 2px;
-    border-radius: 999px;
-    background: rgba(255,255,255,.1);
-}
-
-.quickSuitCard kbd {
-    min-width: 20px;
-    min-height: 20px;
-    display: inline-grid;
-    place-items: center;
-    border: 1px solid rgba(255,255,255,.18);
-    border-radius: 5px;
-    background: rgba(0,0,0,.14);
-    color: var(--muted);
-    font-family: inherit;
-    font-size: .58rem;
-    font-weight: 900;
-}
-
-.v31ShortcutHint {
-    display: flex;
-    justify-content: flex-end;
-    gap: 5px;
-    flex-wrap: wrap;
-    margin-top: 7px;
-}
-
-.v31ShortcutHint span {
-    border-radius: 999px;
-    padding: 3px 7px;
-    background: rgba(255,255,255,.05);
-    color: var(--muted);
-    font-size: .58rem;
-    font-weight: 800;
-}
-
-@media (hover: hover) and (pointer: fine) {
-    .quickRankCard:not(:disabled):hover,
-    .quickSuitCard:not(:disabled):hover {
-        transform: translateY(-1px);
-        border-color: rgba(244,206,97,.65);
-        background: rgba(255,255,255,.12);
-    }
-}
-
-@media (max-width: 520px) {
-    .quickRankCard {
-        min-height: 52px;
-        touch-action: manipulation;
-    }
-
-    .quickSuitCard {
-        min-height: 60px;
-        touch-action: manipulation;
-    }
-
-    .quickSuitCard kbd {
+@media (max-width: 719px) {
+    .dashboardV32 [data-v32-section] {
         display: none;
     }
 
-    .v31FastBadge {
+    .dashboardV32[data-mobile-section="input"]
+        [data-v32-section="input"],
+    .dashboardV32[data-mobile-section="insight"]
+        [data-v32-section="insight"],
+    .dashboardV32[data-mobile-section="roadmap"]
+        [data-v32-section="roadmap"] {
+        display: block;
+    }
+
+    .dashboardV32[data-mobile-section="insight"]
+        .v32InsightZone {
+        display: grid;
+    }
+
+    .v32HistoryZone {
         display: none;
     }
 
-    .v31ShortcutHint {
+    .dashboardV32[data-mobile-section="roadmap"]
+        .v32HistoryZone {
+        display: block;
+        order: 2;
+    }
+
+    .v32RoadZone {
+        min-height: calc(100vh - 245px);
+    }
+
+    .v32RoadZone .v3RoadmapPanel {
+        min-height: inherit;
+    }
+
+    .v32RoadZone .v3RoadViewport {
+        max-height: calc(100vh - 330px);
+    }
+
+    .v32InsightZone {
+        gap: 8px;
+    }
+
+    .v32InsightZone .v3RecommendationPanel {
+        order: 1;
+    }
+
+    .v32InsightZone .v3AnalysisPanel {
+        order: 2;
+    }
+}
+
+@media (min-width: 720px) {
+    .v32MobileNav {
         display: none;
+    }
+
+    .v32CasinoGrid {
+        grid-template-columns:
+            minmax(0, 1.45fr)
+            minmax(290px, .55fr);
+        grid-template-areas:
+            "input insight"
+            "road history";
+        align-items: start;
+    }
+
+    .v32InsightZone {
+        position: sticky;
+        top: 10px;
+    }
+}
+
+@media (min-width: 1100px) {
+    .dashboardV32 {
+        height: 100vh;
+        min-height: 720px;
+        overflow: hidden;
+        grid-template-rows:
+            auto
+            auto
+            auto
+            minmax(0, 1fr);
+    }
+
+    .v32CasinoGrid {
+        min-height: 0;
+        grid-template-columns:
+            minmax(0, 1.45fr)
+            minmax(330px, .55fr);
+        grid-template-rows:
+            minmax(0, 1fr)
+            minmax(150px, .33fr);
+        grid-template-areas:
+            "input insight"
+            "road history";
+        overflow: hidden;
+    }
+
+    .v32InputZone,
+    .v32InsightZone,
+    .v32HistoryZone,
+    .v32RoadZone {
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .v32InputZone {
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+
+    .v32InsightZone {
+        position: static;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+
+    .v32HistoryZone .v3HistoryPanel,
+    .v32RoadZone .v3RoadmapPanel {
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .v32RoadZone .v3RoadViewport {
+        max-height: calc(100% - 42px);
+    }
+}
+
+@media (min-width: 1440px) {
+    .v32CasinoGrid {
+        grid-template-columns:
+            minmax(620px, 1.55fr)
+            minmax(360px, .65fr)
+            minmax(250px, .45fr);
+        grid-template-rows:
+            minmax(0, 1fr)
+            minmax(160px, .32fr);
+        grid-template-areas:
+            "input insight history"
+            "road road history";
+    }
+
+    .v32HistoryZone {
+        overflow-y: auto;
+        scrollbar-width: thin;
     }
 }
