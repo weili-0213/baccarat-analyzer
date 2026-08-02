@@ -410,6 +410,184 @@ export default class Analyzer {
     }
 
     /**
+     * Game v4 正式分析入口
+     *
+     * engine/game.js 會把完整遊戲環境傳入這裡。
+     *
+     * context 可包含：
+     *
+     * {
+     *     shoe,
+     *     history,
+     *     payouts,
+     *
+     *     observableRemaining,
+     *     physicalRemaining,
+     *     unknownBurnedCount,
+     *
+     *     monteCarloOptions,
+     *     exactOptions,
+     *     kellyOptions,
+     *     riskOptions,
+     *     confidenceOptions,
+     *     rankingOptions,
+     *     recommendationOptions,
+     *
+     *     bankroll,
+     *     fraction,
+     *     minBet,
+     *     maxBet,
+     *     maxBankrollRatio,
+     *
+     *     analyzerOptions
+     * }
+     */
+    async analyzeContext(
+        context = {},
+        runOptions = {}
+    ) {
+
+        if (
+            !context ||
+            typeof context !== "object" ||
+            Array.isArray(context)
+        ) {
+
+            throw new TypeError(
+                "Analyzer context must be an object"
+            );
+
+        }
+
+        if (!context.shoe) {
+
+            throw new Error(
+                "Analyzer context requires a Shoe"
+            );
+
+        }
+
+        /**
+         * 每一局完成後 Shoe 都會改變，
+         * 因此每次分析前重新更新整個 context。
+         */
+        this.setContext(
+            context
+        );
+
+        const analyzerOptions =
+            context.analyzerOptions ?? {};
+
+        return this.analyze({
+
+            mode:
+                runOptions.mode ??
+                analyzerOptions.mode ??
+                this.options.mode,
+
+            probability:
+                runOptions.probability ??
+                null,
+
+            monteCarloResult:
+                runOptions.monteCarloResult ??
+                null,
+
+            exactResult:
+                runOptions.exactResult ??
+                null,
+
+            monteCarloOptions: {
+
+                ...(
+                    context.monteCarloOptions ??
+                    analyzerOptions.monteCarlo ??
+                    {}
+                ),
+
+                ...(
+                    runOptions.monteCarloOptions ??
+                    {}
+                )
+
+            },
+
+            exactOptions: {
+
+                ...(
+                    context.exactOptions ??
+                    analyzerOptions.exact ??
+                    {}
+                ),
+
+                ...(
+                    runOptions.exactOptions ??
+                    {}
+                )
+
+            },
+
+            bankroll:
+                runOptions.bankroll ??
+                context.bankroll ??
+                analyzerOptions.bankroll,
+
+            fraction:
+                runOptions.fraction ??
+                context.fraction ??
+                analyzerOptions.fraction,
+
+            minBet:
+                runOptions.minBet ??
+                context.minBet ??
+                analyzerOptions.minBet,
+
+            maxBet:
+                runOptions.maxBet ??
+                context.maxBet ??
+                analyzerOptions.maxBet,
+
+            maxBankrollRatio:
+                runOptions.maxBankrollRatio ??
+                context.maxBankrollRatio ??
+                analyzerOptions
+                    .maxBankrollRatio,
+
+            signal:
+                runOptions.signal ??
+                null,
+
+            onMonteCarloProgress:
+                runOptions
+                    .onMonteCarloProgress ??
+                null,
+
+            onExactProgress:
+                runOptions
+                    .onExactProgress ??
+                null
+
+        });
+
+    }
+
+
+    /**
+     * Game 整合別名
+     */
+    async run(
+        context = {},
+        runOptions = {}
+    ) {
+
+        return this.analyzeContext(
+            context,
+            runOptions
+        );
+
+    }
+
+    /**
      * 驗證 Analyzer 設定
      */
     validateOptions() {
@@ -1753,6 +1931,28 @@ export default class Analyzer {
         const completedAt =
             Date.now();
 
+        const shoe =
+            this.context.shoe;
+
+        const observableRemaining =
+
+            shoe.observableRemaining ??
+            shoe.knownRemaining ??
+            shoe.remaining ??
+            shoe.cards?.length ??
+            0;
+
+        const physicalRemaining =
+
+            shoe.physicalRemaining ??
+            observableRemaining;
+
+        const unknownBurnedCount =
+
+            shoe.unknownBurnedCount ??
+            0;
+
+
         const output = {
 
             method:
@@ -1762,8 +1962,7 @@ export default class Analyzer {
                 finalProbability,
 
             monteCarlo:
-                resolved
-                    .monteCarlo,
+                resolved.monteCarlo,
 
             exact:
                 resolved.exact,
@@ -1786,12 +1985,43 @@ export default class Analyzer {
 
             shouldBet:
                 recommendation
-                    .shouldBet,
+                    ?.shouldBet ??
+                false,
 
+            /**
+             * 舊版相容。
+             *
+             * remainingCards 顯示實體牌靴剩餘數。
+             */
             remainingCards:
-                this.context
-                    .shoe
-                    .remaining,
+                physicalRemaining,
+
+            /**
+             * 機率引擎使用的可觀察牌池數量。
+             */
+            observableRemaining,
+
+            /**
+             * 賭桌牌靴實際剩餘數量。
+             */
+            physicalRemaining,
+
+            /**
+             * 身分未知的隱藏燒牌張數。
+             */
+            unknownBurnedCount,
+
+            /**
+             * 本分析是第幾局完成後產生。
+             */
+            generatedAfterRound:
+
+                this.context.roundCount ??
+
+                this.context.history
+                    ?.count ??
+
+                0,
 
             durationMs:
 
@@ -1813,6 +2043,36 @@ export default class Analyzer {
 
             output.rankingInput =
                 rankingInput;
+
+            output.contextSummary = {
+
+                roundCount:
+                    output
+                        .generatedAfterRound,
+
+                observableRemaining:
+                    output
+                        .observableRemaining,
+
+                physicalRemaining:
+                    output
+                        .physicalRemaining,
+
+                unknownBurnedCount:
+                    output
+                        .unknownBurnedCount,
+
+                historyCount:
+                    this.context.history
+                        ?.count ??
+                    0,
+
+                hasBurnInfo:
+                    Boolean(
+                        this.context.burn
+                    )
+
+            };
 
         }
 
@@ -2066,9 +2326,43 @@ export default class Analyzer {
                     .shouldBet,
 
             remainingCards:
-                this.context
-                    .shoe
+
+                this.context.shoe
+                    .physicalRemaining ??
+
+                this.context.shoe
                     .remaining,
+
+            observableRemaining:
+
+                this.context.shoe
+                    .observableRemaining ??
+
+                this.context.shoe
+                    .remaining,
+
+            physicalRemaining:
+
+                this.context.shoe
+                    .physicalRemaining ??
+
+                this.context.shoe
+                    .remaining,
+
+            unknownBurnedCount:
+
+                this.context.shoe
+                    .unknownBurnedCount ??
+                0,
+
+            generatedAfterRound:
+
+                this.context.roundCount ??
+
+                this.context.history
+                    ?.count ??
+
+                0,
 
             analyzedAt:
                 new Date()
@@ -2171,6 +2465,52 @@ export default class Analyzer {
             error?.name ===
             "AbortError"
         );
+
+    }
+
+    /**
+     * Analyzer 目前狀態摘要
+     */
+    get summary() {
+
+        const shoe =
+            this.context.shoe;
+
+        return {
+
+            mode:
+                this.options.mode,
+
+            hasShoe:
+                Boolean(shoe),
+
+            observableRemaining:
+
+                shoe?.observableRemaining ??
+                shoe?.remaining ??
+                0,
+
+            physicalRemaining:
+
+                shoe?.physicalRemaining ??
+                shoe?.remaining ??
+                0,
+
+            unknownBurnedCount:
+
+                shoe?.unknownBurnedCount ??
+                0,
+
+            roundCount:
+
+                this.context.roundCount ??
+
+                this.context.history
+                    ?.count ??
+
+                0
+
+        };
 
     }
 
