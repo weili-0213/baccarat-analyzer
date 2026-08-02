@@ -70,6 +70,9 @@ import cardInputTest
 import probabilityTableTest
     from "./probabilityTable.test.js";
 
+import evTableTest
+    from "./evTable.test.js";
+
 /**
  * 新增測試時，只需：
  *
@@ -190,6 +193,12 @@ const TESTS = [
         id: "probability-table",
         name: "Probability Table",
         run: probabilityTableTest
+    },
+
+    {
+        id: "ev-table",
+        name: "EV Table",
+        run: evTableTest
     }
 
 ];
