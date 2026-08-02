@@ -1,1 +1,569 @@
+/**
+ * Baccarat Analyzer
+ * -----------------------------------------
+ *
+ * styles/home.css
+ *
+ * 首頁響應式樣式：
+ *
+ * - Mobile-first
+ * - 觸控友善
+ * - 桌面雙欄／多欄排版
+ */
 
+.homePage {
+    min-height: 100vh;
+    background:
+        linear-gradient(
+            180deg,
+            #0b1320 0,
+            #101a29 320px,
+            #f4f7fb 320px,
+            #f4f7fb 100%
+        );
+    color: #182231;
+    padding-bottom: 88px;
+}
+
+.homeHero {
+    color: #fff;
+    padding: 24px 16px 36px;
+}
+
+.homeHeroInner {
+    width: min(1120px, 100%);
+    margin: 0 auto;
+}
+
+.homeBrand {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.homeBrandMark {
+    display: grid;
+    place-items: center;
+    flex: 0 0 48px;
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: linear-gradient(145deg, #d7ad54, #f5d98c);
+    color: #17202c;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    box-shadow: 0 10px 28px rgba(215, 173, 84, 0.24);
+}
+
+.homeEyebrow {
+    margin: 0 0 6px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    opacity: 0.72;
+}
+
+.homeHero h1 {
+    margin: 0;
+    font-size: clamp(2rem, 8vw, 4rem);
+    line-height: 1;
+    letter-spacing: -0.05em;
+}
+
+.homeSubtitle {
+    max-width: 640px;
+    margin: 12px 0 0;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.98rem;
+    line-height: 1.6;
+}
+
+.homeHeroActions {
+    display: none;
+}
+
+.homeContent {
+    width: min(1120px, calc(100% - 24px));
+    margin: 0 auto;
+    display: grid;
+    gap: 16px;
+}
+
+.homeSection {
+    background: #fff;
+    border: 1px solid rgba(23, 35, 53, 0.08);
+    border-radius: 20px;
+    padding: 18px;
+    box-shadow: 0 14px 40px rgba(30, 45, 65, 0.08);
+}
+
+.homeSectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.homeSectionHeader h2 {
+    margin: 0;
+    font-size: 1.18rem;
+    letter-spacing: -0.02em;
+}
+
+.homeSection .homeEyebrow {
+    color: #64748b;
+}
+
+.homeActionGrid {
+    display: grid;
+    gap: 10px;
+}
+
+.homeActionCard {
+    width: 100%;
+    min-height: 82px;
+    display: grid;
+    grid-template-columns: 46px 1fr 20px;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid #e7ebf1;
+    border-radius: 16px;
+    background: #f9fbfd;
+    color: #182231;
+    padding: 14px;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        transform 150ms ease,
+        border-color 150ms ease,
+        box-shadow 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.homeActionCard:active {
+    transform: scale(0.985);
+}
+
+.homeActionCard.primary {
+    background:
+        linear-gradient(
+            140deg,
+            #142236,
+            #213a59
+        );
+    border-color: transparent;
+    color: #fff;
+}
+
+.homeActionIcon {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    background: rgba(26, 42, 64, 0.08);
+    font-size: 1.25rem;
+    font-weight: 800;
+}
+
+.homeActionCard.primary .homeActionIcon {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.homeActionBody {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+}
+
+.homeActionBody strong {
+    font-size: 1rem;
+}
+
+.homeActionBody small {
+    color: #697789;
+    line-height: 1.45;
+}
+
+.homeActionCard.primary small {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.homeActionArrow {
+    font-size: 1.2rem;
+    opacity: 0.5;
+}
+
+.homeEmptyState {
+    display: grid;
+    justify-items: start;
+    gap: 10px;
+    border: 1px dashed #ced7e3;
+    border-radius: 16px;
+    padding: 22px;
+    background: #f8fafc;
+}
+
+.homeEmptyState strong {
+    font-size: 1.05rem;
+}
+
+.homeEmptyState p {
+    margin: 0;
+    color: #697789;
+    line-height: 1.6;
+}
+
+.homeButton {
+    min-height: 46px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 0;
+    border-radius: 14px;
+    padding: 0 18px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.homeButtonPrimary {
+    background: #1d3554;
+    color: #fff;
+}
+
+.homeButtonSecondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.homeShoeCard {
+    display: grid;
+    gap: 16px;
+    border-radius: 16px;
+    padding: 18px;
+    background:
+        linear-gradient(
+            145deg,
+            #f7f9fc,
+            #edf2f7
+        );
+}
+
+.homeShoeMain {
+    display: grid;
+    gap: 14px;
+}
+
+.homeShoeMain > div:first-child {
+    display: grid;
+    gap: 4px;
+}
+
+.homeShoeMain > div:first-child span {
+    color: #6b7787;
+}
+
+.homeShoeMetrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.homeShoeMetrics > span {
+    display: grid;
+    gap: 4px;
+    padding: 12px;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.homeShoeMetrics small {
+    color: #6b7787;
+}
+
+.homeStatGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.homeStatCard {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    padding: 14px 10px;
+    border-radius: 14px;
+    background: #f6f8fb;
+    text-align: center;
+}
+
+.homeStatCard span {
+    color: #748094;
+    font-size: 0.74rem;
+}
+
+.homeStatCard strong {
+    font-size: clamp(1.15rem, 5vw, 1.7rem);
+}
+
+.homeRecentList {
+    display: grid;
+    gap: 8px;
+}
+
+.homeRecentItem {
+    width: 100%;
+    min-height: 64px;
+    display: grid;
+    grid-template-columns: 38px 1fr 18px;
+    align-items: center;
+    gap: 10px;
+    border: 0;
+    border-radius: 14px;
+    background: #f8fafc;
+    color: #182231;
+    padding: 10px 12px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.homeRecentIcon {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: #e7edf5;
+    font-weight: 800;
+}
+
+.homeRecentBody {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.homeRecentBody small {
+    overflow: hidden;
+    color: #6b7787;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.homeEmptyInline {
+    border-radius: 14px;
+    padding: 18px;
+    background: #f8fafc;
+    color: #778397;
+    text-align: center;
+}
+
+.homeTextButton {
+    border: 0;
+    background: transparent;
+    color: #315f96;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.homeSecondaryActions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.homeSecondaryButton {
+    min-height: 48px;
+    border: 1px solid #dfe6ef;
+    border-radius: 14px;
+    background: #fff;
+    color: #26364a;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.homeStatusBadge {
+    border-radius: 999px;
+    background: #e7f7ee;
+    color: #18733d;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.homeMobileBar {
+    position: fixed;
+    z-index: 50;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: 12px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 20px;
+    padding: 7px;
+    background: rgba(15, 25, 39, 0.92);
+    box-shadow: 0 16px 36px rgba(9, 17, 29, 0.25);
+    backdrop-filter: blur(16px);
+}
+
+.homeMobileBar button {
+    min-height: 52px;
+    display: grid;
+    place-items: center;
+    gap: 2px;
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.78);
+    cursor: pointer;
+}
+
+.homeMobileBar button.primary {
+    background: linear-gradient(145deg, #d4a84d, #f0d07c);
+    color: #17202c;
+}
+
+.homeMobileBar span {
+    font-size: 1.05rem;
+    font-weight: 900;
+}
+
+.homeMobileBar small {
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
+.homeFooter {
+    width: min(1120px, calc(100% - 32px));
+    margin: 20px auto 0;
+    display: flex;
+    justify-content: space-between;
+    color: #788599;
+    font-size: 0.76rem;
+}
+
+@media (hover: hover) {
+
+    .homeActionCard:hover,
+    .homeRecentItem:hover {
+        transform: translateY(-2px);
+        border-color: #c7d3e2;
+        box-shadow: 0 10px 24px rgba(36, 53, 75, 0.08);
+    }
+
+}
+
+@media (min-width: 720px) {
+
+    .homePage {
+        padding-bottom: 36px;
+    }
+
+    .homeHero {
+        padding: 40px 24px 56px;
+    }
+
+    .homeHeroInner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 32px;
+    }
+
+    .homeHeroActions {
+        display: flex;
+        gap: 10px;
+        flex: 0 0 auto;
+    }
+
+    .homeContent {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+    }
+
+    .homeQuickActions,
+    .homeCurrentShoe {
+        grid-column: 1 / -1;
+    }
+
+    .homeActionGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .homeShoeCard.current {
+        grid-template-columns: 1fr auto;
+        align-items: center;
+    }
+
+    .homeShoeMain {
+        grid-template-columns: minmax(180px, 1fr) minmax(240px, 1fr);
+        align-items: center;
+    }
+
+    .homeSecondaryActions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .homeMobileBar {
+        display: none;
+    }
+
+}
+
+@media (min-width: 1024px) {
+
+    .homeContent {
+        grid-template-columns: 1.2fr 0.8fr;
+    }
+
+    .homeQuickActions,
+    .homeCurrentShoe {
+        grid-column: auto;
+    }
+
+    .homeQuickActions {
+        grid-row: span 2;
+    }
+
+    .homeActionGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .homeCurrentShoe {
+        align-self: start;
+    }
+
+}
+
+@media (max-width: 420px) {
+
+    .homeHero {
+        padding-inline: 14px;
+    }
+
+    .homeContent {
+        width: min(100% - 16px, 1120px);
+    }
+
+    .homeSection {
+        border-radius: 16px;
+        padding: 14px;
+    }
+
+    .homeActionCard {
+        grid-template-columns: 42px 1fr 18px;
+        min-height: 76px;
+        padding: 12px;
+    }
+
+    .homeActionIcon {
+        width: 42px;
+        height: 42px;
+    }
+
+}
