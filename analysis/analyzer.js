@@ -1,7 +1,8 @@
 /**
  * Baccarat Analyzer
  * -----------------------------------------
- * Analyzer
+ *
+ * Analyzer v5
  *
  * 分析層總控制器
  *
@@ -9,7 +10,7 @@
  *
  * Monte Carlo / Exact
  *          ↓
- *     Probability
+ *      Probability
  *          ↓
  * EV → Kelly → Risk → Confidence
  *          ↓
@@ -17,15 +18,11 @@
  *          ↓
  *   Recommendation
  *
- * 不負責：
- * - 發牌規則
- * - 修改真實牌靴
- * - UI 顯示
+ * 此版本可直接接收 engine/game.js 建立的完整 context。
  */
 
 import MonteCarlo from "./monteCarlo.js";
 import Exact from "./exact.js";
-
 import EV from "./ev.js";
 import Kelly from "./kelly.js";
 import Risk from "./risk.js";
@@ -35,7 +32,7 @@ import Recommendation from "./recommendation.js";
 
 
 /**
- * 支援的分析模式
+ * 分析模式
  */
 export const AnalysisMode = Object.freeze({
 
@@ -52,103 +49,119 @@ export const AnalysisMode = Object.freeze({
 
 
 /**
- * 支援的下注項目
+ * 支援下注項目
  *
- * netOdds 是淨賠率。
- *
- * 注意：
- * 龍寶是分級賠率，目前 netOdds: 30
- * 只是暫時佔位，尚不能作為正式龍寶 EV。
+ * netOdds 為淨賠率。
  */
 export const BET_CONFIG = Object.freeze({
 
     player: Object.freeze({
 
-        label: "閒",
+        label:
+            "閒",
 
-        netOdds: 1,
+        netOdds:
+            1,
 
-        /**
-         * 閒遇到和局退回本金。
-         */
-        pushKey: "tie"
+        pushKey:
+            "tie"
 
     }),
 
     banker: Object.freeze({
 
-        label: "莊",
+        label:
+            "莊",
 
-        netOdds: 0.95,
+        netOdds:
+            0.95,
 
-        /**
-         * 莊遇到和局退回本金。
-         */
-        pushKey: "tie"
+        pushKey:
+            "tie"
 
     }),
 
     tie: Object.freeze({
 
-        label: "和",
+        label:
+            "和",
 
-        netOdds: 8,
+        netOdds:
+            8,
 
-        pushKey: null
+        pushKey:
+            null
 
     }),
 
     playerPair: Object.freeze({
 
-        label: "閒對",
+        label:
+            "閒對",
 
-        netOdds: 11,
+        netOdds:
+            11,
 
-        pushKey: null
+        pushKey:
+            null
 
     }),
 
     bankerPair: Object.freeze({
 
-        label: "莊對",
+        label:
+            "莊對",
 
-        netOdds: 11,
+        netOdds:
+            11,
 
-        pushKey: null
+        pushKey:
+            null
 
     }),
 
     super6: Object.freeze({
 
-        label: "超級 6",
+        label:
+            "超級 6",
 
-        netOdds: 12,
+        netOdds:
+            12,
 
-        pushKey: null
+        pushKey:
+            null
 
     }),
 
     playerDragonBonus: Object.freeze({
 
-        label: "閒龍寶",
+        label:
+            "閒龍寶",
 
-        netOdds: 30,
+        netOdds:
+            30,
 
-        pushKey: null,
+        pushKey:
+            null,
 
-        provisional: true
+        provisional:
+            true
 
     }),
 
     bankerDragonBonus: Object.freeze({
 
-        label: "莊龍寶",
+        label:
+            "莊龍寶",
 
-        netOdds: 30,
+        netOdds:
+            30,
 
-        pushKey: null,
+        pushKey:
+            null,
 
-        provisional: true
+        provisional:
+            true
 
     })
 
@@ -158,38 +171,48 @@ export const BET_CONFIG = Object.freeze({
 const DEFAULT_OPTIONS = Object.freeze({
 
     /**
-     * 預設採 Monte Carlo，
-     * 較適合手機即時分析。
+     * 手機即時分析預設使用 Monte Carlo。
      */
     mode:
         AnalysisMode.MONTE_CARLO,
 
-    /**
-     * Monte Carlo 預設設定
-     */
     monteCarlo: Object.freeze({
 
-        simulations: 100000,
+        simulations:
+            100000,
 
-        batchSize: 1000
+        batchSize:
+            1000
 
     }),
 
-    /**
-     * Exact 預設設定
-     */
     exact: Object.freeze({
 
-        batchSize: 8
+        batchSize:
+            8
 
     }),
 
-    /**
-     * 是否在輸出中保留中間資料。
-     */
-    includeDebugData: false
+    includeDebugData:
+        false
 
 });
+
+
+function isObject(value) {
+
+    return (
+
+        value !== null &&
+
+        typeof value ===
+            "object" &&
+
+        !Array.isArray(value)
+
+    );
+
+}
 
 
 export default class Analyzer {
@@ -200,7 +223,6 @@ export default class Analyzer {
      * {
      *     shoe,
      *     history,
-     *
      *     payouts,
      *
      *     monteCarloOptions,
@@ -253,7 +275,7 @@ export default class Analyzer {
         this.recommendation = null;
 
         if (
-            context &&
+            isObject(context) &&
             Object.keys(context).length > 0
         ) {
 
@@ -265,10 +287,27 @@ export default class Analyzer {
 
     }
 
+
     /**
      * 建立或更新完整分析環境
      */
     setContext(context = {}) {
+
+        if (!isObject(context)) {
+
+            throw new TypeError(
+                "Analyzer context must be an object."
+            );
+
+        }
+
+        if (!context.shoe) {
+
+            throw new Error(
+                "Analyzer context requires a Shoe."
+            );
+
+        }
 
         this.context = {
 
@@ -277,7 +316,9 @@ export default class Analyzer {
         };
 
         const analyzerOptions =
-            context.analyzerOptions ?? {};
+
+            context.analyzerOptions ??
+            {};
 
         this.options = {
 
@@ -327,9 +368,6 @@ export default class Analyzer {
 
         this.validateOptions();
 
-        /**
-         * 機率引擎
-         */
         this.monteCarlo =
             new MonteCarlo(
 
@@ -356,71 +394,57 @@ export default class Analyzer {
 
             );
 
-        /**
-         * 後續分析引擎
-         */
         this.ev =
             new EV(
-
-                context.payouts ?? {}
-
+                context.payouts ??
+                {}
             );
 
         this.kelly =
             new Kelly(
-
                 context.kellyOptions ??
                 {}
-
             );
 
         this.risk =
             new Risk(
-
                 context.riskOptions ??
                 {}
-
             );
 
         this.confidence =
             new Confidence(
-
-                context
-                    .confidenceOptions ??
+                context.confidenceOptions ??
                 {}
-
             );
 
         this.ranking =
             new Ranking(
-
                 context.rankingOptions ??
                 {}
-
             );
 
         this.recommendation =
             new Recommendation(
-
-                context
-                    .recommendationOptions ??
+                context.recommendationOptions ??
                 {}
-
             );
 
         return this;
 
     }
 
+
     /**
-     * 更新 Shoe 與 History，
-     * 不重建所有引擎。
+     * 只更新遊戲中的 Shoe 與 History。
      */
     updateGameContext({
 
-        shoe = this.context.shoe,
+        shoe =
+            this.context.shoe,
 
-        history = this.context.history
+        history =
+            this.context.history
 
     } = {}) {
 
@@ -434,214 +458,57 @@ export default class Analyzer {
 
         };
 
-        this.monteCarlo.setContext({
+        if (
+            this.monteCarlo &&
+            typeof this.monteCarlo
+                .setContext ===
+                "function"
+        ) {
 
-            ...this.monteCarlo.context,
+            this.monteCarlo
+                .setContext({
 
-            shoe
+                    ...(
+                        this.monteCarlo
+                            .context ??
+                        {}
+                    ),
 
-        });
+                    shoe
 
-        this.exact.setContext({
+                });
 
-            ...this.exact.context,
+        }
 
-            shoe
+        if (
+            this.exact &&
+            typeof this.exact
+                .setContext ===
+                "function"
+        ) {
 
-        });
+            this.exact
+                .setContext({
+
+                    ...(
+                        this.exact
+                            .context ??
+                        {}
+                    ),
+
+                    shoe
+
+                });
+
+        }
 
         return this;
 
     }
 
-    /**
-     * Game v5 正式分析入口
-     *
-     * engine/game.js 會把完整遊戲環境傳入這裡。
-     *
-     * context 可包含：
-     *
-     * {
-     *     shoe,
-     *     history,
-     *     payouts,
-     *
-     *     observableRemaining,
-     *     physicalRemaining,
-     *     unknownBurnedCount,
-     *
-     *     monteCarloOptions,
-     *     exactOptions,
-     *     kellyOptions,
-     *     riskOptions,
-     *     confidenceOptions,
-     *     rankingOptions,
-     *     recommendationOptions,
-     *
-     *     bankroll,
-     *     fraction,
-     *     minBet,
-     *     maxBet,
-     *     maxBankrollRatio,
-     *
-     *     analyzerOptions
-     * }
-     */
-    async analyzeContext(
-        context = {},
-        runOptions = {}
-    ) {
-
-        if (
-            !context ||
-            typeof context !== "object" ||
-            Array.isArray(context)
-        ) {
-
-            throw new TypeError(
-                "Analyzer context must be an object"
-            );
-
-        }
-
-        if (!context.shoe) {
-
-            throw new Error(
-                "Analyzer context requires a Shoe"
-            );
-
-        }
-
-        /**
-         * 每一局完成後 Shoe 都會改變，
-         * 因此每次分析前重新更新整個 context。
-         */
-        this.setContext(
-            context
-        );
-
-        const analyzerOptions =
-            context.analyzerOptions ?? {};
-
-        return this.analyze({
-
-            mode:
-                runOptions.mode ??
-                analyzerOptions.mode ??
-                this.options.mode,
-
-            probability:
-                runOptions.probability ??
-                null,
-
-            monteCarloResult:
-                runOptions.monteCarloResult ??
-                null,
-
-            exactResult:
-                runOptions.exactResult ??
-                null,
-
-            monteCarloOptions: {
-
-                ...(
-                    analyzerOptions.monteCarlo ??
-                    {}
-                ),
-
-                ...(
-                    context.monteCarloOptions ??
-                    {}
-                ),
-
-                ...(
-                    runOptions.monteCarloOptions ??
-                    {}
-                )
-
-            },
-
-            exactOptions: {
-
-                ...(
-                    analyzerOptions.exact ??
-                    {}
-                ),
-
-                ...(
-                    context.exactOptions ??
-                    {}
-                ),
-
-                ...(
-                    runOptions.exactOptions ??
-                    {}
-                )
-
-            },
-
-            bankroll:
-                runOptions.bankroll ??
-                context.bankroll ??
-                analyzerOptions.bankroll,
-
-            fraction:
-                runOptions.fraction ??
-                context.fraction ??
-                analyzerOptions.fraction,
-
-            minBet:
-                runOptions.minBet ??
-                context.minBet ??
-                analyzerOptions.minBet,
-
-            maxBet:
-                runOptions.maxBet ??
-                context.maxBet ??
-                analyzerOptions.maxBet,
-
-            maxBankrollRatio:
-                runOptions.maxBankrollRatio ??
-                context.maxBankrollRatio ??
-                analyzerOptions
-                    .maxBankrollRatio,
-
-            signal:
-                runOptions.signal ??
-                null,
-
-            onMonteCarloProgress:
-                runOptions
-                    .onMonteCarloProgress ??
-                null,
-
-            onExactProgress:
-                runOptions
-                    .onExactProgress ??
-                null
-
-        });
-
-    }
-
 
     /**
-     * Game 整合別名
-     */
-    async run(
-        context = {},
-        runOptions = {}
-    ) {
-
-        return this.analyzeContext(
-            context,
-            runOptions
-        );
-
-    }
-
-    /**
-     * 驗證 Analyzer 設定
+     * 驗證 Analyzer 設定。
      */
     validateOptions() {
 
@@ -654,9 +521,7 @@ export default class Analyzer {
         ) {
 
             throw new Error(
-
                 `Unknown analysis mode: ${this.options.mode}`
-
             );
 
         }
@@ -668,65 +533,67 @@ export default class Analyzer {
         ) {
 
             throw new TypeError(
-
-                "includeDebugData must be boolean"
-
+                "includeDebugData must be boolean."
             );
 
         }
 
+        return true;
+
     }
 
+
     /**
-     * 驗證目前是否有 Shoe
+     * 驗證目前分析環境。
      */
     validateContext() {
 
-        if (!this.context.shoe) {
+        const shoe =
+            this.context.shoe;
+
+        if (!shoe) {
 
             throw new Error(
-
-                "Analyzer requires a Shoe"
-
+                "Analyzer requires a Shoe."
             );
 
         }
 
         if (
             !Array.isArray(
-                this.context
-                    .shoe
-                    .cards
+                shoe.cards
             )
         ) {
 
             throw new TypeError(
-
-                "Analyzer context contains an invalid Shoe"
-
+                "Analyzer context contains an invalid Shoe."
             );
 
         }
 
+        /**
+         * 一局最多六張牌。
+         *
+         * unknownBurnedCount 不代表已知牌面，
+         * 因此機率引擎仍使用 shoe.cards 的可觀察牌池。
+         */
         if (
-            this.context
-                .shoe
-                .cards
-                .length < 6
+            shoe.cards.length < 6
         ) {
 
             throw new Error(
-
-                "At least 6 remaining cards are required for analysis"
-
+                "At least 6 observable cards are required for analysis."
             );
 
         }
 
+        return true;
+
     }
 
+
     /**
-     * 驗證機率值
+     * 檢查機率值。
      */
     validateProbabilityValue(
         value,
@@ -740,35 +607,27 @@ export default class Analyzer {
         ) {
 
             throw new RangeError(
-
-                `${name} probability must be between 0 and 1`
-
+                `${name} probability must be between 0 and 1.`
             );
 
         }
 
     }
 
+
     /**
-     * 從分析結果取得 probability。
+     * 從分析結果取出 probability。
      */
     extractProbability(source) {
 
-        if (
-            !source ||
-            typeof source !== "object" ||
-            Array.isArray(source)
-        ) {
+        if (!isObject(source)) {
 
             return null;
 
         }
 
         if (
-            source.probability &&
-            typeof source.probability ===
-            "object" &&
-            !Array.isArray(
+            isObject(
                 source.probability
             )
         ) {
@@ -781,11 +640,9 @@ export default class Analyzer {
 
     }
 
+
     /**
      * 整理並驗證機率。
-     *
-     * player / banker / tie 必須存在。
-     * Side Bet 可以暫時缺少。
      */
     normalizeProbability(source) {
 
@@ -797,9 +654,7 @@ export default class Analyzer {
         if (!input) {
 
             throw new Error(
-
-                "Probability data is required"
-
+                "Probability data is required."
             );
 
         }
@@ -808,7 +663,9 @@ export default class Analyzer {
 
         for (
             const name of
-            Object.keys(BET_CONFIG)
+            Object.keys(
+                BET_CONFIG
+            )
         ) {
 
             const value =
@@ -824,28 +681,23 @@ export default class Analyzer {
             }
 
             this.validateProbabilityValue(
-
                 value,
-
                 name
-
             );
 
-            result[name] = value;
+            result[name] =
+                value;
 
         }
 
-        const required = [
-
-            "player",
-
-            "banker",
-
-            "tie"
-
-        ];
-
-        for (const name of required) {
+        for (
+            const name of
+            [
+                "player",
+                "banker",
+                "tie"
+            ]
+        ) {
 
             if (
                 !Number.isFinite(
@@ -854,9 +706,7 @@ export default class Analyzer {
             ) {
 
                 throw new Error(
-
                     `Missing required probability: ${name}`
-
                 );
 
             }
@@ -866,9 +716,7 @@ export default class Analyzer {
         const total =
 
             result.player +
-
             result.banker +
-
             result.tie;
 
         if (
@@ -878,9 +726,7 @@ export default class Analyzer {
         ) {
 
             throw new RangeError(
-
-                "Player, Banker and Tie probabilities must total approximately 1"
-
+                "Player, Banker and Tie probabilities must total approximately 1."
             );
 
         }
@@ -889,8 +735,9 @@ export default class Analyzer {
 
     }
 
+
     /**
-     * 執行 Monte Carlo
+     * 執行 Monte Carlo。
      */
     async runMonteCarlo({
 
@@ -907,9 +754,11 @@ export default class Analyzer {
         random =
             Math.random,
 
-        signal = null,
+        signal =
+            null,
 
-        onProgress = null
+        onProgress =
+            null
 
     } = {}) {
 
@@ -930,36 +779,9 @@ export default class Analyzer {
 
     }
 
-    /**
-     * 同步執行 Monte Carlo
-     *
-     * 建議只用於測試或 Web Worker。
-     */
-    runMonteCarloSync({
-
-        simulations =
-            this.options
-                .monteCarlo
-                .simulations,
-
-        random =
-            Math.random
-
-    } = {}) {
-
-        return this.monteCarlo
-            .calculateSync({
-
-                simulations,
-
-                random
-
-            });
-
-    }
 
     /**
-     * 執行 Exact
+     * 執行 Exact。
      */
     async runExact({
 
@@ -968,9 +790,11 @@ export default class Analyzer {
                 .exact
                 .batchSize,
 
-        signal = null,
+        signal =
+            null,
 
-        onProgress = null
+        onProgress =
+            null
 
     } = {}) {
 
@@ -987,48 +811,41 @@ export default class Analyzer {
 
     }
 
-    /**
-     * 同步執行 Exact
-     *
-     * 建議只用於測試或 Web Worker。
-     */
-    runExactSync() {
-
-        return this.exact
-            .calculateSync();
-
-    }
 
     /**
-     * 執行指定機率分析模式。
+     * 依模式取得機率。
      */
     async resolveAnalysis({
 
         mode =
             this.options.mode,
 
-        probability = null,
+        probability =
+            null,
 
-        monteCarloResult = null,
+        monteCarloResult =
+            null,
 
-        exactResult = null,
+        exactResult =
+            null,
 
-        monteCarloOptions = {},
+        monteCarloOptions =
+            {},
 
-        exactOptions = {},
+        exactOptions =
+            {},
 
-        signal = null,
+        signal =
+            null,
 
-        onMonteCarloProgress = null,
+        onMonteCarloProgress =
+            null,
 
-        onExactProgress = null
+        onExactProgress =
+            null
 
     } = {}) {
 
-        /**
-         * 外部直接提供機率，
-         * 適合測試。
-         */
         if (probability) {
 
             return {
@@ -1051,17 +868,15 @@ export default class Analyzer {
 
         }
 
-        /**
-         * 使用已完成的結果，
-         * 避免重複運算。
-         */
         if (
             mode ===
             AnalysisMode.MONTE_CARLO
         ) {
 
             const monteCarlo =
+
                 monteCarloResult ??
+
                 await this.runMonteCarlo({
 
                     ...monteCarloOptions,
@@ -1099,7 +914,9 @@ export default class Analyzer {
         ) {
 
             const exact =
+
                 exactResult ??
+
                 await this.runExact({
 
                     ...exactOptions,
@@ -1135,12 +952,10 @@ export default class Analyzer {
             AnalysisMode.HYBRID
         ) {
 
-            /**
-             * 先執行 Monte Carlo，
-             * 讓 UI 能先看到進度。
-             */
             const monteCarlo =
+
                 monteCarloResult ??
+
                 await this.runMonteCarlo({
 
                     ...monteCarloOptions,
@@ -1153,7 +968,9 @@ export default class Analyzer {
                 });
 
             const exact =
+
                 exactResult ??
+
                 await this.runExact({
 
                     ...exactOptions,
@@ -1165,15 +982,14 @@ export default class Analyzer {
 
                 });
 
-            /**
-             * Hybrid 最終使用 Exact 機率，
-             * Monte Carlo 用於驗證及 Confidence。
-             */
             return {
 
                 method:
                     AnalysisMode.HYBRID,
 
+                /**
+                 * Hybrid 最終採 Exact 機率。
+                 */
                 probability:
                     this.normalizeProbability(
                         exact
@@ -1188,15 +1004,14 @@ export default class Analyzer {
         }
 
         throw new Error(
-
             `Unknown analysis mode: ${mode}`
-
         );
 
     }
 
+
     /**
-     * 計算所有有效下注的 EV。
+     * 計算全部 EV。
      */
     getEV(probability) {
 
@@ -1204,7 +1019,9 @@ export default class Analyzer {
 
         for (
             const name of
-            Object.keys(BET_CONFIG)
+            Object.keys(
+                BET_CONFIG
+            )
         ) {
 
             if (
@@ -1231,11 +1048,8 @@ export default class Analyzer {
 
             result[name] =
                 method.call(
-
                     this.ev,
-
                     probability
-
                 );
 
         }
@@ -1244,9 +1058,9 @@ export default class Analyzer {
 
     }
 
+
     /**
-     * 建立 Kelly 與 Risk
-     * 共用的下注參數。
+     * 建立 Kelly 與 Risk 共用輸入。
      */
     buildBetInput(probability) {
 
@@ -1275,12 +1089,15 @@ export default class Analyzer {
             }
 
             const pushProbability =
+
                 config.pushKey
+
                     ? (
                         probability[
                             config.pushKey
                         ] ?? 0
                     )
+
                     : 0;
 
             bets[name] = {
@@ -1300,8 +1117,9 @@ export default class Analyzer {
 
     }
 
+
     /**
-     * 建立 Kelly 執行選項。
+     * 建立 Kelly 選項。
      */
     buildKellyOptions({
 
@@ -1369,6 +1187,7 @@ export default class Analyzer {
 
     }
 
+
     /**
      * 計算 Kelly。
      */
@@ -1390,6 +1209,7 @@ export default class Analyzer {
 
     }
 
+
     /**
      * 計算 Risk。
      */
@@ -1406,8 +1226,9 @@ export default class Analyzer {
 
     }
 
+
     /**
-     * 取得 Monte Carlo 樣本數。
+     * Monte Carlo 樣本數。
      */
     getSampleSize(monteCarlo) {
 
@@ -1420,34 +1241,37 @@ export default class Analyzer {
         const value =
 
             monteCarlo.sampleSize ??
-
             monteCarlo.samples ??
-
             monteCarlo.simulations ??
-
             null;
 
         return (
+
             Number.isInteger(value) &&
             value > 0
+
         )
             ? value
             : null;
 
     }
 
+
     /**
-     * 建立 Confidence 結果。
+     * 建立 Confidence。
      */
     getConfidence({
 
         probability,
 
-        monteCarlo = null,
+        monteCarlo =
+            null,
 
-        exact = null,
+        exact =
+            null,
 
-        method = "provided"
+        method =
+            "provided"
 
     }) {
 
@@ -1470,7 +1294,9 @@ export default class Analyzer {
 
         for (
             const name of
-            Object.keys(BET_CONFIG)
+            Object.keys(
+                BET_CONFIG
+            )
         ) {
 
             if (
@@ -1484,19 +1310,11 @@ export default class Analyzer {
             }
 
             const mcValue =
-                mcProbability?.[
-                    name
-                ];
+                mcProbability?.[name];
 
             const exactValue =
-                exactProbability?.[
-                    name
-                ];
+                exactProbability?.[name];
 
-            /**
-             * 有 Monte Carlo 時，
-             * 使用正式 Confidence 引擎。
-             */
             if (
                 Number.isFinite(
                     mcValue
@@ -1528,13 +1346,6 @@ export default class Analyzer {
 
             }
 
-            /**
-             * Exact 沒有抽樣誤差，
-             * 但仍可能有程式或規則模型錯誤。
-             *
-             * 這裡給 1 代表：
-             * 「在目前計算模型內為精確列舉」。
-             */
             const isExact =
 
                 method ===
@@ -1553,9 +1364,10 @@ export default class Analyzer {
                     : 0.5;
 
             const confidenceLevel =
-                this.confidence.level(
-                    confidenceScore
-                );
+                this.confidence
+                    .level(
+                        confidenceScore
+                    );
 
             result[name] = {
 
@@ -1609,8 +1421,9 @@ export default class Analyzer {
 
     }
 
+
     /**
-     * 整理 Ranking 標準輸入。
+     * 建立 Ranking 輸入。
      */
     buildRankingInput({
 
@@ -1755,6 +1568,7 @@ export default class Analyzer {
 
     }
 
+
     /**
      * 執行 Ranking。
      */
@@ -1767,10 +1581,17 @@ export default class Analyzer {
 
     }
 
+
     /**
-     * 取得最佳可下注項目。
+     * 最佳可下注項目。
      */
     getBestFromRanking(ranking) {
+
+        if (!Array.isArray(ranking)) {
+
+            return null;
+
+        }
 
         return (
 
@@ -1778,14 +1599,18 @@ export default class Analyzer {
                 item =>
                     item.eligible
             ) ??
+
+            ranking[0] ??
+
             null
 
         );
 
     }
 
+
     /**
-     * 產生最終 Recommendation。
+     * 產生 Recommendation。
      */
     getRecommendation(ranking) {
 
@@ -1796,44 +1621,49 @@ export default class Analyzer {
 
     }
 
+
     /**
      * 完整非同步分析。
      *
-     * 手機正式版建議使用這個方法。
+     * 這個方法接收「單次執行選項」。
      */
     async analyze({
 
         mode =
             this.options.mode,
 
-        /**
-         * 測試時可直接傳入機率。
-         */
-        probability = null,
+        probability =
+            null,
 
-        /**
-         * 已計算結果可直接重用。
-         */
-        monteCarloResult = null,
+        monteCarloResult =
+            null,
 
-        exactResult = null,
+        exactResult =
+            null,
 
-        monteCarloOptions = {},
+        monteCarloOptions =
+            {},
 
-        exactOptions = {},
+        exactOptions =
+            {},
 
-        bankroll = undefined,
+        bankroll =
+            undefined,
 
-        fraction = undefined,
+        fraction =
+            undefined,
 
-        minBet = undefined,
+        minBet =
+            undefined,
 
-        maxBet = undefined,
+        maxBet =
+            undefined,
 
         maxBankrollRatio =
             undefined,
 
-        signal = null,
+        signal =
+            null,
 
         onMonteCarloProgress =
             null,
@@ -1848,9 +1678,6 @@ export default class Analyzer {
         const startedAt =
             Date.now();
 
-        /**
-         * 1. 機率分析
-         */
         const resolved =
             await this.resolveAnalysis({
 
@@ -1877,17 +1704,11 @@ export default class Analyzer {
         const finalProbability =
             resolved.probability;
 
-        /**
-         * 2. EV
-         */
         const ev =
             this.getEV(
                 finalProbability
             );
 
-        /**
-         * 3. Kelly
-         */
         const kelly =
             this.getKelly(
 
@@ -1909,17 +1730,11 @@ export default class Analyzer {
 
             );
 
-        /**
-         * 4. Risk
-         */
         const risk =
             this.getRisk(
                 finalProbability
             );
 
-        /**
-         * 5. Confidence
-         */
         const confidence =
             this.getConfidence({
 
@@ -1927,8 +1742,7 @@ export default class Analyzer {
                     finalProbability,
 
                 monteCarlo:
-                    resolved
-                        .monteCarlo,
+                    resolved.monteCarlo,
 
                 exact:
                     resolved.exact,
@@ -1944,9 +1758,6 @@ export default class Analyzer {
                     confidence
                 );
 
-        /**
-         * 6. Ranking
-         */
         const rankingInput =
             this.buildRankingInput({
 
@@ -1973,9 +1784,6 @@ export default class Analyzer {
                 ranking
             );
 
-        /**
-         * 7. Recommendation
-         */
         const recommendation =
             this.getRecommendation(
                 ranking
@@ -1986,25 +1794,6 @@ export default class Analyzer {
 
         const shoe =
             this.context.shoe;
-
-        const observableRemaining =
-
-            shoe.observableRemaining ??
-            shoe.knownRemaining ??
-            shoe.remaining ??
-            shoe.cards?.length ??
-            0;
-
-        const physicalRemaining =
-
-            shoe.physicalRemaining ??
-            observableRemaining;
-
-        const unknownBurnedCount =
-
-            shoe.unknownBurnedCount ??
-            0;
-
 
         const output = {
 
@@ -2042,47 +1831,47 @@ export default class Analyzer {
                 false,
 
             /**
-             * 舊版相容。
-             *
-             * remainingCards 顯示實體牌靴剩餘數。
+             * 舊版相容：實體牌靴剩餘數量。
              */
             remainingCards:
-                physicalRemaining,
+                shoe.physicalRemaining ??
+                shoe.remaining,
 
             /**
-             * 機率引擎使用的可觀察牌池數量。
+             * 可觀察牌池數量。
              */
-            observableRemaining,
+            observableRemaining:
+                shoe.observableRemaining ??
+                shoe.remaining,
 
             /**
-             * 賭桌牌靴實際剩餘數量。
+             * 實體牌靴剩餘數量。
              */
-            physicalRemaining,
+            physicalRemaining:
+                shoe.physicalRemaining ??
+                shoe.remaining,
 
-            /**
-             * 身分未知的隱藏燒牌張數。
-             */
-            unknownBurnedCount,
+            unknownBurnedCount:
+                shoe.unknownBurnedCount ??
+                0,
 
-            /**
-             * 本分析是第幾局完成後產生。
-             */
-            generatedAfterRound:
-
+            roundCount:
                 this.context.roundCount ??
-
                 this.context.history
                     ?.count ??
+                0,
 
+            generatedAfterRound:
+                this.context.roundCount ??
+                this.context.history
+                    ?.count ??
                 0,
 
             durationMs:
-
                 completedAt -
                 startedAt,
 
             analyzedAt:
-
                 new Date(
                     completedAt
                 ).toISOString()
@@ -2099,10 +1888,6 @@ export default class Analyzer {
 
             output.contextSummary = {
 
-                roundCount:
-                    output
-                        .generatedAfterRound,
-
                 observableRemaining:
                     output
                         .observableRemaining,
@@ -2115,15 +1900,8 @@ export default class Analyzer {
                     output
                         .unknownBurnedCount,
 
-                historyCount:
-                    this.context.history
-                        ?.count ??
-                    0,
-
-                hasBurnInfo:
-                    Boolean(
-                        this.context.burn
-                    )
+                roundCount:
+                    output.roundCount
 
             };
 
@@ -2133,297 +1911,167 @@ export default class Analyzer {
 
     }
 
+
     /**
-     * 同步分析。
+     * Game 的正式整合入口。
      *
-     * 適合：
-     * - 測試
-     * - Web Worker
-     *
-     * 不建議在手機 UI 主執行緒執行 Exact。
+     * context 是 engine/game.js 建立的完整環境。
+     * runOptions 是本次分析的執行設定。
      */
-    analyzeSync({
+    async analyzeContext(
+        context = {},
+        runOptions = {}
+    ) {
 
-        mode =
-            AnalysisMode
-                .MONTE_CARLO,
+        if (!isObject(context)) {
 
-        probability = null,
-
-        simulations =
-            this.options
-                .monteCarlo
-                .simulations,
-
-        random =
-            Math.random,
-
-        bankroll = undefined,
-
-        fraction = undefined,
-
-        minBet = undefined,
-
-        maxBet = undefined,
-
-        maxBankrollRatio =
-            undefined
-
-    } = {}) {
-
-        this.validateContext();
-
-        let monteCarlo = null;
-
-        let exact = null;
-
-        let method;
-
-        let finalProbability;
-
-        if (probability) {
-
-            method =
-                "provided";
-
-            finalProbability =
-                this.normalizeProbability(
-                    probability
-                );
+            throw new TypeError(
+                "Analyzer context must be an object."
+            );
 
         }
-        else if (
-            mode ===
-            AnalysisMode.MONTE_CARLO
-        ) {
 
-            monteCarlo =
-                this.runMonteCarloSync({
-
-                    simulations,
-
-                    random
-
-                });
-
-            method =
-                AnalysisMode
-                    .MONTE_CARLO;
-
-            finalProbability =
-                this.normalizeProbability(
-                    monteCarlo
-                );
-
-        }
-        else if (
-            mode ===
-            AnalysisMode.EXACT
-        ) {
-
-            exact =
-                this.runExactSync();
-
-            method =
-                AnalysisMode.EXACT;
-
-            finalProbability =
-                this.normalizeProbability(
-                    exact
-                );
-
-        }
-        else if (
-            mode ===
-            AnalysisMode.HYBRID
-        ) {
-
-            monteCarlo =
-                this.runMonteCarloSync({
-
-                    simulations,
-
-                    random
-
-                });
-
-            exact =
-                this.runExactSync();
-
-            method =
-                AnalysisMode.HYBRID;
-
-            finalProbability =
-                this.normalizeProbability(
-                    exact
-                );
-
-        }
-        else {
+        if (!context.shoe) {
 
             throw new Error(
-
-                `Unknown analysis mode: ${mode}`
-
+                "Analyzer context requires a Shoe."
             );
 
         }
 
-        const ev =
-            this.getEV(
-                finalProbability
-            );
+        this.setContext(
+            context
+        );
 
-        const kelly =
-            this.getKelly(
+        const analyzerOptions =
+            context.analyzerOptions ??
+            {};
 
-                finalProbability,
+        return this.analyze({
 
-                this.buildKellyOptions({
-
-                    bankroll,
-
-                    fraction,
-
-                    minBet,
-
-                    maxBet,
-
-                    maxBankrollRatio
-
-                })
-
-            );
-
-        const risk =
-            this.getRisk(
-                finalProbability
-            );
-
-        const confidence =
-            this.getConfidence({
-
-                probability:
-                    finalProbability,
-
-                monteCarlo,
-
-                exact,
-
-                method
-
-            });
-
-        const rankingInput =
-            this.buildRankingInput({
-
-                probability:
-                    finalProbability,
-
-                ev,
-
-                kelly,
-
-                risk,
-
-                confidence
-
-            });
-
-        const ranking =
-            this.getRanking(
-                rankingInput
-            );
-
-        const recommendation =
-            this.getRecommendation(
-                ranking
-            );
-
-        return {
-
-            method,
+            mode:
+                runOptions.mode ??
+                analyzerOptions.mode ??
+                this.options.mode,
 
             probability:
-                finalProbability,
+                runOptions.probability ??
+                null,
 
-            monteCarlo,
+            monteCarloResult:
+                runOptions
+                    .monteCarloResult ??
+                null,
 
-            exact,
+            exactResult:
+                runOptions
+                    .exactResult ??
+                null,
 
-            ev,
+            monteCarloOptions: {
 
-            kelly,
-
-            risk,
-
-            confidence,
-
-            overallConfidence:
-                this.confidence
-                    .overall(
-                        confidence
-                    ),
-
-            ranking,
-
-            best:
-                this.getBestFromRanking(
-                    ranking
+                ...(
+                    analyzerOptions.monteCarlo ??
+                    {}
                 ),
 
-            recommendation,
+                ...(
+                    context
+                        .monteCarloOptions ??
+                    {}
+                ),
 
-            shouldBet:
-                recommendation
-                    .shouldBet,
+                ...(
+                    runOptions
+                        .monteCarloOptions ??
+                    {}
+                )
 
-            remainingCards:
+            },
 
-                this.context.shoe
-                    .physicalRemaining ??
+            exactOptions: {
 
-                this.context.shoe
-                    .remaining,
+                ...(
+                    analyzerOptions.exact ??
+                    {}
+                ),
 
-            observableRemaining:
+                ...(
+                    context
+                        .exactOptions ??
+                    {}
+                ),
 
-                this.context.shoe
-                    .observableRemaining ??
+                ...(
+                    runOptions
+                        .exactOptions ??
+                    {}
+                )
 
-                this.context.shoe
-                    .remaining,
+            },
 
-            physicalRemaining:
+            bankroll:
+                runOptions.bankroll ??
+                context.bankroll ??
+                analyzerOptions.bankroll,
 
-                this.context.shoe
-                    .physicalRemaining ??
+            fraction:
+                runOptions.fraction ??
+                context.fraction ??
+                analyzerOptions.fraction,
 
-                this.context.shoe
-                    .remaining,
+            minBet:
+                runOptions.minBet ??
+                context.minBet ??
+                analyzerOptions.minBet,
 
-            unknownBurnedCount:
+            maxBet:
+                runOptions.maxBet ??
+                context.maxBet ??
+                analyzerOptions.maxBet,
 
-                this.context.shoe
-                    .unknownBurnedCount ??
-                0,
+            maxBankrollRatio:
+                runOptions
+                    .maxBankrollRatio ??
+                context
+                    .maxBankrollRatio ??
+                analyzerOptions
+                    .maxBankrollRatio,
 
-            generatedAfterRound:
+            signal:
+                runOptions.signal ??
+                null,
 
-                this.context.roundCount ??
+            onMonteCarloProgress:
+                runOptions
+                    .onMonteCarloProgress ??
+                null,
 
-                this.context.history
-                    ?.count ??
+            onExactProgress:
+                runOptions
+                    .onExactProgress ??
+                null
 
-                0,
-
-            analyzedAt:
-                new Date()
-                    .toISOString()
-
-        };
+        });
 
     }
+
+
+    /**
+     * Game 整合別名。
+     */
+    async run(
+        context = {},
+        runOptions = {}
+    ) {
+
+        return this.analyzeContext(
+            context,
+            runOptions
+        );
+
+    }
+
 
     /**
      * 設定預設分析模式。
@@ -2437,9 +2085,7 @@ export default class Analyzer {
         ) {
 
             throw new Error(
-
                 `Unknown analysis mode: ${mode}`
-
             );
 
         }
@@ -2450,6 +2096,7 @@ export default class Analyzer {
         return this;
 
     }
+
 
     /**
      * 設定 Ranking 策略。
@@ -2465,69 +2112,39 @@ export default class Analyzer {
 
     }
 
+
     /**
-     * 設定 Ranking 權重。
+     * 取得目前設定。
      */
-    setRankingWeights(weights) {
+    getOptions() {
 
-        this.ranking
-            .setWeights(
-                weights
-            );
+        return {
 
-        return this;
+            ...this.options,
+
+            monteCarlo: {
+
+                ...this.options
+                    .monteCarlo
+
+            },
+
+            exact: {
+
+                ...this.options
+                    .exact
+
+            }
+
+        };
 
     }
 
-    /**
-     * 設定 Kelly。
-     */
-    setKellyConfig(config) {
-
-        this.kelly
-            .setConfig(
-                config
-            );
-
-        return this;
-
-    }
 
     /**
-     * 設定 Recommendation。
-     */
-    setRecommendationOptions(
-        options
-    ) {
-
-        this.recommendation
-            .updateOptions(
-                options
-            );
-
-        return this;
-
-    }
-
-    /**
-     * 中止判斷工具。
-     */
-    isAbortError(error) {
-
-        return (
-            error?.name ===
-            "AbortError"
-        );
-
-    }
-
-    /**
-     * Analyzer 目前狀態摘要
+     * 取得簡化資訊。
      */
     get summary() {
-
-        const shoe =
-            this.context.shoe;
 
         return {
 
@@ -2535,79 +2152,33 @@ export default class Analyzer {
                 this.options.mode,
 
             hasShoe:
-                Boolean(shoe),
+                Boolean(
+                    this.context.shoe
+                ),
 
             observableRemaining:
-
-                shoe?.observableRemaining ??
-                shoe?.remaining ??
+                this.context.shoe
+                    ?.observableRemaining ??
+                this.context.shoe
+                    ?.remaining ??
                 0,
 
             physicalRemaining:
-
-                shoe?.physicalRemaining ??
-                shoe?.remaining ??
+                this.context.shoe
+                    ?.physicalRemaining ??
+                this.context.shoe
+                    ?.remaining ??
                 0,
 
             unknownBurnedCount:
-
-                shoe?.unknownBurnedCount ??
+                this.context.shoe
+                    ?.unknownBurnedCount ??
                 0,
 
             roundCount:
-
-                this.context.roundCount ??
-
                 this.context.history
                     ?.count ??
-
                 0
-
-        };
-
-    }
-
-    /**
-     * 輸出 Analyzer 設定。
-     */
-    toJSON() {
-
-        return {
-
-            mode:
-                this.options.mode,
-
-            includeDebugData:
-                this.options
-                    .includeDebugData,
-
-            monteCarlo:
-                this.monteCarlo
-                    .toJSON(),
-
-            exact:
-                this.exact
-                    .toJSON(),
-
-            kelly: {
-
-                ...this.kelly.config
-
-            },
-
-            risk:
-                this.risk.toJSON(),
-
-            confidence:
-                this.confidence
-                    .toJSON(),
-
-            ranking:
-                this.ranking.toJSON(),
-
-            recommendation:
-                this.recommendation
-                    .toJSON()
 
         };
 
