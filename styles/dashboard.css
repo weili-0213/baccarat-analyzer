@@ -949,3 +949,57 @@
     }
 
 }
+
+
+/* =====================================
+   Dashboard 快速／完整模式
+   ===================================== */
+
+.dashboardModeSwitch {
+    display: inline-grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    gap: 3px;
+    border: 1px solid
+        var(--dashboard-border);
+    border-radius: 11px;
+    padding: 3px;
+    background:
+        rgba(0, 0, 0, 0.16);
+}
+
+.dashboardModeSwitch button {
+    min-height: 30px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color:
+        var(--dashboard-text-muted);
+    padding: 0 10px;
+    font-size: 0.7rem;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.dashboardModeSwitch button.active {
+    background:
+        var(--dashboard-yellow);
+    color: #17202c;
+}
+
+.analysisFooter.quick {
+    grid-template-columns: 1fr;
+}
+
+@media (max-width: 520px) {
+
+    .dashboardModeSwitch {
+        order: 3;
+        width: 100%;
+    }
+
+    .dashboardModeSwitch button {
+        min-height: 34px;
+    }
+
+}
