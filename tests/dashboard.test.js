@@ -105,7 +105,12 @@ export default async function dashboardTest() {
         assert(root.querySelector(".v3RecommendationPanel"), "缺少 RecommendationPanel");
         assert(root.querySelector(".v3HistoryPanel"), "缺少 History Panel");
         assert(root.querySelector(".v3RoadmapPanel"), "缺少 Roadmap Panel");
-        messages.push("✓ V3 初始 DOM 正確");
+        assert(root.querySelector(".v32CasinoGrid"), "缺少 V3.2 Casino Grid");
+        assert(root.querySelector(".v32InputZone"), "缺少輸牌區");
+        assert(root.querySelector(".v32InsightZone"), "缺少分析區");
+        assert(root.querySelector(".v32RoadZone"), "缺少路單區");
+        assert(root.querySelectorAll("[data-action='set-mobile-section']").length === 3, "手機分區按鈕應為 3 個");
+        messages.push("✓ V3.2 Casino Dashboard DOM 正確");
 
         assert(root.querySelector('[data-mode="quick"]'), "缺少快速模式按鈕");
         assert(root.querySelector('[data-mode="full"]'), "缺少完整模式按鈕");
@@ -117,6 +122,16 @@ export default async function dashboardTest() {
         root.querySelector('[data-mode="quick"]').click();
         assert(dashboard.ui.mode === DashboardMode.QUICK, "快速模式切換失敗");
         messages.push("✓ 快速／完整模式切換正確");
+
+        root.querySelector('[data-section="insight"]').click();
+        assert(dashboard.ui.mobileSection === "insight", "手機分析分區切換失敗");
+
+        root.querySelector('[data-section="roadmap"]').click();
+        assert(dashboard.ui.mobileSection === "roadmap", "手機路單分區切換失敗");
+
+        root.querySelector('[data-section="input"]').click();
+        assert(dashboard.ui.mobileSection === "input", "手機輸牌分區切換失敗");
+        messages.push("✓ 手機三區切換正確");
 
         selectBurn(root, "A", "S");
         await clickAction(root, dashboard, "confirm-burn");
@@ -212,6 +227,8 @@ export default async function dashboardTest() {
         assert(summary.mounted === true, "summary.mounted 錯誤");
         assert(summary.roundCount === 1, "summary.roundCount 錯誤");
         assert(summary.hasAnalysis === true, "summary.hasAnalysis 錯誤");
+        assert(summary.casinoLayout === true, "summary.casinoLayout 錯誤");
+        assert(summary.mobileSection === "input", "summary.mobileSection 錯誤");
         messages.push("✓ summary 正確");
 
         dashboard.destroy();
@@ -230,6 +247,8 @@ Dashboard V3 測試完成
 自動加入：通過
 單頁版面：通過
 鍵盤快速輸牌：通過
+Casino Grid：通過
+手機三區切換：通過
 `;
     }
     finally {
