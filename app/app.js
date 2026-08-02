@@ -4,15 +4,17 @@
  *
  * app/app.js
  *
- * 應用程式入口與頁面整合。
+ * V3 應用程式組裝層。
+ *
+ * engine/game.js 維持不變。
+ * 背景分析器由本檔建立並注入 Game。
  *
  * 流程：
  *
  * 首頁
- * → 建立新牌靴精靈
- * → 建立 Game
+ * → 新牌靴精靈
+ * → 建立 Game + WorkerAnalyzer
  * → 確認燒牌
- * → 第一局分析
  * → Dashboard
  *
  * 路由：
@@ -33,6 +35,12 @@ import createNewShoePage
 
 import createDashboard
     from "../pages/dashboard.js";
+
+import Game
+    from "../engine/game.js";
+
+import WorkerAnalyzer
+    from "../analysis/WorkerAnalyzer.js";
 
 
 const ROUTES =
@@ -87,12 +95,30 @@ function normalizeRoute(value) {
 
 function escapeHTML(value) {
 
-    return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+    return String(
+        value ??
+        ""
+    )
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
 
 }
 
@@ -103,7 +129,9 @@ function normalizeDeckCount(value) {
         Number(value);
 
     if (
-        !Number.isInteger(deckCount) ||
+        !Number.isInteger(
+            deckCount
+        ) ||
         deckCount < 1 ||
         deckCount > 12
     ) {
@@ -123,7 +151,8 @@ function normalizeBurnCard(value) {
 
     if (
         !value ||
-        typeof value !== "object" ||
+        typeof value !==
+            "object" ||
         Array.isArray(value)
     ) {
 
@@ -137,15 +166,22 @@ function normalizeBurnCard(value) {
         String(
             value.rank ??
             ""
-        ).toUpperCase();
+        )
+            .trim()
+            .toUpperCase();
 
     const suit =
         String(
             value.suit ??
             ""
-        ).toUpperCase();
+        )
+            .trim()
+            .toUpperCase();
 
-    if (!rank || !suit) {
+    if (
+        !rank ||
+        !suit
+    ) {
 
         throw new Error(
             "Burn card rank and suit are required."
@@ -164,20 +200,33 @@ function normalizeBurnCard(value) {
 }
 
 
-class BaccaratApplication {
+export class BaccaratApplication {
 
     constructor({
 
-        root = "#app"
+        root = "#app",
+
+        workerFallback = true
 
     } = {}) {
 
         this.root =
-            typeof root === "string"
-                ? document.querySelector(root)
+            typeof root ===
+                "string"
+
+                ? document
+                    .querySelector(
+                        root
+                    )
+
                 : root;
 
-        if (!(this.root instanceof Element)) {
+        if (
+            !(
+                this.root instanceof
+                    Element
+            )
+        ) {
 
             throw new Error(
                 "Application root was not found."
@@ -185,6 +234,11 @@ class BaccaratApplication {
 
         }
 
+
+        this.workerFallback =
+            Boolean(
+                workerFallback
+            );
 
         this.page =
             null;
@@ -195,13 +249,12 @@ class BaccaratApplication {
         this.game =
             null;
 
+        this.workerAnalyzer =
+            null;
+
         this.mode =
             "normal";
 
-        /**
-         * New Shoe Wizard 完成後，
-         * 在切換 Dashboard 時使用。
-         */
         this.pendingNewShoe =
             null;
 
@@ -275,7 +328,9 @@ class BaccaratApplication {
 
         this.bind();
 
-        if (!window.location.hash) {
+        if (
+            !window.location.hash
+        ) {
 
             window.location.hash =
                 "#/";
@@ -454,14 +509,47 @@ class BaccaratApplication {
     }
 
 
+    destroyAnalysisAdapter() {
+
+        if (
+            this.workerAnalyzer &&
+            typeof this.workerAnalyzer
+                .destroy ===
+                "function"
+        ) {
+
+            this.workerAnalyzer
+                .destroy();
+
+        }
+
+        this.workerAnalyzer =
+            null;
+
+        return this;
+
+    }
+
+
+    discardCurrentGame() {
+
+        this.destroyAnalysisAdapter();
+
+        this.game =
+            null;
+
+        return this;
+
+    }
+
+
     destroy() {
 
         this.unbind();
 
         this.destroyPage();
 
-        this.game =
-            null;
+        this.discardCurrentGame();
 
         this.pendingNewShoe =
             null;
@@ -486,9 +574,10 @@ class BaccaratApplication {
         const hash =
             `#${normalized}`;
 
+
         if (
             window.location.hash ===
-            hash
+                hash
         ) {
 
             this.renderCurrentRoute()
@@ -503,13 +592,15 @@ class BaccaratApplication {
 
         }
 
+
         if (replace) {
 
-            window.history.replaceState(
-                null,
-                "",
-                hash
-            );
+            window.history
+                .replaceState(
+                    null,
+                    "",
+                    hash
+                );
 
             this.renderCurrentRoute()
                 .catch(
@@ -522,6 +613,7 @@ class BaccaratApplication {
             return this;
 
         }
+
 
         window.location.hash =
             normalized;
@@ -537,6 +629,7 @@ class BaccaratApplication {
             normalizeRoute(
                 window.location.hash
             );
+
 
         switch (route) {
 
@@ -691,8 +784,11 @@ class BaccaratApplication {
             });
 
         document.title =
-            this.mode === "test"
+            this.mode ===
+                "test"
+
                 ? "建立測試牌靴｜Baccarat Analyzer"
+
                 : "建立新牌靴｜Baccarat Analyzer";
 
         return this.page;
@@ -720,15 +816,18 @@ class BaccaratApplication {
                         1,
 
                     deckCount:
-                        game.shoe?.deckCount ??
-                        game.deckCount ??
+                        game.shoe
+                            ?.deckCount ??
+                        game.options
+                            ?.deckCount ??
                         8,
 
                     roundCount,
 
                     remainingCards:
                         game.remainingCards ??
-                        game.shoe?.remaining ??
+                        game.shoe
+                            ?.physicalRemaining ??
                         "—"
                 }
                 : null;
@@ -746,6 +845,7 @@ class BaccaratApplication {
 
             statistics:
                 {
+
                     totalShoes:
                         game
                             ? 1
@@ -761,6 +861,7 @@ class BaccaratApplication {
                                 roundCount
                             )
                             : 0
+
                 }
 
         };
@@ -777,6 +878,90 @@ class BaccaratApplication {
             null;
 
         return value;
+
+    }
+
+
+    createWorkerAnalyzer() {
+
+        const analyzer =
+            new WorkerAnalyzer({
+
+                fallback:
+                    this.workerFallback,
+
+                lazy:
+                    true
+
+            });
+
+        this.workerAnalyzer =
+            analyzer;
+
+        return analyzer;
+
+    }
+
+
+    createGame({
+
+        deckCount,
+
+        mode = "normal"
+
+    }) {
+
+        this.discardCurrentGame();
+
+
+        const analyzer =
+            this.createWorkerAnalyzer();
+
+
+        const simulations =
+            mode === "test"
+                ? 20000
+                : 100000;
+
+
+        this.game =
+            new Game({
+
+                deckCount:
+                    normalizeDeckCount(
+                        deckCount
+                    ),
+
+                analyzer,
+
+                analyzerOptions:
+                    {
+
+                        mode:
+                            "monteCarlo",
+
+                        monteCarlo:
+                            {
+
+                                simulations,
+
+                                batchSize:
+                                    1000
+
+                            },
+
+                        minBet:
+                            100,
+
+                        maxBet:
+                            10000
+
+                    }
+
+            });
+
+
+        return this.game;
 
     }
 
@@ -800,57 +985,48 @@ class BaccaratApplication {
             "dashboard";
 
 
-        const options = {
-
-            root:
-                this.root
-
-        };
-
-
         if (newShoe) {
 
+            this.createGame({
+
+                deckCount:
+                    newShoe.deckCount,
+
+                mode
+
+            });
+
+        }
+
+
+        if (!this.game) {
+
             /*
-             * Wizard 建立的是全新牌靴，
-             * 不沿用舊 Game。
+             * 使用者直接輸入 #/dashboard 時，
+             * 先建立預設 8 副牌牌靴。
              */
-            this.game =
-                null;
+            this.createGame({
 
-            options.gameOptions =
-                {
-                    deckCount:
-                        normalizeDeckCount(
-                            newShoe.deckCount
-                        )
-                };
+                deckCount:
+                    8,
 
-        }
-        else if (this.game) {
+                mode
 
-            options.game =
-                this.game;
-
-        }
-        else {
-
-            options.gameOptions =
-                {
-                    deckCount:
-                        8
-                };
+            });
 
         }
 
 
         this.page =
-            createDashboard(
-                options
-            );
+            createDashboard({
 
-        this.game =
-            this.page.game ??
-            this.game;
+                root:
+                    this.root,
+
+                game:
+                    this.game
+
+            });
 
 
         document.title =
@@ -879,6 +1055,7 @@ class BaccaratApplication {
 
         }
 
+
         return this.page;
 
     }
@@ -898,40 +1075,31 @@ class BaccaratApplication {
 
         }
 
+
         const burnCard =
             normalizeBurnCard(
                 config.burnCard
             );
 
 
-        /**
-         * Dashboard 的公開方法會：
-         *
-         * 1. 建立並洗牌
-         * 2. 確認燒牌
-         * 3. 執行第一局分析
-         * 4. 顯示成功／錯誤訊息
-         */
         if (
-            typeof this.page
-                .startNewShoe !==
-                "function" ||
             typeof this.page
                 .confirmBurn !==
                 "function"
         ) {
 
             throw new Error(
-                "Dashboard does not support new shoe initialization."
+                "Dashboard does not support burn confirmation."
             );
 
         }
 
 
-        await this.page
-            .startNewShoe();
-
-
+        /*
+         * Game constructor 已建立第一個牌靴，
+         * 不再重複呼叫 startNewShoe()，
+         * 避免牌靴編號從 #2 開始。
+         */
         this.page.ui.selectedRank =
             burnCard.rank;
 
@@ -956,6 +1124,7 @@ class BaccaratApplication {
 
         }
 
+
         return this.game;
 
     }
@@ -974,6 +1143,7 @@ class BaccaratApplication {
 
         }
 
+
         if (
             header.querySelector(
                 '[data-app-action="home"]'
@@ -983,6 +1153,7 @@ class BaccaratApplication {
             return;
 
         }
+
 
         const button =
             document.createElement(
@@ -999,7 +1170,8 @@ class BaccaratApplication {
             "home";
 
         button.textContent =
-            "返回首頁";
+            "首頁";
+
 
         button.addEventListener(
             "click",
@@ -1009,10 +1181,12 @@ class BaccaratApplication {
                 )
         );
 
+
         const actions =
             header.querySelector(
                 ".dashboardHeaderActions"
             );
+
 
         if (actions) {
 
@@ -1039,13 +1213,8 @@ class BaccaratApplication {
                 ".dashboardPage"
             );
 
-        if (!page) {
-
-            return;
-
-        }
-
         if (
+            !page ||
             page.querySelector(
                 ".testModeNotice"
             )
@@ -1054,6 +1223,7 @@ class BaccaratApplication {
             return;
 
         }
+
 
         const notice =
             document.createElement(
@@ -1071,15 +1241,17 @@ class BaccaratApplication {
         notice.innerHTML = `
 
             <span>
-                測試模式：請先以記錄與驗證為主，不計入真實資金。
+                測試模式：只記錄建議與結果，不計入真實資金。
             </span>
 
         `;
+
 
         const header =
             page.querySelector(
                 ".dashboardHeader"
             );
+
 
         if (header) {
 
@@ -1129,11 +1301,15 @@ class BaccaratApplication {
                                 </p>
 
                                 <h1>
-                                    ${escapeHTML(title)}
+                                    ${escapeHTML(
+                                        title
+                                    )}
                                 </h1>
 
                                 <p class="homeSubtitle">
-                                    ${escapeHTML(description)}
+                                    ${escapeHTML(
+                                        description
+                                    )}
                                 </p>
 
                             </div>
@@ -1155,7 +1331,7 @@ class BaccaratApplication {
                             </strong>
 
                             <p>
-                                目前可以先使用首頁、新牌靴精靈與 Dashboard。
+                                目前可以使用首頁、新牌靴精靈及 Dashboard。
                             </p>
 
                             <button
@@ -1176,6 +1352,7 @@ class BaccaratApplication {
 
         `;
 
+
         this.root
             .querySelector(
                 '[data-app-action="home"]'
@@ -1188,15 +1365,13 @@ class BaccaratApplication {
                     )
             );
 
+
         document.title =
             `${title}｜Baccarat Analyzer`;
 
     }
 
 
-    /**
-     * 首頁：建立新牌靴
-     */
     handleNewShoe() {
 
         this.mode =
@@ -1212,9 +1387,6 @@ class BaccaratApplication {
     }
 
 
-    /**
-     * 首頁：繼續牌靴
-     */
     handleContinueShoe() {
 
         if (!this.game) {
@@ -1235,11 +1407,6 @@ class BaccaratApplication {
     }
 
 
-    /**
-     * 首頁：測試模式
-     *
-     * 測試模式也先經過 New Shoe Wizard。
-     */
     handleTestMode() {
 
         this.mode =
@@ -1255,9 +1422,6 @@ class BaccaratApplication {
     }
 
 
-    /**
-     * Wizard：確認建立。
-     */
     handleNewShoeConfirm(event) {
 
         try {
@@ -1266,8 +1430,10 @@ class BaccaratApplication {
                 event.detail ??
                 {};
 
+
             this.pendingNewShoe =
                 {
+
                     deckCount:
                         normalizeDeckCount(
                             detail.deckCount
@@ -1277,16 +1443,16 @@ class BaccaratApplication {
                         normalizeBurnCard(
                             detail.burnCard
                         )
+
                 };
 
 
-            this.game =
-                null;
-
-
             this.navigate(
-                this.mode === "test"
+                this.mode ===
+                    "test"
+
                     ? ROUTES.TEST
+
                     : ROUTES.DASHBOARD
             );
 
@@ -1298,9 +1464,7 @@ class BaccaratApplication {
                 error
             );
 
-            /*
-             * 讓 Wizard 可再次提交。
-             */
+
             if (
                 this.pageName ===
                     "new-shoe" &&
@@ -1323,9 +1487,6 @@ class BaccaratApplication {
     }
 
 
-    /**
-     * Wizard：取消。
-     */
     handleNewShoeCancel() {
 
         this.pendingNewShoe =
@@ -1351,10 +1512,7 @@ class BaccaratApplication {
             id
         );
 
-        /*
-         * 儲存／載入尚未完成。
-         * 若目前有 Game，先回 Dashboard。
-         */
+
         if (this.game) {
 
             this.navigate(
@@ -1396,6 +1554,36 @@ class BaccaratApplication {
         showBootError(
             error
         );
+
+    }
+
+
+    get summary() {
+
+        return {
+
+            page:
+                this.pageName,
+
+            mode:
+                this.mode,
+
+            hasGame:
+                Boolean(
+                    this.game
+                ),
+
+            worker:
+                this.workerAnalyzer
+                    ?.summary ??
+                null,
+
+            route:
+                normalizeRoute(
+                    window.location.hash
+                )
+
+        };
 
     }
 
@@ -1493,7 +1681,7 @@ function boot() {
 
 if (
     document.readyState ===
-    "loading"
+        "loading"
 ) {
 
     document.addEventListener(
@@ -1514,6 +1702,5 @@ else {
 
 
 export {
-    BaccaratApplication,
     ROUTES
 };
