@@ -16,6 +16,9 @@
 import cardTest
     from "./card.test.js";
 
+import shoeTest
+    from "./shoe.test.js";
+
 import burnTest
     from "./burn.test.js";
 
@@ -74,6 +77,12 @@ const TESTS = [
         id: "card",
         name: "Card",
         run: cardTest
+    },
+
+    {
+        id: "shoe",
+        name: "Shoe",
+        run: shoeTest
     },
 
     {
