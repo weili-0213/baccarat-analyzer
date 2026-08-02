@@ -73,6 +73,9 @@ import probabilityTableTest
 import evTableTest
     from "./evTable.test.js";
 
+import recommendationTest
+    from "./recommendation.test.js";
+
 /**
  * 新增測試時，只需：
  *
@@ -199,6 +202,12 @@ const TESTS = [
         id: "ev-table",
         name: "EV Table",
         run: evTableTest
+    },
+
+    {
+        id: "recommendation",
+        name: "Recommendation",
+        run: recommendationTest
     }
 
 ];
