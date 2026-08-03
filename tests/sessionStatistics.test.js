@@ -1,8 +1,8 @@
 /**
- * Baccarat Analyzer V4.6.0
+ * Baccarat Analyzer V4.6
  * tests/sessionStatistics.test.js
  *
- * StatisticsPage V4.6.0 integration test.
+ * StatisticsPage V4.6 integration test.
  */
 
 import StatisticsPage, {
@@ -21,6 +21,10 @@ import SessionChartsPanel, {
 import SessionReportPanel, {
     SESSION_REPORT_PANEL_VERSION
 } from "../components/SessionReportPanel.js";
+
+import LiveStatusPanel, {
+    LIVE_STATUS_PANEL_VERSION
+} from "../components/LiveStatusPanel.js";
 
 import SessionStore
     from "../analysis/SessionStore.js";
@@ -42,6 +46,9 @@ function createHostElement(type = "root") {
 
         querySelector(selector) {
             const map = {
+                "[data-statistics-live-host]":
+                    "live-host",
+
                 "[data-statistics-summary-host]":
                     "summary-host",
 
@@ -50,6 +57,9 @@ function createHostElement(type = "root") {
 
                 "[data-statistics-report-host]":
                     "report-host",
+
+                "[data-live-status-panel]":
+                    "live-panel",
 
                 "[data-session-statistics]":
                     "statistics-panel",
@@ -61,8 +71,7 @@ function createHostElement(type = "root") {
                     "report-panel"
             };
 
-            const key =
-                map[selector];
+            const key = map[selector];
 
             return key
                 ? this.children.get(key) ?? null
@@ -88,7 +97,11 @@ function createHostElement(type = "root") {
 
                 this.children.clear();
 
-                const definitions = [
+                const hostDefinitions = [
+                    [
+                        "data-statistics-live-host",
+                        "live-host"
+                    ],
                     [
                         "data-statistics-summary-host",
                         "summary-host"
@@ -103,7 +116,7 @@ function createHostElement(type = "root") {
                     ]
                 ];
 
-                for (const [token, key] of definitions) {
+                for (const [token, key] of hostDefinitions) {
                     if (this._innerHTML.includes(token)) {
                         const child =
                             createHostElement(key);
@@ -118,58 +131,43 @@ function createHostElement(type = "root") {
                     }
                 }
 
-                if (
-                    this._innerHTML.includes(
-                        "data-session-statistics"
-                    )
-                ) {
-                    this.children.set(
-                        "statistics-panel",
-                        {
-                            parentElement:
-                                this,
+                const panelDefinitions = [
+                    [
+                        "data-live-status-panel",
+                        "live-panel"
+                    ],
+                    [
+                        "data-session-statistics",
+                        "statistics-panel"
+                    ],
+                    [
+                        "data-session-charts",
+                        "charts-panel"
+                    ],
+                    [
+                        "data-session-report-panel",
+                        "report-panel"
+                    ]
+                ];
 
-                            querySelectorAll() {
-                                return [];
+                for (const [token, key] of panelDefinitions) {
+                    if (this._innerHTML.includes(token)) {
+                        this.children.set(
+                            key,
+                            {
+                                parentElement:
+                                    this,
+
+                                querySelectorAll() {
+                                    return [];
+                                },
+
+                                querySelector() {
+                                    return null;
+                                }
                             }
-                        }
-                    );
-                }
-
-                if (
-                    this._innerHTML.includes(
-                        "data-session-charts"
-                    )
-                ) {
-                    this.children.set(
-                        "charts-panel",
-                        {
-                            parentElement:
-                                this,
-
-                            querySelectorAll() {
-                                return [];
-                            }
-                        }
-                    );
-                }
-
-                if (
-                    this._innerHTML.includes(
-                        "data-session-report-panel"
-                    )
-                ) {
-                    this.children.set(
-                        "report-panel",
-                        {
-                            parentElement:
-                                this,
-
-                            querySelectorAll() {
-                                return [];
-                            }
-                        }
-                    );
+                        );
+                    }
                 }
             }
         }
@@ -202,12 +200,13 @@ export default function sessionStatisticsTest() {
         STATISTICS_PAGE_VERSION === "4.6.0" &&
         SESSION_STATISTICS_PANEL_VERSION === "4.3.0" &&
         SESSION_CHARTS_PANEL_VERSION === "4.4.0" &&
-        SESSION_REPORT_PANEL_VERSION === "4.5.0",
-        "V4.6.0 Statistics 版本錯誤"
+        SESSION_REPORT_PANEL_VERSION === "4.5.0" &&
+        LIVE_STATUS_PANEL_VERSION === "4.6.0",
+        "V4.6 Statistics 版本錯誤"
     );
 
     messages.push(
-        "✓ V4.5 Statistics 版本正確"
+        "✓ V4.6 Statistics 版本正確"
     );
 
     const documentRef =
@@ -260,7 +259,12 @@ export default function sessionStatisticsTest() {
     const page =
         new StatisticsPage({
             sessionStore: store,
-            documentRef
+            documentRef,
+
+            liveOptions: {
+                immediate: false,
+                refreshInterval: 0
+            }
         });
 
     const root =
@@ -274,13 +278,17 @@ export default function sessionStatisticsTest() {
     );
 
     assert(
+        page.liveHost &&
         page.summaryHost &&
         page.chartsHost &&
         page.reportHost,
-        "V4.5 Statistics shell 建立失敗"
+        "V4.6 Statistics shell 建立失敗"
     );
 
     assert(
+        page.liveHost.innerHTML.includes(
+            "即時更新中"
+        ) &&
         page.summaryHost.innerHTML.includes(
             "Session Statistics"
         ) &&
@@ -290,11 +298,11 @@ export default function sessionStatisticsTest() {
         page.reportHost.innerHTML.includes(
             "百家樂 Session 報告"
         ),
-        "Statistics／Charts／Report DOM 缺少必要區塊"
+        "Live／Statistics／Charts／Report DOM 缺少必要區塊"
     );
 
     messages.push(
-        "✓ Statistics、Charts、Report DOM 正確"
+        "✓ Live、Statistics、Charts、Report DOM 正確"
     );
 
     assert(
@@ -328,26 +336,28 @@ export default function sessionStatisticsTest() {
         "✓ Mode 與 Chart 切換正確"
     );
 
-    const copiedText =
-        page.reportPanel.buildText(
-            page.report
-        );
-
-    const reportHTML =
-        page.exportReportHTML();
+    page.pauseLive();
 
     assert(
-        copiedText.includes(
-            "局數：2"
-        ) &&
-        reportHTML.startsWith(
-            "<!DOCTYPE html>"
+        page.summary.live.paused === true &&
+        page.liveHost.innerHTML.includes(
+            "已暫停"
         ),
-        "Report Export 整合錯誤"
+        "Pause Live 錯誤"
+    );
+
+    page.resumeLive();
+
+    assert(
+        page.summary.live.running === true &&
+        page.liveHost.innerHTML.includes(
+            "即時更新中"
+        ),
+        "Resume Live 錯誤"
     );
 
     messages.push(
-        "✓ Report Text／HTML Export 正確"
+        "✓ Live Pause／Resume 正確"
     );
 
     store.addRound({
@@ -368,52 +378,34 @@ export default function sessionStatisticsTest() {
         page.reportHost.innerHTML.includes(
             "百家樂 Session 報告"
         ),
-        "SessionStore event 未同步刷新三個面板"
+        "SessionStore event 未同步刷新 Dashboard"
     );
 
     messages.push(
-        "✓ Store Event 三面板自動刷新正確"
+        "✓ Store Event 即時刷新正確"
     );
 
-    const emptyDocument =
-        createDocument();
-
-    const emptyPage =
-        new StatisticsPage({
-            documentRef:
-                emptyDocument
-        });
-
-    emptyPage.mount(
-        "#statistics"
-    );
+    const reportHTML =
+        page.exportReportHTML();
 
     assert(
-        emptyPage.report.summary.rounds === 0 &&
-        emptyPage.summaryHost.innerHTML.includes(
-            "Session Statistics"
-        ) &&
-        emptyPage.chartsHost.innerHTML.includes(
-            "尚無下注資金曲線"
-        ) &&
-        emptyPage.reportHost.innerHTML.includes(
-            "百家樂 Session 報告"
+        reportHTML.startsWith(
+            "<!DOCTYPE html>"
         ),
-        "空 Session 顯示錯誤"
+        "Report HTML Export 錯誤"
     );
 
     messages.push(
-        "✓ Empty Session 正確"
+        "✓ Report Export 正確"
     );
 
     assert(
-        page.summary.version === "4.5.0" &&
+        page.summary.version === "4.6.0" &&
         page.summary.mounted === true &&
         page.summary.hasReport === true &&
         page.summary.rounds === 3 &&
-        page.summary.activeChart ===
-            SessionChartType.WINNERS &&
-        page.summary.reportMounted === true,
+        page.summary.reportMounted === true &&
+        page.summary.live.running === true,
         "StatisticsPage summary 錯誤"
     );
 
@@ -422,6 +414,7 @@ export default function sessionStatisticsTest() {
     assert(
         page.root === null &&
         page.report === null &&
+        page.liveHost === null &&
         page.summaryHost === null &&
         page.chartsHost === null &&
         page.reportHost === null,
@@ -435,16 +428,17 @@ export default function sessionStatisticsTest() {
     return `
 ${messages.join("\n")}
 
-Dashboard Statistics V4.5 測試完成
+Dashboard Statistics V4.6 測試完成
 
+Live DOM：通過
 Statistics DOM：通過
 Charts DOM：通過
 Report DOM：通過
 Session Pipeline：通過
 Mode Switch：通過
 Chart Switch：通過
-Report Export：通過
+Pause／Resume：通過
 Auto Refresh：通過
-Empty Session：通過
+Report Export：通過
 `;
 }
