@@ -118,6 +118,9 @@ import roundEngineTest
 import shoeManagerTest
     from "./shoeManager.test.js";
 
+import sessionEngineTest
+    from "./sessionEngine.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -385,6 +388,12 @@ const TESTS = [
         id: "shoe-manager",
         name: "Shoe Manager",
         run: shoeManagerTest
+    },
+
+    {
+        id: "session-engine",
+        name: "Session Engine",
+        run: sessionEngineTest
     },
 
     {
