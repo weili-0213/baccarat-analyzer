@@ -106,6 +106,9 @@ import runtimeRecoveryTest
 import runtimeOrchestratorTest
     from "./runtimeOrchestrator.test.js";
 
+import casinoEngineTest
+    from "./casinoEngine.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -349,6 +352,12 @@ const TESTS = [
         id: "runtime-orchestrator",
         name: "Runtime Orchestrator",
         run: runtimeOrchestratorTest
+    },
+
+    {
+        id: "casino-engine",
+        name: "Casino Engine",
+        run: casinoEngineTest
     },
 
     {
