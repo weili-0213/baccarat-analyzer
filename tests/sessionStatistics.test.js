@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V4.5
+ * Baccarat Analyzer V4.6.0
  * tests/sessionStatistics.test.js
  *
  * StatisticsPage V4.5 integration test.
