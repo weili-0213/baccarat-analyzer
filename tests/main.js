@@ -100,6 +100,9 @@ import runtimePipelineTest
 import runtimeMonitorTest
     from "./runtimeMonitor.test.js";
 
+import runtimeRecoveryTest
+    from "./runtimeRecovery.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -331,6 +334,12 @@ const TESTS = [
         id: "runtime-monitor",
         name: "Runtime Monitor",
         run: runtimeMonitorTest
+    },
+
+    {
+        id: "runtime-recovery",
+        name: "Runtime Recovery",
+        run: runtimeRecoveryTest
     },
 
     {
