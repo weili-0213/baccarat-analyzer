@@ -25,10 +25,17 @@
  */
 
 import Analyzer, {
+    ANALYZER_VERSION,
     AnalysisMode,
     MAIN_RECOMMENDATION_BETS,
     SIDE_BETS
 } from "../analysis/analyzer.js";
+
+import AnalyzerCoordinator
+    from "../analysis/AnalyzerCoordinator.js";
+
+import PipelineManager
+    from "../analysis/pipeline/PipelineManager.js";
 
 import Shoe
     from "../engine/shoe.js";
@@ -379,8 +386,26 @@ export default async function analyzerTest() {
         "Analyzer 應具有 context"
     );
 
+    assert(
+        ANALYZER_VERSION ===
+            "3.7.1",
+        "Analyzer Facade 版本錯誤"
+    );
+
+    assert(
+        emptyAnalyzer.coordinator instanceof
+            AnalyzerCoordinator,
+        "AnalyzerCoordinator 未建立"
+    );
+
+    assert(
+        emptyAnalyzer.pipelineManager instanceof
+            PipelineManager,
+        "PipelineManager 未建立"
+    );
+
     messages.push(
-        "✓ Analyzer 可在沒有 Shoe 時建立"
+        "✓ Analyzer V3.7.1 Facade 與 Coordinator 建立正確"
     );
 
 
@@ -657,8 +682,25 @@ export default async function analyzerTest() {
         "sideBetAnalysis 應為物件"
     );
 
+    assert(
+        providedResult.pipeline &&
+        providedResult.pipeline.completed ===
+            1 &&
+        providedResult.pipeline.failed ===
+            0,
+        "Coordinator Pipeline metadata 錯誤"
+    );
+
+    assert(
+        providedResult.pipeline
+            .execution[0]
+            .name ===
+            "legacy-analysis-core",
+        "Facade Compatibility Pipeline 名稱錯誤"
+    );
+
     messages.push(
-        "✓ Probability、EV、Kelly、Risk、Confidence、主注排名、邊注分析與 Recommendation 輸出完整"
+        "✓ Probability、EV、Kelly、Risk、Confidence、Ranking、Recommendation 與 Facade Pipeline 輸出完整"
     );
 
 
@@ -1228,15 +1270,29 @@ export default async function analyzerTest() {
         "summary.roundCount 錯誤"
     );
 
+    assert(
+        summary.version ===
+            "3.7.1" &&
+        summary.facade ===
+            true &&
+        summary.coordinator
+            ?.version ===
+            "3.7.0" &&
+        summary.pipeline
+            ?.size ===
+            1,
+        "V3.7.1 Facade summary 錯誤"
+    );
+
     messages.push(
-        "✓ 未知燒牌與 summary 正確"
+        "✓ 未知燒牌、Facade 與 summary 正確"
     );
 
 
     return `
 ${messages.join("\n")}
 
-Analyzer 測試完成
+Analyzer V3.7.1 Facade Integration 測試完成
 
 Provided：
 Player：${providedResult.probability.player}
