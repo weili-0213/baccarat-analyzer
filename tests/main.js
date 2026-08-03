@@ -73,6 +73,9 @@ import sessionStoreTest
 import sessionReportTest
     from "./sessionReport.test.js";
 
+import sessionStatisticsTest
+    from "./sessionStatistics.test.js";
+
 import workerAnalyzerTest
     from "./workerAnalyzer.test.js";
 
@@ -241,6 +244,12 @@ const TESTS = [
         id: "session-report",
         name: "Session Report",
         run: sessionReportTest
+    },
+
+    {
+        id: "session-statistics",
+        name: "Dashboard Statistics",
+        run: sessionStatisticsTest
     },
 
     {
