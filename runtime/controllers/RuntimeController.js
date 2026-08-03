@@ -258,10 +258,6 @@ export default class RuntimeController {
     }
 
     async startRound(input = {}) {
-        this.roundController
-            ?.reset
-            ?.();
-
         return this.runtime
             .startRound(
                 input
