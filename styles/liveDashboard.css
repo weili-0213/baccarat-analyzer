@@ -1,1 +1,143 @@
+/**
+ * Baccarat Analyzer V4.6
+ * styles/liveDashboard.css
+ */
 
+.live-status-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-color, #33445c);
+    border-radius: 14px;
+    background: var(--surface-color, #172235);
+    color: var(--text-primary, #e8eef8);
+}
+
+.live-status-panel__identity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.live-status-panel__identity div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.live-status-panel__identity small {
+    overflow: hidden;
+    color: var(--text-muted, #91a1b9);
+    font-size: .72rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.live-status-panel__indicator {
+    width: 12px;
+    aspect-ratio: 1;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--text-muted, #91a1b9);
+    box-shadow: 0 0 0 4px rgba(145, 161, 185, .12);
+}
+
+.live-status-panel[data-live-status="running"]
+.live-status-panel__indicator {
+    background: var(--success-color, #3ddc84);
+    box-shadow:
+        0 0 0 4px rgba(61, 220, 132, .14),
+        0 0 15px rgba(61, 220, 132, .45);
+    animation: live-status-pulse 1.5s ease-in-out infinite;
+}
+
+.live-status-panel[data-live-status="paused"]
+.live-status-panel__indicator {
+    background: var(--warning-color, #f6d04d);
+    box-shadow: 0 0 0 4px rgba(246, 208, 77, .14);
+}
+
+.live-status-panel[data-live-status="stopped"]
+.live-status-panel__indicator,
+.live-status-panel[data-live-status="destroyed"]
+.live-status-panel__indicator {
+    background: var(--danger-color, #ff6577);
+    box-shadow: 0 0 0 4px rgba(255, 101, 119, .14);
+}
+
+.live-status-panel__controls {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.live-status-panel__controls label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--text-muted, #91a1b9);
+    font-size: .75rem;
+}
+
+.live-status-panel__controls select,
+.live-status-panel__controls button {
+    width: auto;
+    height: 38px;
+    min-height: 38px;
+    margin: 0;
+    padding: 7px 11px;
+    border: 1px solid var(--border-color, #33445c);
+    border-radius: 9px;
+    background: var(--surface-raised, #202e44);
+    color: inherit;
+    font-size: .78rem;
+}
+
+.live-status-panel__controls button:hover {
+    transform: none;
+}
+
+@keyframes live-status-pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: .55;
+    }
+}
+
+@media (max-width: 720px) {
+    .live-status-panel {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .live-status-panel__controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .live-status-panel__controls label {
+        grid-column: 1 / -1;
+        justify-content: space-between;
+    }
+
+    .live-status-panel__controls select {
+        flex: 1;
+    }
+}
+
+@media (max-width: 440px) {
+    .live-status-panel {
+        padding: 10px;
+    }
+
+    .live-status-panel__controls {
+        gap: 5px;
+    }
+}
