@@ -91,6 +91,9 @@ import runtimeControllersTest
 import runtimeEventBusTest
     from "./runtimeEventBus.test.js";
 
+import runtimeSchedulerTest
+    from "./runtimeScheduler.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -304,6 +307,12 @@ const TESTS = [
         id: "runtime-event-bus",
         name: "Runtime EventBus",
         run: runtimeEventBusTest
+    },
+
+    {
+        id: "runtime-scheduler",
+        name: "Runtime Scheduler",
+        run: runtimeSchedulerTest
     },
 
     {
