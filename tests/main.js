@@ -76,6 +76,9 @@ import sessionReportTest
 import liveDashboardTest
     from "./liveDashboard.test.js";
 
+import dashboardLayoutTest
+    from "./dashboardLayout.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -259,6 +262,12 @@ const TESTS = [
         id: "live-dashboard",
         name: "Dashboard Live Mode",
         run: liveDashboardTest
+    },
+
+    {
+        id: "dashboard-layout",
+        name: "Dashboard Layout Manager",
+        run: dashboardLayoutTest
     },
 
     {
