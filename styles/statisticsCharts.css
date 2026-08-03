@@ -1,1 +1,352 @@
+/**
+ * Baccarat Analyzer V4.4
+ * styles/statisticsCharts.css
+ */
 
+.statistics-page {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+}
+
+.session-charts {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+}
+
+.session-charts__header,
+.session-chart-card {
+    border: 1px solid var(--border-color, #33445c);
+    border-radius: 16px;
+    background: var(--surface-color, #172235);
+}
+
+.session-charts__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px;
+}
+
+.session-charts__header h2,
+.session-chart-card h3 {
+    margin: 0;
+}
+
+.session-charts__eyebrow {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--text-muted, #91a1b9);
+    font-size: .75rem;
+}
+
+.session-chart-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.session-chart-tabs button {
+    width: auto;
+    height: auto;
+    min-height: 36px;
+    padding: 7px 11px;
+    border: 1px solid var(--border-color, #33445c);
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    font-size: .82rem;
+}
+
+.session-chart-tabs button[aria-selected="true"] {
+    border-color: transparent;
+    background: var(--accent-color, #2f7df6);
+}
+
+.session-chart-card {
+    min-height: 250px;
+    padding: 16px;
+}
+
+.session-chart-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.session-chart-card__header p {
+    margin: 4px 0 0;
+    color: var(--text-muted, #91a1b9);
+    font-size: .82rem;
+}
+
+.session-chart-card__header strong {
+    font-size: 1.35rem;
+}
+
+.session-chart-card__header .is-positive {
+    color: var(--success-color, #3ddc84);
+}
+
+.session-chart-card__header .is-negative {
+    color: var(--danger-color, #ff6577);
+}
+
+.session-line-chart {
+    display: block;
+    width: 100%;
+    height: 210px;
+    overflow: visible;
+}
+
+.session-line-chart__axis {
+    stroke: rgba(255, 255, 255, .18);
+    stroke-width: .35;
+}
+
+.session-line-chart__area {
+    fill: rgba(47, 125, 246, .15);
+}
+
+.session-line-chart__line {
+    fill: none;
+    stroke: var(--accent-color, #2f7df6);
+    stroke-width: 1.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.session-line-chart__point {
+    fill: var(--surface-color, #172235);
+    stroke: var(--accent-color, #2f7df6);
+    stroke-width: .8;
+}
+
+.session-donut-layout {
+    display: grid;
+    grid-template-columns: minmax(160px, 240px) 1fr;
+    align-items: center;
+    gap: 28px;
+}
+
+.session-donut-chart {
+    width: min(100%, 220px);
+    aspect-ratio: 1;
+    margin-inline: auto;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background:
+        conic-gradient(
+            var(--player-chart-color, #3b82f6)
+                0 var(--player-end),
+            var(--banker-chart-color, #ef4444)
+                var(--player-end) var(--banker-end),
+            var(--tie-chart-color, #22c55e)
+                var(--banker-end) 360deg
+        );
+}
+
+.session-donut-chart::before {
+    content: "";
+    grid-area: 1 / 1;
+    width: 62%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--surface-color, #172235);
+}
+
+.session-donut-chart__center {
+    z-index: 1;
+    grid-area: 1 / 1;
+    display: grid;
+    text-align: center;
+}
+
+.session-donut-chart__center strong {
+    font-size: 1.7rem;
+}
+
+.session-donut-chart__center span {
+    color: var(--text-muted, #91a1b9);
+    font-size: .75rem;
+}
+
+.session-chart-legend {
+    display: grid;
+    gap: 12px;
+}
+
+.session-chart-legend__row {
+    display: grid;
+    grid-template-columns: 12px 30px 1fr auto;
+    align-items: center;
+    gap: 8px;
+}
+
+.session-chart-legend__marker {
+    width: 10px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--accent-color, #2f7df6);
+}
+
+.session-chart-legend__row[data-winner="banker"]
+.session-chart-legend__marker {
+    background: var(--banker-chart-color, #ef4444);
+}
+
+.session-chart-legend__row[data-winner="tie"]
+.session-chart-legend__marker {
+    background: var(--tie-chart-color, #22c55e);
+}
+
+.session-chart-legend__row small {
+    color: var(--text-muted, #91a1b9);
+}
+
+.session-horizontal-bars {
+    display: grid;
+    gap: 14px;
+}
+
+.session-horizontal-bar {
+    display: grid;
+    grid-template-columns: 42px 1fr 30px;
+    align-items: center;
+    gap: 10px;
+}
+
+.session-horizontal-bar__track {
+    height: 14px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--track-color, #0f1726);
+}
+
+.session-horizontal-bar__value {
+    display: block;
+    width: calc(var(--bar-ratio) * 100%);
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent-color, #2f7df6);
+}
+
+.session-column-chart {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(38px, 1fr));
+    align-items: end;
+    gap: 10px;
+    height: 190px;
+}
+
+.session-column-chart__item {
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    align-items: end;
+    gap: 6px;
+    text-align: center;
+}
+
+.session-column-chart__bar {
+    width: min(36px, 80%);
+    height: calc(var(--column-ratio) * 100%);
+    min-height: 4px;
+    margin-inline: auto;
+    border-radius: 7px 7px 2px 2px;
+    background: var(--accent-color, #2f7df6);
+}
+
+.session-column-chart__item small {
+    min-height: 30px;
+    color: var(--text-muted, #91a1b9);
+    font-size: .68rem;
+}
+
+.session-result-timeline {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(42px, 1fr));
+    gap: 8px;
+}
+
+.session-result-timeline__item {
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    border-radius: 50%;
+    background: var(--player-chart-color, #3b82f6);
+}
+
+.session-result-timeline__item[data-winner="banker"] {
+    background: var(--banker-chart-color, #ef4444);
+}
+
+.session-result-timeline__item[data-winner="tie"] {
+    background: var(--tie-chart-color, #22c55e);
+}
+
+.session-result-timeline__item span {
+    font-weight: 800;
+}
+
+.session-result-timeline__item small {
+    opacity: .75;
+    font-size: .62rem;
+}
+
+.session-chart-empty {
+    min-height: 220px;
+    display: grid;
+    place-items: center;
+    color: var(--text-muted, #91a1b9);
+}
+
+@media (max-width: 700px) {
+    .session-charts__header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .session-chart-tabs {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+    }
+
+    .session-chart-tabs button {
+        padding-inline: 5px;
+    }
+
+    .session-donut-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .session-chart-card {
+        min-height: 220px;
+        padding: 12px;
+    }
+
+    .session-line-chart {
+        height: 170px;
+    }
+}
+
+@media (max-width: 460px) {
+    .session-chart-tabs {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .session-column-chart {
+        gap: 5px;
+    }
+
+    .session-column-chart__item small {
+        writing-mode: vertical-rl;
+        min-height: 54px;
+    }
+}
