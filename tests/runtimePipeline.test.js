@@ -298,6 +298,8 @@ export default async function runtimePipelineTest() {
         result.success ===
             true &&
         result.errors.length ===
+            0 &&
+        result.warnings.length ===
             1 &&
         result.context.get(
             "retried"
@@ -307,6 +309,16 @@ export default async function runtimePipelineTest() {
         ).refreshed ===
             true,
         "Pipeline Execute 錯誤"
+    );
+
+    assert(
+        result.warnings[0].type ===
+            "retry" &&
+        result.warnings[0].stage ===
+            "retry-stage" &&
+        result.warnings[0].attempt ===
+            1,
+        "Retry warning 錯誤"
     );
 
     messages.push(
