@@ -1,8 +1,8 @@
 /**
- * Baccarat Analyzer V4.4
+ * Baccarat Analyzer V4.5
  * pages/statistics.js
  *
- * Statistics page controller with charts visualization.
+ * Statistics + Charts + Report dashboard controller.
  */
 
 import SessionAnalyzer
@@ -17,8 +17,11 @@ import SessionStatisticsPanel
 import SessionChartsPanel
     from "../components/SessionChartsPanel.js";
 
+import SessionReportPanel
+    from "../components/SessionReportPanel.js";
 
-export const STATISTICS_PAGE_VERSION = "4.4.0";
+
+export const STATISTICS_PAGE_VERSION = "4.5.0";
 
 
 export default class StatisticsPage {
@@ -28,6 +31,7 @@ export default class StatisticsPage {
         sessionReport = null,
         panel = null,
         chartsPanel = null,
+        reportPanel = null,
         documentRef =
             globalThis.document ?? null
     } = {}) {
@@ -59,9 +63,17 @@ export default class StatisticsPage {
                     this.document
             });
 
+        this.reportPanel =
+            reportPanel ??
+            new SessionReportPanel({
+                documentRef:
+                    this.document
+            });
+
         this.root = null;
         this.summaryHost = null;
         this.chartsHost = null;
+        this.reportHost = null;
         this.report = null;
         this.unsubscribe = null;
     }
@@ -104,8 +116,13 @@ export default class StatisticsPage {
         element.innerHTML = `
             <div class="statistics-page"
                 data-statistics-page>
+
                 <div data-statistics-summary-host></div>
+
                 <div data-statistics-charts-host></div>
+
+                <div data-statistics-report-host></div>
+
             </div>
         `;
 
@@ -117,6 +134,11 @@ export default class StatisticsPage {
         this.chartsHost =
             element.querySelector(
                 "[data-statistics-charts-host]"
+            );
+
+        this.reportHost =
+            element.querySelector(
+                "[data-statistics-report-host]"
             );
     }
 
@@ -139,12 +161,17 @@ export default class StatisticsPage {
             );
         }
 
-        this.root = element;
+        this.root =
+            element;
 
-        this.renderShell(element);
+        this.renderShell(
+            element
+        );
 
         const report =
-            this.buildReport(data);
+            this.buildReport(
+                data
+            );
 
         this.panel.mount(
             this.summaryHost,
@@ -153,6 +180,11 @@ export default class StatisticsPage {
 
         this.chartsPanel.mount(
             this.chartsHost,
+            report
+        );
+
+        this.reportPanel.mount(
+            this.reportHost,
             report
         );
 
@@ -179,7 +211,9 @@ export default class StatisticsPage {
                         [
                             "save",
                             "storage:remove"
-                        ].includes(event.type)
+                        ].includes(
+                            event.type
+                        )
                     ) {
                         return;
                     }
@@ -193,22 +227,56 @@ export default class StatisticsPage {
 
     refresh(data = null) {
         const report =
-            this.buildReport(data);
+            this.buildReport(
+                data
+            );
 
-        this.panel.update(report);
-        this.chartsPanel.update(report);
+        this.panel.update(
+            report
+        );
+
+        this.chartsPanel.update(
+            report
+        );
+
+        this.reportPanel.update(
+            report
+        );
 
         return report;
     }
 
     setMode(mode) {
-        this.panel.setMode(mode);
+        this.panel.setMode(
+            mode
+        );
+
         return this;
     }
 
     setChart(type) {
-        this.chartsPanel.setChart(type);
+        this.chartsPanel.setChart(
+            type
+        );
+
         return this;
+    }
+
+    copyReport() {
+        return this.reportPanel.copy(
+            this.report
+        );
+    }
+
+    exportReportHTML() {
+        return this.reportPanel
+            .exportHTML(
+                this.report
+            );
+    }
+
+    printReport() {
+        return this.reportPanel.print();
     }
 
     exportJSON({
@@ -218,12 +286,13 @@ export default class StatisticsPage {
             this.buildReport();
         }
 
-        return this.sessionReport.toJSON(
-            this.report,
-            {
-                pretty
-            }
-        );
+        return this.sessionReport
+            .toJSON(
+                this.report,
+                {
+                    pretty
+                }
+            );
     }
 
     exportCSV() {
@@ -231,9 +300,10 @@ export default class StatisticsPage {
             this.buildReport();
         }
 
-        return this.sessionReport.toCSV(
-            this.report
-        );
+        return this.sessionReport
+            .toCSV(
+                this.report
+            );
     }
 
     exportText() {
@@ -241,17 +311,20 @@ export default class StatisticsPage {
             this.buildReport();
         }
 
-        return this.sessionReport.toText(
-            this.report
-        );
+        return this.sessionReport
+            .toText(
+                this.report
+            );
     }
 
     destroy() {
         this.unsubscribe?.();
-        this.unsubscribe = null;
+        this.unsubscribe =
+            null;
 
         this.panel.destroy();
         this.chartsPanel.destroy();
+        this.reportPanel.destroy();
 
         if (this.root) {
             this.root.innerHTML = "";
@@ -260,6 +333,7 @@ export default class StatisticsPage {
         this.root = null;
         this.summaryHost = null;
         this.chartsHost = null;
+        this.reportHost = null;
         this.report = null;
 
         return this;
@@ -269,21 +343,33 @@ export default class StatisticsPage {
         return {
             version:
                 STATISTICS_PAGE_VERSION,
+
             mounted:
                 Boolean(this.root),
+
             hasReport:
                 Boolean(this.report),
+
             rounds:
                 this.report
                     ?.summary
                     ?.rounds ??
                 0,
+
             mode:
-                this.panel.summary.mode,
+                this.panel
+                    .summary
+                    .mode,
+
             activeChart:
                 this.chartsPanel
                     .summary
-                    .activeChart
+                    .activeChart,
+
+            reportMounted:
+                this.reportPanel
+                    .summary
+                    .mounted
         };
     }
 }
