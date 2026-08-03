@@ -88,6 +88,9 @@ import runtimeAdaptersTest
 import runtimeControllersTest
     from "./runtimeControllers.test.js";
 
+import runtimeEventBusTest
+    from "./runtimeEventBus.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -295,6 +298,12 @@ const TESTS = [
         id: "runtime-controllers",
         name: "Runtime Controllers",
         run: runtimeControllersTest
+    },
+
+    {
+        id: "runtime-event-bus",
+        name: "Runtime EventBus",
+        run: runtimeEventBusTest
     },
 
     {
