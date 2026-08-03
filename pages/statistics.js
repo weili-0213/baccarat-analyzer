@@ -1,12 +1,8 @@
 /**
- * Baccarat Analyzer V4.6
+ * Baccarat Analyzer V4.7
  * pages/statistics.js
  *
- * Live Statistics Dashboard:
- * - Statistics
- * - Charts
- * - Report
- * - Live status and refresh control
+ * Statistics page facade using DashboardLayout.
  */
 
 import SessionAnalyzer
@@ -30,8 +26,13 @@ import LiveStatusPanel
 import LiveDashboardController
     from "../dashboard/LiveDashboardController.js";
 
+import DashboardLayout, {
+    DashboardLayoutMode,
+    DashboardSection
+} from "../dashboard/DashboardLayout.js";
 
-export const STATISTICS_PAGE_VERSION = "4.6.0";
+
+export const STATISTICS_PAGE_VERSION = "4.7.0";
 
 
 export default class StatisticsPage {
@@ -44,6 +45,10 @@ export default class StatisticsPage {
         reportPanel = null,
         liveStatusPanel = null,
         liveController = null,
+        layout = null,
+        layoutMode =
+            DashboardLayoutMode.FULL,
+        visibleSections = null,
         liveOptions = {},
         documentRef =
             globalThis.document ?? null
@@ -90,21 +95,49 @@ export default class StatisticsPage {
                     this.document,
 
                 onToggle:
-                    () => {
-                        this.toggleLive();
-                    },
+                    () =>
+                        this.toggleLive(),
 
                 onRefresh:
-                    () => {
-                        this.refreshNow();
-                    },
+                    () =>
+                        this.refreshNow(),
 
                 onIntervalChange:
-                    value => {
+                    value =>
                         this.setRefreshInterval(
                             value
-                        );
-                    }
+                        )
+            });
+
+        this.layout =
+            layout ??
+            new DashboardLayout({
+                livePanel:
+                    this.liveStatusPanel,
+
+                statisticsPanel:
+                    this.panel,
+
+                chartsPanel:
+                    this.chartsPanel,
+
+                reportPanel:
+                    this.reportPanel,
+
+                documentRef:
+                    this.document,
+
+                mode:
+                    layoutMode,
+
+                visibleSections:
+                    visibleSections ??
+                    [
+                        DashboardSection.LIVE,
+                        DashboardSection.STATISTICS,
+                        DashboardSection.CHARTS,
+                        DashboardSection.REPORT
+                    ]
             });
 
         this.liveController =
@@ -143,10 +176,6 @@ export default class StatisticsPage {
             );
 
         this.root = null;
-        this.liveHost = null;
-        this.summaryHost = null;
-        this.chartsHost = null;
-        this.reportHost = null;
         this.report = null;
     }
 
@@ -172,53 +201,20 @@ export default class StatisticsPage {
 
     buildReport(data = null) {
         const analysis =
-            this.sessionAnalyzer.analyze(
-                this.resolveSessionData(data)
-            );
+            this.sessionAnalyzer
+                .analyze(
+                    this.resolveSessionData(
+                        data
+                    )
+                );
 
         this.report =
-            this.sessionReport.create(
-                analysis
-            );
+            this.sessionReport
+                .create(
+                    analysis
+                );
 
         return this.report;
-    }
-
-    renderShell(element) {
-        element.innerHTML = `
-            <div class="statistics-page"
-                data-statistics-page>
-
-                <div data-statistics-live-host></div>
-
-                <div data-statistics-summary-host></div>
-
-                <div data-statistics-charts-host></div>
-
-                <div data-statistics-report-host></div>
-
-            </div>
-        `;
-
-        this.liveHost =
-            element.querySelector(
-                "[data-statistics-live-host]"
-            );
-
-        this.summaryHost =
-            element.querySelector(
-                "[data-statistics-summary-host]"
-            );
-
-        this.chartsHost =
-            element.querySelector(
-                "[data-statistics-charts-host]"
-            );
-
-        this.reportHost =
-            element.querySelector(
-                "[data-statistics-report-host]"
-            );
     }
 
     mount(target, data = null) {
@@ -240,41 +236,25 @@ export default class StatisticsPage {
             );
         }
 
-        this.root =
-            element;
-
-        this.renderShell(
-            element
-        );
+        this.root = element;
 
         const report =
-            this.buildReport(
-                data
-            );
+            this.buildReport(data);
 
-        this.panel.mount(
-            this.summaryHost,
-            report
-        );
-
-        this.chartsPanel.mount(
-            this.chartsHost,
-            report
-        );
-
-        this.reportPanel.mount(
-            this.reportHost,
-            report
-        );
-
-        this.liveStatusPanel.mount(
-            this.liveHost,
-            this.liveSummary
+        this.layout.mount(
+            element,
+            {
+                report,
+                liveState:
+                    this.liveSummary
+            }
         );
 
         this.liveController?.start();
 
-        this.updateLiveStatus();
+        this.layout.updateLive(
+            this.liveSummary
+        );
 
         return this.root;
     }
@@ -283,11 +263,13 @@ export default class StatisticsPage {
         const report =
             this.buildReport(data);
 
-        this.panel.update(report);
-        this.chartsPanel.update(report);
-        this.reportPanel.update(report);
-
-        this.updateLiveStatus();
+        this.layout.update(
+            report,
+            {
+                liveState:
+                    this.liveSummary
+            }
+        );
 
         return report;
     }
@@ -306,7 +288,9 @@ export default class StatisticsPage {
                         "manual"
                     );
 
-            this.updateLiveStatus();
+            this.layout.updateLive(
+                this.liveSummary
+            );
 
             return result;
         }
@@ -316,21 +300,30 @@ export default class StatisticsPage {
 
     pauseLive() {
         this.liveController?.pause();
-        this.updateLiveStatus();
+
+        this.layout.updateLive(
+            this.liveSummary
+        );
 
         return this;
     }
 
     resumeLive() {
         this.liveController?.resume();
-        this.updateLiveStatus();
+
+        this.layout.updateLive(
+            this.liveSummary
+        );
 
         return this;
     }
 
     toggleLive() {
         this.liveController?.toggle();
-        this.updateLiveStatus();
+
+        this.layout.updateLive(
+            this.liveSummary
+        );
 
         return this;
     }
@@ -341,16 +334,9 @@ export default class StatisticsPage {
                 value
             );
 
-        this.updateLiveStatus();
-
-        return this;
-    }
-
-    updateLiveStatus() {
-        this.liveStatusPanel
-            ?.update(
-                this.liveSummary
-            );
+        this.layout.updateLive(
+            this.liveSummary
+        );
 
         return this;
     }
@@ -362,6 +348,26 @@ export default class StatisticsPage {
 
     setChart(type) {
         this.chartsPanel.setChart(type);
+        return this;
+    }
+
+    setLayoutMode(mode) {
+        this.layout.setMode(mode);
+        return this;
+    }
+
+    showSection(section) {
+        this.layout.showSection(section);
+        return this;
+    }
+
+    hideSection(section) {
+        this.layout.hideSection(section);
+        return this;
+    }
+
+    toggleSection(section) {
+        this.layout.toggleSection(section);
         return this;
     }
 
@@ -422,21 +428,9 @@ export default class StatisticsPage {
 
     destroy() {
         this.liveController?.destroy();
-
-        this.panel.destroy();
-        this.chartsPanel.destroy();
-        this.reportPanel.destroy();
-        this.liveStatusPanel.destroy();
-
-        if (this.root) {
-            this.root.innerHTML = "";
-        }
+        this.layout.destroy();
 
         this.root = null;
-        this.liveHost = null;
-        this.summaryHost = null;
-        this.chartsHost = null;
-        this.reportHost = null;
         this.report = null;
 
         return this;
@@ -495,13 +489,11 @@ export default class StatisticsPage {
                     .summary
                     .activeChart,
 
-            reportMounted:
-                this.reportPanel
-                    .summary
-                    .mounted,
-
             live:
-                this.liveSummary
+                this.liveSummary,
+
+            layout:
+                this.layout.summary
         };
     }
 }
