@@ -64,6 +64,9 @@ import analyzerCoordinatorTest
 import analyzerTest
     from "./analyzer.test.js";
 
+import sessionAnalyzerTest
+    from "./sessionAnalyzer.test.js";
+
 import workerAnalyzerTest
     from "./workerAnalyzer.test.js";
 
@@ -214,6 +217,12 @@ const TESTS = [
         id: "analyzer",
         name: "Analyzer",
         run: analyzerTest
+    },
+
+    {
+        id: "session-analyzer",
+        name: "Session Analyzer",
+        run: sessionAnalyzerTest
     },
 
     {
