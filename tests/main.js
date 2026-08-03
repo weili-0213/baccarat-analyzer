@@ -85,6 +85,9 @@ import casinoRuntimeTest
 import runtimeAdaptersTest
     from "./runtimeAdapters.test.js";
 
+import runtimeControllersTest
+    from "./runtimeControllers.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -286,6 +289,12 @@ const TESTS = [
         id: "runtime-adapters",
         name: "Runtime Adapters",
         run: runtimeAdaptersTest
+    },
+
+    {
+        id: "runtime-controllers",
+        name: "Runtime Controllers",
+        run: runtimeControllersTest
     },
 
     {
