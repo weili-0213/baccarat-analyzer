@@ -103,6 +103,9 @@ import runtimeMonitorTest
 import runtimeRecoveryTest
     from "./runtimeRecovery.test.js";
 
+import runtimeOrchestratorTest
+    from "./runtimeOrchestrator.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -340,6 +343,12 @@ const TESTS = [
         id: "runtime-recovery",
         name: "Runtime Recovery",
         run: runtimeRecoveryTest
+    },
+
+    {
+        id: "runtime-orchestrator",
+        name: "Runtime Orchestrator",
+        run: runtimeOrchestratorTest
     },
 
     {
