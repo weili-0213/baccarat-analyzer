@@ -124,6 +124,9 @@ import sessionEngineTest
 import analyzerEngineTest
     from "./analyzerEngine.test.js";
 
+import dashboardEngineTest
+    from "./dashboardEngine.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -403,6 +406,12 @@ const TESTS = [
         id: "analyzer-engine",
         name: "Analyzer Engine",
         run: analyzerEngineTest
+    },
+
+    {
+        id: "dashboard-engine",
+        name: "Dashboard Engine",
+        run: dashboardEngineTest
     },
 
     {
