@@ -52,6 +52,9 @@ import analysisPipelinesTest
 import rankingPipelineTest
     from "./rankingPipeline.test.js";
 
+import recommendationPipelineTest
+    from "./recommendationPipeline.test.js";
+
 import analyzerTest
     from "./analyzer.test.js";
 
@@ -181,6 +184,12 @@ const TESTS = [
         id: "ranking-pipeline",
         name: "Ranking Pipeline",
         run: rankingPipelineTest
+    },
+
+    {
+        id: "recommendation-pipeline",
+        name: "Recommendation Pipeline",
+        run: recommendationPipelineTest
     },
 
     {
