@@ -374,7 +374,6 @@ export default class RuntimePipeline {
                             throw error;
                         }
                     }
-                    }
                 }
 
                 if (
