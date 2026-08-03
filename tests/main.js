@@ -136,6 +136,9 @@ import betEngineTest
 import strategyEngineTest
     from "./strategyEngine.test.js";
 
+import aiDecisionEngineTest
+    from "./aiDecisionEngine.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -439,6 +442,12 @@ const TESTS = [
         id: "strategy-engine",
         name: "Strategy Engine",
         run: strategyEngineTest
+    },
+
+    {
+        id: "ai-decision-engine",
+        name: "AI Decision Engine",
+        run: aiDecisionEngineTest
     },
 
     {
