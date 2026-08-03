@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V5.2
+ * Baccarat Analyzer V5.3
  * tests/runtimeControllers.test.js
  */
 
@@ -163,11 +163,11 @@ export default async function runtimeControllersTest() {
 
     assert(
         RUNTIME_CONTROLLERS_VERSION ===
-            "5.2.0" &&
+            "5.3.0" &&
         RUNTIME_CONTROLLER_VERSION ===
-            "5.2.0" &&
+            "5.3.0" &&
         ROUND_CONTROLLER_VERSION ===
-            "5.2.0",
+            "5.3.0",
         "V5.2 Controller 版本錯誤"
     );
 
