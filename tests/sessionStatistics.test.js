@@ -2,7 +2,7 @@
  * Baccarat Analyzer V4.6.0
  * tests/sessionStatistics.test.js
  *
- * StatisticsPage V4.5 integration test.
+ * StatisticsPage V4.6.0 integration test.
  */
 
 import StatisticsPage, {
