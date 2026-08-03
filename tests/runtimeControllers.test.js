@@ -377,7 +377,7 @@ export default async function runtimeControllersTest() {
             "5.2.0" &&
         runtimeController.summary
             .commandCount ===
-            9 &&
+            10 &&
         runtimeController.summary
             .lastError ===
             null &&
