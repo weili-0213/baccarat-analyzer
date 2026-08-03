@@ -58,6 +58,9 @@ import recommendationPipelineTest
 import resultPipelineTest
     from "./resultPipeline.test.js";
 
+import analyzerCoordinatorTest
+    from "./analyzerCoordinator.test.js";
+
 import analyzerTest
     from "./analyzer.test.js";
 
@@ -199,6 +202,12 @@ const TESTS = [
         id: "result-pipeline",
         name: "Result Pipeline",
         run: resultPipelineTest
+    },
+
+    {
+        id: "analyzer-coordinator",
+        name: "Analyzer Coordinator",
+        run: analyzerCoordinatorTest
     },
 
     {
