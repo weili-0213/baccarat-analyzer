@@ -1,8 +1,12 @@
 /**
- * Baccarat Analyzer V4.5
+ * Baccarat Analyzer V4.6
  * pages/statistics.js
  *
- * Statistics + Charts + Report dashboard controller.
+ * Live Statistics Dashboard:
+ * - Statistics
+ * - Charts
+ * - Report
+ * - Live status and refresh control
  */
 
 import SessionAnalyzer
@@ -20,8 +24,14 @@ import SessionChartsPanel
 import SessionReportPanel
     from "../components/SessionReportPanel.js";
 
+import LiveStatusPanel
+    from "../components/LiveStatusPanel.js";
 
-export const STATISTICS_PAGE_VERSION = "4.5.0";
+import LiveDashboardController
+    from "../dashboard/LiveDashboardController.js";
+
+
+export const STATISTICS_PAGE_VERSION = "4.6.0";
 
 
 export default class StatisticsPage {
@@ -32,6 +42,9 @@ export default class StatisticsPage {
         panel = null,
         chartsPanel = null,
         reportPanel = null,
+        liveStatusPanel = null,
+        liveController = null,
+        liveOptions = {},
         documentRef =
             globalThis.document ?? null
     } = {}) {
@@ -70,12 +83,71 @@ export default class StatisticsPage {
                     this.document
             });
 
+        this.liveStatusPanel =
+            liveStatusPanel ??
+            new LiveStatusPanel({
+                documentRef:
+                    this.document,
+
+                onToggle:
+                    () => {
+                        this.toggleLive();
+                    },
+
+                onRefresh:
+                    () => {
+                        this.refreshNow();
+                    },
+
+                onIntervalChange:
+                    value => {
+                        this.setRefreshInterval(
+                            value
+                        );
+                    }
+            });
+
+        this.liveController =
+            liveController ??
+            (
+                this.sessionStore
+                    ? new LiveDashboardController({
+                        sessionStore:
+                            this.sessionStore,
+
+                        refreshInterval:
+                            liveOptions
+                                .refreshInterval ??
+                            250,
+
+                        immediate:
+                            liveOptions
+                                .immediate ??
+                            false,
+
+                        scheduler:
+                            liveOptions.scheduler ??
+                            globalThis,
+
+                        clock:
+                            liveOptions.clock ??
+                            (() => Date.now()),
+
+                        onRefresh:
+                            session =>
+                                this.renderSession(
+                                    session
+                                )
+                    })
+                    : null
+            );
+
         this.root = null;
+        this.liveHost = null;
         this.summaryHost = null;
         this.chartsHost = null;
         this.reportHost = null;
         this.report = null;
-        this.unsubscribe = null;
     }
 
     resolveSessionData(data = null) {
@@ -117,6 +189,8 @@ export default class StatisticsPage {
             <div class="statistics-page"
                 data-statistics-page>
 
+                <div data-statistics-live-host></div>
+
                 <div data-statistics-summary-host></div>
 
                 <div data-statistics-charts-host></div>
@@ -125,6 +199,11 @@ export default class StatisticsPage {
 
             </div>
         `;
+
+        this.liveHost =
+            element.querySelector(
+                "[data-statistics-live-host]"
+            );
 
         this.summaryHost =
             element.querySelector(
@@ -188,77 +267,101 @@ export default class StatisticsPage {
             report
         );
 
-        this.subscribe();
+        this.liveStatusPanel.mount(
+            this.liveHost,
+            this.liveSummary
+        );
+
+        this.liveController?.start();
+
+        this.updateLiveStatus();
 
         return this.root;
     }
 
-    subscribe() {
-        if (
-            !this.sessionStore ||
-            typeof this.sessionStore.subscribe !==
-                "function"
-        ) {
-            return;
-        }
-
-        this.unsubscribe?.();
-
-        this.unsubscribe =
-            this.sessionStore.subscribe(
-                event => {
-                    if (
-                        [
-                            "save",
-                            "storage:remove"
-                        ].includes(
-                            event.type
-                        )
-                    ) {
-                        return;
-                    }
-
-                    this.refresh(
-                        event.session
-                    );
-                }
-            );
-    }
-
-    refresh(data = null) {
+    renderSession(data = null) {
         const report =
-            this.buildReport(
-                data
-            );
+            this.buildReport(data);
 
-        this.panel.update(
-            report
-        );
+        this.panel.update(report);
+        this.chartsPanel.update(report);
+        this.reportPanel.update(report);
 
-        this.chartsPanel.update(
-            report
-        );
-
-        this.reportPanel.update(
-            report
-        );
+        this.updateLiveStatus();
 
         return report;
     }
 
-    setMode(mode) {
-        this.panel.setMode(
-            mode
+    refresh(data = null) {
+        return this.renderSession(
+            data
         );
+    }
+
+    refreshNow() {
+        if (this.liveController) {
+            const result =
+                this.liveController
+                    .refreshNow(
+                        "manual"
+                    );
+
+            this.updateLiveStatus();
+
+            return result;
+        }
+
+        return this.renderSession();
+    }
+
+    pauseLive() {
+        this.liveController?.pause();
+        this.updateLiveStatus();
 
         return this;
     }
 
-    setChart(type) {
-        this.chartsPanel.setChart(
-            type
-        );
+    resumeLive() {
+        this.liveController?.resume();
+        this.updateLiveStatus();
 
+        return this;
+    }
+
+    toggleLive() {
+        this.liveController?.toggle();
+        this.updateLiveStatus();
+
+        return this;
+    }
+
+    setRefreshInterval(value) {
+        this.liveController
+            ?.setRefreshInterval(
+                value
+            );
+
+        this.updateLiveStatus();
+
+        return this;
+    }
+
+    updateLiveStatus() {
+        this.liveStatusPanel
+            ?.update(
+                this.liveSummary
+            );
+
+        return this;
+    }
+
+    setMode(mode) {
+        this.panel.setMode(mode);
+        return this;
+    }
+
+    setChart(type) {
+        this.chartsPanel.setChart(type);
         return this;
     }
 
@@ -318,25 +421,51 @@ export default class StatisticsPage {
     }
 
     destroy() {
-        this.unsubscribe?.();
-        this.unsubscribe =
-            null;
+        this.liveController?.destroy();
 
         this.panel.destroy();
         this.chartsPanel.destroy();
         this.reportPanel.destroy();
+        this.liveStatusPanel.destroy();
 
         if (this.root) {
             this.root.innerHTML = "";
         }
 
         this.root = null;
+        this.liveHost = null;
         this.summaryHost = null;
         this.chartsHost = null;
         this.reportHost = null;
         this.report = null;
 
         return this;
+    }
+
+    get liveSummary() {
+        return (
+            this.liveController
+                ?.summary ??
+            {
+                status:
+                    "idle",
+
+                refreshInterval:
+                    0,
+
+                refreshCount:
+                    0,
+
+                eventCount:
+                    0,
+
+                coalescedCount:
+                    0,
+
+                lastRefreshAt:
+                    null
+            }
+        );
     }
 
     get summary() {
@@ -369,7 +498,10 @@ export default class StatisticsPage {
             reportMounted:
                 this.reportPanel
                     .summary
-                    .mounted
+                    .mounted,
+
+            live:
+                this.liveSummary
         };
     }
 }
