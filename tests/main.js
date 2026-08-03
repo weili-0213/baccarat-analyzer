@@ -40,6 +40,9 @@ import exactTest
 import monteCarloTest
     from "./monteCarlo.test.js";
 
+import pipelineManagerTest
+    from "./pipelineManager.test.js";
+
 import analyzerTest
     from "./analyzer.test.js";
 
@@ -145,6 +148,12 @@ const TESTS = [
         id: "monte-carlo",
         name: "Monte Carlo",
         run: monteCarloTest
+    },
+
+    {
+        id: "pipeline-manager",
+        name: "Pipeline Manager",
+        run: pipelineManagerTest
     },
 
     {
