@@ -306,15 +306,6 @@ export default class RuntimePipeline {
                         break;
                     }
                     catch (error) {
-                        errors.push({
-                            stage:
-                                stage.name,
-                            attempt,
-                            message:
-                                error?.message ??
-                                String(error)
-                        });
-
                         await this.hooks.run(
                             "onError",
                             {
@@ -331,6 +322,17 @@ export default class RuntimePipeline {
                             attempt <=
                             stage.retry
                         ) {
+                            warnings.push({
+                                stage:
+                                    stage.name,
+                                attempt,
+                                type:
+                                    "retry",
+                                message:
+                                    error?.message ??
+                                    String(error)
+                            });
+
                             await this.hooks.run(
                                 "onRetry",
                                 {
@@ -345,6 +347,15 @@ export default class RuntimePipeline {
 
                             continue;
                         }
+
+                        errors.push({
+                            stage:
+                                stage.name,
+                            attempt,
+                            message:
+                                error?.message ??
+                                String(error)
+                        });
 
                         stageRecords.push({
                             name:
@@ -362,6 +373,7 @@ export default class RuntimePipeline {
                         if (this.stopOnError) {
                             throw error;
                         }
+                    }
                     }
                 }
 
