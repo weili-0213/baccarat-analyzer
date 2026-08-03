@@ -112,6 +112,9 @@ import casinoEngineTest
 import dealerEngineTest
     from "./dealerEngine.test.js";
 
+import roundEngineTest
+    from "./roundEngine.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -367,6 +370,12 @@ const TESTS = [
         id: "dealer-engine",
         name: "Dealer Engine",
         run: dealerEngineTest
+    },
+
+    {
+        id: "round-engine",
+        name: "Round Engine",
+        run: roundEngineTest
     },
 
     {
