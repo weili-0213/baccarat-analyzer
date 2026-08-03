@@ -1,14 +1,16 @@
 /**
- * Baccarat Analyzer V5.2
+ * Baccarat Analyzer V5.3
  * runtime/controllers/RuntimeController.js
  *
- * High-level application controller for CasinoRuntime.
- *
- * UI components should call this controller instead of calling
- * CasinoRuntime directly.
+ * High-level command controller with Runtime EventBus integration.
  */
 
-export const RUNTIME_CONTROLLER_VERSION = "5.2.0";
+import {
+    RuntimeEventType
+} from "../events/RuntimeEvents.js";
+
+
+export const RUNTIME_CONTROLLER_VERSION = "5.3.0";
 
 export const RuntimeCommand = Object.freeze({
     START: "start",
@@ -25,10 +27,16 @@ export const RuntimeCommand = Object.freeze({
     RESET: "reset"
 });
 
-function requireMethod(target, method, name) {
+
+function requireMethod(
+    target,
+    method,
+    name
+) {
     if (
         !target ||
-        typeof target[method] !== "function"
+        typeof target[method] !==
+            "function"
     ) {
         throw new TypeError(
             `${name} requires ${method}().`
@@ -38,10 +46,12 @@ function requireMethod(target, method, name) {
     return target;
 }
 
+
 export default class RuntimeController {
     constructor({
         runtime,
         roundController = null,
+        eventBus = null,
         onStateChange = null,
         onError = null
     } = {}) {
@@ -70,8 +80,21 @@ export default class RuntimeController {
             "runtime"
         );
 
+        if (
+            eventBus !== null &&
+            typeof eventBus.emit !==
+                "function"
+        ) {
+            throw new TypeError(
+                "eventBus requires emit()."
+            );
+        }
+
         this.roundController =
             roundController;
+
+        this.eventBus =
+            eventBus;
 
         this.onStateChange =
             onStateChange;
@@ -95,7 +118,26 @@ export default class RuntimeController {
             0;
     }
 
-    async execute(command, payload = {}) {
+    emit(
+        type,
+        payload = null
+    ) {
+        return this.eventBus
+            ?.emit(
+                type,
+                payload,
+                {
+                    source:
+                        "runtime-controller"
+                }
+            ) ??
+            null;
+    }
+
+    async execute(
+        command,
+        payload = {}
+    ) {
         if (
             !Object.values(RuntimeCommand)
                 .includes(command)
@@ -119,6 +161,14 @@ export default class RuntimeController {
 
         this.lastError =
             null;
+
+        this.emit(
+            RuntimeEventType.COMMAND_STARTED,
+            {
+                command,
+                payload
+            }
+        );
 
         this.notifyState();
 
@@ -210,11 +260,29 @@ export default class RuntimeController {
 
             this.commandCount++;
 
+            this.emit(
+                RuntimeEventType.COMMAND_COMPLETED,
+                {
+                    command,
+                    result
+                }
+            );
+
             return result;
         }
         catch (error) {
             this.lastError =
                 error;
+
+            this.emit(
+                RuntimeEventType.ERROR,
+                {
+                    command,
+                    message:
+                        error?.message ??
+                        String(error)
+                }
+            );
 
             this.onError?.(
                 error,
@@ -235,33 +303,66 @@ export default class RuntimeController {
     }
 
     async start(options = {}) {
-        return this.runtime.start(
-            options
+        const result =
+            await this.runtime
+                .start(options);
+
+        this.emit(
+            RuntimeEventType.RUNTIME_STARTED,
+            result
         );
+
+        return result;
     }
 
     async newShoe(options = {}) {
+        let result;
+
         if (
             typeof this.runtime.reset ===
                 "function"
         ) {
-            return this.runtime.reset(
-                options
-            );
+            result =
+                await this.runtime
+                    .reset(options);
+        }
+        else {
+            await this.runtime.stop();
+
+            result =
+                await this.runtime
+                    .start(options);
         }
 
-        await this.runtime.stop();
+        this.roundController
+            ?.reset
+            ?.();
 
-        return this.runtime.start(
-            options
+        this.emit(
+            RuntimeEventType.SHOE_CHANGED,
+            {
+                options,
+                result
+            }
         );
+
+        return result;
     }
 
     async startRound(input = {}) {
-        return this.runtime
-            .startRound(
-                input
-            );
+        const result =
+            await this.runtime
+                .startRound(input);
+
+        this.emit(
+            RuntimeEventType.ROUND_STARTED,
+            {
+                input,
+                result
+            }
+        );
+
+        return result;
     }
 
     async completeRound(input = {}) {
@@ -288,6 +389,14 @@ export default class RuntimeController {
                 result
             );
 
+        this.emit(
+            RuntimeEventType.ROUND_COMPLETED,
+            {
+                payload,
+                result
+            }
+        );
+
         return result;
     }
 
@@ -298,9 +407,25 @@ export default class RuntimeController {
             "runtime"
         );
 
-        return this.runtime.analyze(
-            options
+        this.emit(
+            RuntimeEventType.ANALYSIS_STARTED,
+            {
+                options
+            }
         );
+
+        const result =
+            await this.runtime
+                .analyze(options);
+
+        this.emit(
+            RuntimeEventType.ANALYSIS_COMPLETED,
+            {
+                result
+            }
+        );
+
+        return result;
     }
 
     async addBet(bet = {}) {
@@ -310,46 +435,82 @@ export default class RuntimeController {
             "runtime"
         );
 
-        return this.runtime.addBet(
-            bet
+        const result =
+            await this.runtime
+                .addBet(bet);
+
+        this.emit(
+            RuntimeEventType.BET_RECORDED,
+            {
+                bet:
+                    result
+            }
         );
+
+        return result;
     }
 
     async refresh({
         reason = "controller"
     } = {}) {
+        let result =
+            null;
+
         if (
             typeof this.runtime
                 .updateDashboard ===
                 "function"
         ) {
-            return this.runtime
-                .updateDashboard(
-                    reason
-                );
+            result =
+                await this.runtime
+                    .updateDashboard(
+                        reason
+                    );
         }
-
-        if (
+        else if (
             typeof this.runtime
                 .dashboard
                 ?.refreshNow ===
                 "function"
         ) {
-            return this.runtime
-                .dashboard
-                .refreshNow();
+            result =
+                await this.runtime
+                    .dashboard
+                    .refreshNow();
         }
 
-        return null;
+        this.emit(
+            RuntimeEventType.DASHBOARD_UPDATED,
+            {
+                reason,
+                result
+            }
+        );
+
+        return result;
     }
 
     pause() {
         this.runtime.pause();
+
+        this.emit(
+            RuntimeEventType.RUNTIME_PAUSED,
+            this.runtime.summary ??
+                null
+        );
+
         return this.summary;
     }
 
     resume() {
         this.runtime.resume();
+
+        this.emit(
+            RuntimeEventType.RUNTIME_RESUMED,
+            this.runtime.summary ??
+                null
+        );
+
         return this.summary;
     }
 
@@ -365,9 +526,16 @@ export default class RuntimeController {
     }
 
     async stop(options = {}) {
-        return this.runtime.stop(
-            options
+        const result =
+            await this.runtime
+                .stop(options);
+
+        this.emit(
+            RuntimeEventType.RUNTIME_STOPPED,
+            result
         );
+
+        return result;
     }
 
     async reset(options = {}) {
@@ -381,9 +549,16 @@ export default class RuntimeController {
             ?.reset
             ?.();
 
-        return this.runtime.reset(
-            options
+        const result =
+            await this.runtime
+                .reset(options);
+
+        this.emit(
+            RuntimeEventType.RUNTIME_RESET,
+            result
         );
+
+        return result;
     }
 
     notifyState() {
@@ -400,6 +575,11 @@ export default class RuntimeController {
         this.runtime
             ?.destroy
             ?.();
+
+        this.emit(
+            RuntimeEventType.RUNTIME_DESTROYED,
+            null
+        );
 
         this.lastResult =
             null;
@@ -424,6 +604,11 @@ export default class RuntimeController {
             lastError:
                 this.lastError
                     ?.message ??
+                null,
+
+            eventBus:
+                this.eventBus
+                    ?.summary ??
                 null,
 
             runtime:
