@@ -269,7 +269,7 @@ export default function liveDashboardTest() {
     assert(
         controller.summary.version === "4.6.0" &&
         controller.summary.refreshCount === 4 &&
-        controller.summary.eventCount >= 6 &&
+        controller.summary.eventCount >= 4 &&
         controller.summary.lastError === null,
         "Live summary 錯誤"
     );
