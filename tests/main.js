@@ -109,6 +109,9 @@ import runtimeOrchestratorTest
 import casinoEngineTest
     from "./casinoEngine.test.js";
 
+import dealerEngineTest
+    from "./dealerEngine.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -358,6 +361,12 @@ const TESTS = [
         id: "casino-engine",
         name: "Casino Engine",
         run: casinoEngineTest
+    },
+
+    {
+        id: "dealer-engine",
+        name: "Dealer Engine",
+        run: dealerEngineTest
     },
 
     {
