@@ -199,7 +199,7 @@ export default function sessionStatisticsTest() {
     const messages = [];
 
     assert(
-        STATISTICS_PAGE_VERSION === "4.5.0" &&
+        STATISTICS_PAGE_VERSION === "4.6.0" &&
         SESSION_STATISTICS_PANEL_VERSION === "4.3.0" &&
         SESSION_CHARTS_PANEL_VERSION === "4.4.0" &&
         SESSION_REPORT_PANEL_VERSION === "4.5.0",
