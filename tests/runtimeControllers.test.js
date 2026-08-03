@@ -168,11 +168,11 @@ export default async function runtimeControllersTest() {
             "5.3.0" &&
         ROUND_CONTROLLER_VERSION ===
             "5.3.0",
-        "V5.2 Controller 版本錯誤"
+        "V5.3 Controller 版本錯誤"
     );
 
     messages.push(
-        "✓ V5.2 Controller 版本正確"
+        "✓ V5.3 Controller 版本正確"
     );
 
     const runtime =
@@ -401,7 +401,7 @@ export default async function runtimeControllersTest() {
     return `
 ${messages.join("\n")}
 
-Runtime Controllers V5.2 測試完成
+Runtime Controllers V5.3 測試完成
 
 Runtime Commands：通過
 Round Input：通過
