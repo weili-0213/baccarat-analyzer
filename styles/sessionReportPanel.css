@@ -1,1 +1,201 @@
+/**
+ * Baccarat Analyzer V4.5
+ * styles/sessionReportPanel.css
+ */
 
+.session-report-panel {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid var(--border-color, #33445c);
+    border-radius: 16px;
+    background: var(--surface-color, #172235);
+    color: var(--text-primary, #e8eef8);
+}
+
+.session-report-panel__header,
+.session-report-panel__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.session-report-panel__header h2 {
+    margin: 0;
+}
+
+.session-report-panel__header p {
+    margin: 4px 0 0;
+    color: var(--text-muted, #91a1b9);
+}
+
+.session-report-panel__eyebrow {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--text-muted, #91a1b9);
+    font-size: .75rem;
+}
+
+.session-report-panel__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.session-report-panel__actions button {
+    width: auto;
+    height: auto;
+    min-height: 38px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color, #33445c);
+    border-radius: 10px;
+    background: var(--surface-raised, #202e44);
+    color: inherit;
+    font-size: .82rem;
+}
+
+.session-report-panel__body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.session-report-panel__section {
+    padding: 14px;
+    border-radius: 12px;
+    background: var(--surface-raised, #202e44);
+}
+
+.session-report-panel__section h3 {
+    margin: 0 0 10px;
+    color: var(--accent-text, #ffe17a);
+    font-size: 1rem;
+}
+
+.session-report-table {
+    display: grid;
+    gap: 2px;
+}
+
+.session-report-table__row,
+.session-report-grid-table__header,
+.session-report-grid-table__row {
+    display: grid;
+    align-items: center;
+    gap: 10px;
+    min-height: 34px;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+
+.session-report-table__row {
+    grid-template-columns: 1fr auto;
+}
+
+.session-report-grid-table__header,
+.session-report-grid-table__row {
+    grid-template-columns: 1fr 70px 80px;
+}
+
+.session-report-grid-table__header {
+    color: var(--text-muted, #91a1b9);
+    font-size: .75rem;
+}
+
+.session-report-table__row:last-child,
+.session-report-grid-table__row:last-child {
+    border-bottom: 0;
+}
+
+.session-report-grid-table__header span:not(:first-child),
+.session-report-grid-table__row strong {
+    text-align: right;
+}
+
+.session-report-panel__footer {
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, .08);
+    color: var(--text-muted, #91a1b9);
+    font-size: .72rem;
+}
+
+@media (max-width: 760px) {
+    .session-report-panel__header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .session-report-panel__actions {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .session-report-panel__body {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 460px) {
+    .session-report-panel {
+        gap: 9px;
+        padding: 10px;
+    }
+
+    .session-report-panel__actions {
+        grid-template-columns: 1fr;
+    }
+
+    .session-report-panel__section {
+        padding: 10px;
+    }
+
+    .session-report-panel__footer {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+@media print {
+    body {
+        background: white !important;
+        color: black !important;
+    }
+
+    body > * {
+        visibility: hidden;
+    }
+
+    .session-report-panel,
+    .session-report-panel * {
+        visibility: visible;
+    }
+
+    .session-report-panel {
+        position: absolute;
+        inset: 0;
+        border: 0;
+        background: white;
+        color: black;
+    }
+
+    .session-report-panel__actions {
+        display: none;
+    }
+
+    .session-report-panel__section {
+        border: 1px solid #ddd;
+        background: white;
+    }
+
+    .session-report-panel__section h3 {
+        color: black;
+    }
+
+    .session-report-panel__footer,
+    .session-report-panel__header p,
+    .session-report-panel__eyebrow {
+        color: #555;
+    }
+}
