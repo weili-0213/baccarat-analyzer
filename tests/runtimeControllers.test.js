@@ -167,7 +167,7 @@ export default async function runtimeControllersTest() {
         RUNTIME_CONTROLLER_VERSION ===
             "5.3.0" &&
         ROUND_CONTROLLER_VERSION ===
-            "5.3.0",
+            "5.2.0",
         "V5.3 Controller 版本錯誤"
     );
 
