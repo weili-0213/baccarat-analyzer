@@ -1,6 +1,8 @@
 /**
- * Baccarat Analyzer V4.3
+ * Baccarat Analyzer V4.4
  * tests/sessionStatistics.test.js
+ *
+ * StatisticsPage V4.4 integration test.
  */
 
 import StatisticsPage, {
@@ -10,6 +12,11 @@ import StatisticsPage, {
 import SessionStatisticsPanel, {
     SESSION_STATISTICS_PANEL_VERSION
 } from "../components/SessionStatisticsPanel.js";
+
+import SessionChartsPanel, {
+    SESSION_CHARTS_PANEL_VERSION,
+    SessionChartType
+} from "../components/SessionChartsPanel.js";
 
 import SessionStore
     from "../analysis/SessionStore.js";
@@ -22,28 +29,165 @@ function assert(condition, message) {
 }
 
 
-function createDocument() {
-    const root = {
+/**
+ * Minimal DOM test double supporting both:
+ *
+ * - SessionStatisticsPanel
+ * - SessionChartsPanel
+ * - StatisticsPage V4.4 shell
+ */
+function createHostElement(type = "root") {
+    const element = {
+        type,
         innerHTML: "",
+        parentElement: null,
+        children: new Map(),
+
         querySelector(selector) {
+            if (
+                selector ===
+                "[data-statistics-summary-host]"
+            ) {
+                return this.children.get(
+                    "summary-host"
+                ) ?? null;
+            }
+
+            if (
+                selector ===
+                "[data-statistics-charts-host]"
+            ) {
+                return this.children.get(
+                    "charts-host"
+                ) ?? null;
+            }
+
             if (
                 selector ===
                 "[data-session-statistics]"
             ) {
-                return {
-                    parentElement: root,
-                    querySelectorAll() {
-                        return [];
-                    }
-                };
+                return this.children.get(
+                    "statistics-panel"
+                ) ?? null;
+            }
+
+            if (
+                selector ===
+                "[data-session-charts]"
+            ) {
+                return this.children.get(
+                    "charts-panel"
+                ) ?? null;
             }
 
             return null;
+        },
+
+        querySelectorAll() {
+            return [];
         }
     };
 
+    Object.defineProperty(
+        element,
+        "innerHTML",
+        {
+            get() {
+                return this._innerHTML ?? "";
+            },
+
+            set(value) {
+                this._innerHTML =
+                    String(value);
+
+                this.children.clear();
+
+                if (
+                    this._innerHTML.includes(
+                        "data-statistics-summary-host"
+                    )
+                ) {
+                    const summaryHost =
+                        createHostElement(
+                            "summary-host"
+                        );
+
+                    const chartsHost =
+                        createHostElement(
+                            "charts-host"
+                        );
+
+                    summaryHost.parentElement =
+                        this;
+
+                    chartsHost.parentElement =
+                        this;
+
+                    this.children.set(
+                        "summary-host",
+                        summaryHost
+                    );
+
+                    this.children.set(
+                        "charts-host",
+                        chartsHost
+                    );
+                }
+
+                if (
+                    this._innerHTML.includes(
+                        "data-session-statistics"
+                    )
+                ) {
+                    const panelRoot = {
+                        parentElement:
+                            this,
+
+                        querySelectorAll() {
+                            return [];
+                        }
+                    };
+
+                    this.children.set(
+                        "statistics-panel",
+                        panelRoot
+                    );
+                }
+
+                if (
+                    this._innerHTML.includes(
+                        "data-session-charts"
+                    )
+                ) {
+                    const chartRoot = {
+                        parentElement:
+                            this,
+
+                        querySelectorAll() {
+                            return [];
+                        }
+                    };
+
+                    this.children.set(
+                        "charts-panel",
+                        chartRoot
+                    );
+                }
+            }
+        }
+    );
+
+    return element;
+}
+
+
+function createDocument() {
+    const root =
+        createHostElement();
+
     return {
         root,
+
         querySelector(selector) {
             return (
                 selector === "#statistics"
@@ -59,24 +203,34 @@ export default function sessionStatisticsTest() {
     const messages = [];
 
     assert(
-        STATISTICS_PAGE_VERSION === "4.3.0" &&
-        SESSION_STATISTICS_PANEL_VERSION === "4.3.0",
-        "V4.3 版本錯誤"
+        STATISTICS_PAGE_VERSION ===
+            "4.4.0" &&
+        SESSION_STATISTICS_PANEL_VERSION ===
+            "4.3.0" &&
+        SESSION_CHARTS_PANEL_VERSION ===
+            "4.4.0",
+        "V4.4 Statistics 版本錯誤"
     );
 
-    messages.push("✓ V4.3 版本正確");
+    messages.push(
+        "✓ V4.4 Statistics 版本正確"
+    );
 
     const documentRef =
         createDocument();
 
     const store =
         new SessionStore({
-            autoSave: false,
+            autoSave:
+                false,
+
             clock:
                 () =>
                     "2026-08-03T10:00:00.000Z",
+
             idFactory:
-                () => "statistics-test"
+                () =>
+                    "statistics-test"
         });
 
     store.start({
@@ -112,7 +266,9 @@ export default function sessionStatisticsTest() {
 
     const page =
         new StatisticsPage({
-            sessionStore: store,
+            sessionStore:
+                store,
+
             documentRef
         });
 
@@ -127,50 +283,100 @@ export default function sessionStatisticsTest() {
     );
 
     assert(
-        documentRef.root.innerHTML.includes(
-            "Session Statistics"
-        ) &&
-        documentRef.root.innerHTML.includes(
-            "勝方分布"
-        ) &&
-        documentRef.root.innerHTML.includes(
-            "下注績效"
-        ),
-        "Statistics DOM 缺少必要區塊"
+        page.summaryHost &&
+        page.chartsHost,
+        "V4.4 Statistics shell 建立失敗"
     );
 
-    messages.push("✓ Dashboard Statistics DOM 正確");
+    assert(
+        page.summaryHost
+            .innerHTML
+            .includes(
+                "Session Statistics"
+            ) &&
+        page.chartsHost
+            .innerHTML
+            .includes(
+                "Statistics Visualization"
+            ),
+        "Statistics 或 Charts DOM 缺少必要區塊"
+    );
+
+    messages.push(
+        "✓ Statistics 與 Charts DOM 正確"
+    );
 
     assert(
-        page.report.summary.rounds === 2 &&
-        page.report.statistics.winners.player === 1 &&
-        page.report.statistics.winners.banker === 1 &&
-        page.report.betting.totalProfit === 100,
+        page.report.summary.rounds ===
+            2 &&
+        page.report.statistics
+            .winners
+            .player ===
+            1 &&
+        page.report.statistics
+            .winners
+            .banker ===
+            1 &&
+        page.report.betting
+            .totalProfit ===
+            100,
         "Session Report 串接錯誤"
     );
 
-    messages.push("✓ Store → Analyzer → Report 串接正確");
-
-    assert(
-        documentRef.root.innerHTML.includes(
-            "50.0%"
-        ) &&
-        documentRef.root.innerHTML.includes(
-            "ROI：100.0%"
-        ),
-        "格式化統計值錯誤"
+    messages.push(
+        "✓ Store → Analyzer → Report 串接正確"
     );
 
-    messages.push("✓ Win Rate 與 ROI 顯示正確");
-
-    page.setMode("details");
-
     assert(
-        page.panel.summary.mode === "details",
-        "詳細模式切換錯誤"
+        page.summaryHost
+            .innerHTML
+            .includes(
+                "50.0%"
+            ) &&
+        page.summaryHost
+            .innerHTML
+            .includes(
+                "ROI：100.0%"
+            ),
+        "Win Rate 或 ROI 顯示錯誤"
     );
 
-    messages.push("✓ Overview／Details 切換正確");
+    messages.push(
+        "✓ Win Rate 與 ROI 顯示正確"
+    );
+
+    page.setMode(
+        "details"
+    );
+
+    assert(
+        page.panel
+            .summary
+            .mode ===
+            "details",
+        "Overview／Details 切換錯誤"
+    );
+
+    page.setChart(
+        SessionChartType.WINNERS
+    );
+
+    assert(
+        page.chartsPanel
+            .summary
+            .activeChart ===
+            SessionChartType.WINNERS &&
+        page.chartsHost
+            .innerHTML
+            .includes(
+                'data-chart="winners"'
+            ),
+        "Chart 切換錯誤"
+    );
+
+    messages.push(
+        "✓ Mode 與 Chart 切換正確"
+    );
 
     const csv =
         page.exportCSV();
@@ -187,14 +393,17 @@ export default function sessionStatisticsTest() {
         ) &&
         JSON.parse(json)
             .summary
-            .rounds === 2 &&
+            .rounds ===
+            2 &&
         text.includes(
             "局數：2"
         ),
         "Export 整合錯誤"
     );
 
-    messages.push("✓ JSON／CSV／Text Export 正確");
+    messages.push(
+        "✓ JSON／CSV／Text Export 正確"
+    );
 
     store.addRound({
         winner: "Player",
@@ -204,11 +413,24 @@ export default function sessionStatisticsTest() {
     });
 
     assert(
-        page.report.summary.rounds === 3,
-        "SessionStore event 未自動刷新"
+        page.report.summary.rounds ===
+            3 &&
+        page.summaryHost
+            .innerHTML
+            .includes(
+                "Session Statistics"
+            ) &&
+        page.chartsHost
+            .innerHTML
+            .includes(
+                "Statistics Visualization"
+            ),
+        "SessionStore event 未自動刷新兩個面板"
     );
 
-    messages.push("✓ Store Event 自動刷新正確");
+    messages.push(
+        "✓ Store Event 自動刷新正確"
+    );
 
     const emptyDocument =
         createDocument();
@@ -224,20 +446,38 @@ export default function sessionStatisticsTest() {
     );
 
     assert(
-        emptyPage.report.summary.rounds === 0 &&
-        emptyDocument.root.innerHTML.includes(
-            "Session Statistics"
-        ),
+        emptyPage.report
+            .summary
+            .rounds ===
+            0 &&
+        emptyPage.summaryHost
+            .innerHTML
+            .includes(
+                "Session Statistics"
+            ) &&
+        emptyPage.chartsHost
+            .innerHTML
+            .includes(
+                "尚無下注資金曲線"
+            ),
         "空 Session 顯示錯誤"
     );
 
-    messages.push("✓ Empty Session 正確");
+    messages.push(
+        "✓ Empty Session 正確"
+    );
 
     assert(
-        page.summary.version === "4.3.0" &&
-        page.summary.mounted === true &&
-        page.summary.hasReport === true &&
-        page.summary.rounds === 3,
+        page.summary.version ===
+            "4.4.0" &&
+        page.summary.mounted ===
+            true &&
+        page.summary.hasReport ===
+            true &&
+        page.summary.rounds ===
+            3 &&
+        page.summary.activeChart ===
+            SessionChartType.WINNERS,
         "StatisticsPage summary 錯誤"
     );
 
@@ -245,22 +485,28 @@ export default function sessionStatisticsTest() {
 
     assert(
         page.root === null &&
-        page.report === null,
+        page.report === null &&
+        page.summaryHost === null &&
+        page.chartsHost === null,
         "destroy() 錯誤"
     );
 
-    messages.push("✓ summary 與 destroy() 正確");
+    messages.push(
+        "✓ summary 與 destroy() 正確"
+    );
 
     return `
 ${messages.join("\n")}
 
-Dashboard Statistics V4.3 測試完成
+Dashboard Statistics V4.4 測試完成
 
-DOM：通過
+Statistics DOM：通過
+Charts DOM：通過
 Session Pipeline：通過
 Win Rate：通過
 ROI：通過
 Mode Switch：通過
+Chart Switch：通過
 Auto Refresh：通過
 Exports：通過
 Empty Session：通過
