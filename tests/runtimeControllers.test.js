@@ -374,7 +374,7 @@ export default async function runtimeControllersTest() {
     assert(
         runtimeController.summary
             .version ===
-            "5.2.0" &&
+            "5.3.0" &&
         runtimeController.summary
             .commandCount ===
             10 &&
