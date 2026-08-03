@@ -133,6 +133,9 @@ import casinoCoordinatorTest
 import betEngineTest
     from "./betEngine.test.js";
 
+import strategyEngineTest
+    from "./strategyEngine.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -430,6 +433,12 @@ const TESTS = [
         id: "bet-engine",
         name: "Bet Engine",
         run: betEngineTest
+    },
+
+    {
+        id: "strategy-engine",
+        name: "Strategy Engine",
+        run: strategyEngineTest
     },
 
     {
