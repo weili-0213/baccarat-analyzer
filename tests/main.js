@@ -82,6 +82,9 @@ import dashboardLayoutTest
 import casinoRuntimeTest
     from "./casinoRuntime.test.js";
 
+import runtimeAdaptersTest
+    from "./runtimeAdapters.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -277,6 +280,12 @@ const TESTS = [
         id: "casino-runtime",
         name: "Casino Runtime",
         run: casinoRuntimeTest
+    },
+
+    {
+        id: "runtime-adapters",
+        name: "Runtime Adapters",
+        run: runtimeAdaptersTest
     },
 
     {
