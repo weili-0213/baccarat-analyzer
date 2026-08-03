@@ -97,6 +97,9 @@ import runtimeSchedulerTest
 import runtimePipelineTest
     from "./runtimePipeline.test.js";
 
+import runtimeMonitorTest
+    from "./runtimeMonitor.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -322,6 +325,12 @@ const TESTS = [
         id: "runtime-pipeline",
         name: "Runtime Pipeline",
         run: runtimePipelineTest
+    },
+
+    {
+        id: "runtime-monitor",
+        name: "Runtime Monitor",
+        run: runtimeMonitorTest
     },
 
     {
