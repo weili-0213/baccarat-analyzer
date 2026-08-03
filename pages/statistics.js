@@ -1,12 +1,8 @@
 /**
- * Baccarat Analyzer V4.3
+ * Baccarat Analyzer V4.4
  * pages/statistics.js
  *
- * Statistics page controller.
- *
- * Data flow:
- * SessionStore → SessionAnalyzer → SessionReport
- * → SessionStatisticsPanel
+ * Statistics page controller with charts visualization.
  */
 
 import SessionAnalyzer
@@ -18,17 +14,11 @@ import SessionReport
 import SessionStatisticsPanel
     from "../components/SessionStatisticsPanel.js";
 
+import SessionChartsPanel
+    from "../components/SessionChartsPanel.js";
 
-export const STATISTICS_PAGE_VERSION = "4.3.0";
 
-
-function isObject(value) {
-    return (
-        value !== null &&
-        typeof value === "object" &&
-        !Array.isArray(value)
-    );
-}
+export const STATISTICS_PAGE_VERSION = "4.4.0";
 
 
 export default class StatisticsPage {
@@ -37,6 +27,7 @@ export default class StatisticsPage {
         sessionAnalyzer = null,
         sessionReport = null,
         panel = null,
+        chartsPanel = null,
         documentRef =
             globalThis.document ?? null
     } = {}) {
@@ -61,14 +52,18 @@ export default class StatisticsPage {
                     this.document
             });
 
-        this.root =
-            null;
+        this.chartsPanel =
+            chartsPanel ??
+            new SessionChartsPanel({
+                documentRef:
+                    this.document
+            });
 
-        this.report =
-            null;
-
-        this.unsubscribe =
-            null;
+        this.root = null;
+        this.summaryHost = null;
+        this.chartsHost = null;
+        this.report = null;
+        this.unsubscribe = null;
     }
 
     resolveSessionData(data = null) {
@@ -92,24 +87,37 @@ export default class StatisticsPage {
     }
 
     buildReport(data = null) {
-        const sessionData =
-            this.resolveSessionData(
-                data
+        const analysis =
+            this.sessionAnalyzer.analyze(
+                this.resolveSessionData(data)
             );
 
-        const analysis =
-            this.sessionAnalyzer
-                .analyze(
-                    sessionData
-                );
-
         this.report =
-            this.sessionReport
-                .create(
-                    analysis
-                );
+            this.sessionReport.create(
+                analysis
+            );
 
         return this.report;
+    }
+
+    renderShell(element) {
+        element.innerHTML = `
+            <div class="statistics-page"
+                data-statistics-page>
+                <div data-statistics-summary-host></div>
+                <div data-statistics-charts-host></div>
+            </div>
+        `;
+
+        this.summaryHost =
+            element.querySelector(
+                "[data-statistics-summary-host]"
+            );
+
+        this.chartsHost =
+            element.querySelector(
+                "[data-statistics-charts-host]"
+            );
     }
 
     mount(target, data = null) {
@@ -131,16 +139,20 @@ export default class StatisticsPage {
             );
         }
 
-        this.root =
-            element;
+        this.root = element;
+
+        this.renderShell(element);
 
         const report =
-            this.buildReport(
-                data
-            );
+            this.buildReport(data);
 
         this.panel.mount(
-            this.root,
+            this.summaryHost,
+            report
+        );
+
+        this.chartsPanel.mount(
+            this.chartsHost,
             report
         );
 
@@ -161,38 +173,42 @@ export default class StatisticsPage {
         this.unsubscribe?.();
 
         this.unsubscribe =
-            this.sessionStore
-                .subscribe(
-                    event => {
-                        if (
-                            [
-                                "save",
-                                "storage:remove"
-                            ].includes(
-                                event.type
-                            )
-                        ) {
-                            return;
-                        }
-
-                        this.refresh(
-                            event.session
-                        );
+            this.sessionStore.subscribe(
+                event => {
+                    if (
+                        [
+                            "save",
+                            "storage:remove"
+                        ].includes(event.type)
+                    ) {
+                        return;
                     }
-                );
+
+                    this.refresh(
+                        event.session
+                    );
+                }
+            );
     }
 
     refresh(data = null) {
         const report =
-            this.buildReport(
-                data
-            );
+            this.buildReport(data);
 
-        this.panel.update(
-            report
-        );
+        this.panel.update(report);
+        this.chartsPanel.update(report);
 
         return report;
+    }
+
+    setMode(mode) {
+        this.panel.setMode(mode);
+        return this;
+    }
+
+    setChart(type) {
+        this.chartsPanel.setChart(type);
+        return this;
     }
 
     exportJSON({
@@ -202,13 +218,12 @@ export default class StatisticsPage {
             this.buildReport();
         }
 
-        return this.sessionReport
-            .toJSON(
-                this.report,
-                {
-                    pretty
-                }
-            );
+        return this.sessionReport.toJSON(
+            this.report,
+            {
+                pretty
+            }
+        );
     }
 
     exportCSV() {
@@ -216,10 +231,9 @@ export default class StatisticsPage {
             this.buildReport();
         }
 
-        return this.sessionReport
-            .toCSV(
-                this.report
-            );
+        return this.sessionReport.toCSV(
+            this.report
+        );
     }
 
     exportText() {
@@ -227,41 +241,26 @@ export default class StatisticsPage {
             this.buildReport();
         }
 
-        return this.sessionReport
-            .toText(
-                this.report
-            );
-    }
-
-    setMode(mode) {
-        this.panel.setMode(
-            mode
+        return this.sessionReport.toText(
+            this.report
         );
-
-        return this;
-    }
-
-    clear() {
-        this.report =
-            null;
-
-        this.panel.clear();
-
-        return this;
     }
 
     destroy() {
         this.unsubscribe?.();
-        this.unsubscribe =
-            null;
+        this.unsubscribe = null;
 
         this.panel.destroy();
+        this.chartsPanel.destroy();
 
-        this.root =
-            null;
+        if (this.root) {
+            this.root.innerHTML = "";
+        }
 
-        this.report =
-            null;
+        this.root = null;
+        this.summaryHost = null;
+        this.chartsHost = null;
+        this.report = null;
 
         return this;
     }
@@ -272,8 +271,6 @@ export default class StatisticsPage {
                 STATISTICS_PAGE_VERSION,
             mounted:
                 Boolean(this.root),
-            hasStore:
-                Boolean(this.sessionStore),
             hasReport:
                 Boolean(this.report),
             rounds:
@@ -282,7 +279,11 @@ export default class StatisticsPage {
                     ?.rounds ??
                 0,
             mode:
-                this.panel.summary.mode
+                this.panel.summary.mode,
+            activeChart:
+                this.chartsPanel
+                    .summary
+                    .activeChart
         };
     }
 }
