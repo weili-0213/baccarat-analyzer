@@ -43,6 +43,9 @@ import monteCarloTest
 import pipelineManagerTest
     from "./pipelineManager.test.js";
 
+import corePipelinesTest
+    from "./corePipelines.test.js";
+
 import analyzerTest
     from "./analyzer.test.js";
 
@@ -154,6 +157,12 @@ const TESTS = [
         id: "pipeline-manager",
         name: "Pipeline Manager",
         run: pipelineManagerTest
+    },
+
+    {
+        id: "core-pipelines",
+        name: "Core Pipelines",
+        run: corePipelinesTest
     },
 
     {
