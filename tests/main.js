@@ -115,6 +115,9 @@ import dealerEngineTest
 import roundEngineTest
     from "./roundEngine.test.js";
 
+import shoeManagerTest
+    from "./shoeManager.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -376,6 +379,12 @@ const TESTS = [
         id: "round-engine",
         name: "Round Engine",
         run: roundEngineTest
+    },
+
+    {
+        id: "shoe-manager",
+        name: "Shoe Manager",
+        run: shoeManagerTest
     },
 
     {
