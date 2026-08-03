@@ -73,6 +73,9 @@ import sessionStoreTest
 import sessionReportTest
     from "./sessionReport.test.js";
 
+import liveDashboardTest
+    from "./liveDashboard.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -250,6 +253,12 @@ const TESTS = [
         id: "session-report",
         name: "Session Report",
         run: sessionReportTest
+    },
+
+    {
+        id: "live-dashboard",
+        name: "Dashboard Live Mode",
+        run: liveDashboardTest
     },
 
     {
