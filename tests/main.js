@@ -127,6 +127,9 @@ import analyzerEngineTest
 import dashboardEngineTest
     from "./dashboardEngine.test.js";
 
+import casinoCoordinatorTest
+    from "./casinoCoordinator.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -412,6 +415,12 @@ const TESTS = [
         id: "dashboard-engine",
         name: "Dashboard Engine",
         run: dashboardEngineTest
+    },
+
+    {
+        id: "casino-coordinator",
+        name: "Casino Coordinator",
+        run: casinoCoordinatorTest
     },
 
     {
