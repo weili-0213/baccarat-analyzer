@@ -369,7 +369,7 @@ export default function sessionAnalyzerTest() {
     );
 
     return `
-${messages.join("\\n")}
+${messages.join("\n")}
 
 Session Analyzer V4.0 測試完成
 
