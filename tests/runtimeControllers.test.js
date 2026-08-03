@@ -172,7 +172,7 @@ export default async function runtimeControllersTest() {
     );
 
     messages.push(
-        "✓ V5.3 Controller 版本正確"
+        "✓ V5.3 Controller 與 V5.2 RoundController 版本正確"
     );
 
     const runtime =
