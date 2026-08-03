@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V5.2
+ * Baccarat Analyzer V5.3
  * runtime/createRuntimeControllers.js
  */
 
@@ -9,17 +9,31 @@ import RuntimeController
 import RoundController
     from "./controllers/RoundController.js";
 
+import RuntimeEventBus
+    from "./events/RuntimeEventBus.js";
 
-export const RUNTIME_CONTROLLERS_VERSION = "5.2.0";
+import RuntimeEventBridge
+    from "./events/RuntimeEventBridge.js";
+
+
+export const RUNTIME_CONTROLLERS_VERSION = "5.3.0";
 
 
 export default function createRuntimeControllers({
     runtime,
+    eventBus = null,
     requiredCards = 4,
     cardValidator = null,
     onStateChange = null,
-    onError = null
+    onError = null,
+    eventBusOptions = {}
 } = {}) {
+    const resolvedEventBus =
+        eventBus ??
+        new RuntimeEventBus(
+            eventBusOptions
+        );
+
     const roundController =
         new RoundController({
             requiredCards,
@@ -31,12 +45,28 @@ export default function createRuntimeControllers({
         new RuntimeController({
             runtime,
             roundController,
+            eventBus:
+                resolvedEventBus,
             onStateChange,
             onError
         });
 
+    const eventBridge =
+        new RuntimeEventBridge({
+            eventBus:
+                resolvedEventBus,
+            runtime,
+            controller:
+                runtimeController
+        });
+
+    eventBridge.bindRuntime();
+
     return {
         runtimeController,
-        roundController
+        roundController,
+        eventBus:
+            resolvedEventBus,
+        eventBridge
     };
 }
