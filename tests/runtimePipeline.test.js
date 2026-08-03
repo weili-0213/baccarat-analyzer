@@ -312,6 +312,11 @@ export default async function runtimePipelineTest() {
     );
 
     assert(
+        result.warnings.length === 1,
+        "Retry warning 數量錯誤"
+    );
+
+    assert(
         result.warnings[0].type ===
             "retry" &&
         result.warnings[0].stage ===
