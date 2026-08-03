@@ -46,6 +46,9 @@ import pipelineManagerTest
 import corePipelinesTest
     from "./corePipelines.test.js";
 
+import analysisPipelinesTest
+    from "./analysisPipelines.test.js";
+
 import analyzerTest
     from "./analyzer.test.js";
 
@@ -163,6 +166,12 @@ const TESTS = [
         id: "core-pipelines",
         name: "Core Pipelines",
         run: corePipelinesTest
+    },
+
+    {
+        id: "analysis-pipelines",
+        name: "Analysis Pipelines",
+        run: analysisPipelinesTest
     },
 
     {
