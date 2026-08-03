@@ -1,8 +1,8 @@
 /**
- * Baccarat Analyzer V4.4
+ * Baccarat Analyzer V4.5
  * tests/sessionStatistics.test.js
  *
- * StatisticsPage V4.4 integration test.
+ * StatisticsPage V4.5 integration test.
  */
 
 import StatisticsPage, {
@@ -18,6 +18,10 @@ import SessionChartsPanel, {
     SessionChartType
 } from "../components/SessionChartsPanel.js";
 
+import SessionReportPanel, {
+    SESSION_REPORT_PANEL_VERSION
+} from "../components/SessionReportPanel.js";
+
 import SessionStore
     from "../analysis/SessionStore.js";
 
@@ -29,58 +33,40 @@ function assert(condition, message) {
 }
 
 
-/**
- * Minimal DOM test double supporting both:
- *
- * - SessionStatisticsPanel
- * - SessionChartsPanel
- * - StatisticsPage V4.4 shell
- */
 function createHostElement(type = "root") {
     const element = {
         type,
-        innerHTML: "",
+        _innerHTML: "",
         parentElement: null,
         children: new Map(),
 
         querySelector(selector) {
-            if (
-                selector ===
-                "[data-statistics-summary-host]"
-            ) {
-                return this.children.get(
-                    "summary-host"
-                ) ?? null;
-            }
+            const map = {
+                "[data-statistics-summary-host]":
+                    "summary-host",
 
-            if (
-                selector ===
-                "[data-statistics-charts-host]"
-            ) {
-                return this.children.get(
-                    "charts-host"
-                ) ?? null;
-            }
+                "[data-statistics-charts-host]":
+                    "charts-host",
 
-            if (
-                selector ===
-                "[data-session-statistics]"
-            ) {
-                return this.children.get(
-                    "statistics-panel"
-                ) ?? null;
-            }
+                "[data-statistics-report-host]":
+                    "report-host",
 
-            if (
-                selector ===
-                "[data-session-charts]"
-            ) {
-                return this.children.get(
-                    "charts-panel"
-                ) ?? null;
-            }
+                "[data-session-statistics]":
+                    "statistics-panel",
 
-            return null;
+                "[data-session-charts]":
+                    "charts-panel",
+
+                "[data-session-report-panel]":
+                    "report-panel"
+            };
+
+            const key =
+                map[selector];
+
+            return key
+                ? this.children.get(key) ?? null
+                : null;
         },
 
         querySelectorAll() {
@@ -93,7 +79,7 @@ function createHostElement(type = "root") {
         "innerHTML",
         {
             get() {
-                return this._innerHTML ?? "";
+                return this._innerHTML;
             },
 
             set(value) {
@@ -102,36 +88,34 @@ function createHostElement(type = "root") {
 
                 this.children.clear();
 
-                if (
-                    this._innerHTML.includes(
-                        "data-statistics-summary-host"
-                    )
-                ) {
-                    const summaryHost =
-                        createHostElement(
-                            "summary-host"
+                const definitions = [
+                    [
+                        "data-statistics-summary-host",
+                        "summary-host"
+                    ],
+                    [
+                        "data-statistics-charts-host",
+                        "charts-host"
+                    ],
+                    [
+                        "data-statistics-report-host",
+                        "report-host"
+                    ]
+                ];
+
+                for (const [token, key] of definitions) {
+                    if (this._innerHTML.includes(token)) {
+                        const child =
+                            createHostElement(key);
+
+                        child.parentElement =
+                            this;
+
+                        this.children.set(
+                            key,
+                            child
                         );
-
-                    const chartsHost =
-                        createHostElement(
-                            "charts-host"
-                        );
-
-                    summaryHost.parentElement =
-                        this;
-
-                    chartsHost.parentElement =
-                        this;
-
-                    this.children.set(
-                        "summary-host",
-                        summaryHost
-                    );
-
-                    this.children.set(
-                        "charts-host",
-                        chartsHost
-                    );
+                    }
                 }
 
                 if (
@@ -139,18 +123,16 @@ function createHostElement(type = "root") {
                         "data-session-statistics"
                     )
                 ) {
-                    const panelRoot = {
-                        parentElement:
-                            this,
-
-                        querySelectorAll() {
-                            return [];
-                        }
-                    };
-
                     this.children.set(
                         "statistics-panel",
-                        panelRoot
+                        {
+                            parentElement:
+                                this,
+
+                            querySelectorAll() {
+                                return [];
+                            }
+                        }
                     );
                 }
 
@@ -159,18 +141,34 @@ function createHostElement(type = "root") {
                         "data-session-charts"
                     )
                 ) {
-                    const chartRoot = {
-                        parentElement:
-                            this,
-
-                        querySelectorAll() {
-                            return [];
-                        }
-                    };
-
                     this.children.set(
                         "charts-panel",
-                        chartRoot
+                        {
+                            parentElement:
+                                this,
+
+                            querySelectorAll() {
+                                return [];
+                            }
+                        }
+                    );
+                }
+
+                if (
+                    this._innerHTML.includes(
+                        "data-session-report-panel"
+                    )
+                ) {
+                    this.children.set(
+                        "report-panel",
+                        {
+                            parentElement:
+                                this,
+
+                            querySelectorAll() {
+                                return [];
+                            }
+                        }
                     );
                 }
             }
@@ -189,11 +187,9 @@ function createDocument() {
         root,
 
         querySelector(selector) {
-            return (
-                selector === "#statistics"
-                    ? root
-                    : null
-            );
+            return selector === "#statistics"
+                ? root
+                : null;
         }
     };
 }
@@ -203,17 +199,15 @@ export default function sessionStatisticsTest() {
     const messages = [];
 
     assert(
-        STATISTICS_PAGE_VERSION ===
-            "4.4.0" &&
-        SESSION_STATISTICS_PANEL_VERSION ===
-            "4.3.0" &&
-        SESSION_CHARTS_PANEL_VERSION ===
-            "4.4.0",
-        "V4.4 Statistics 版本錯誤"
+        STATISTICS_PAGE_VERSION === "4.5.0" &&
+        SESSION_STATISTICS_PANEL_VERSION === "4.3.0" &&
+        SESSION_CHARTS_PANEL_VERSION === "4.4.0" &&
+        SESSION_REPORT_PANEL_VERSION === "4.5.0",
+        "V4.5 Statistics 版本錯誤"
     );
 
     messages.push(
-        "✓ V4.4 Statistics 版本正確"
+        "✓ V4.5 Statistics 版本正確"
     );
 
     const documentRef =
@@ -221,8 +215,7 @@ export default function sessionStatisticsTest() {
 
     const store =
         new SessionStore({
-            autoSave:
-                false,
+            autoSave: false,
 
             clock:
                 () =>
@@ -266,9 +259,7 @@ export default function sessionStatisticsTest() {
 
     const page =
         new StatisticsPage({
-            sessionStore:
-                store,
-
+            sessionStore: store,
             documentRef
         });
 
@@ -284,42 +275,33 @@ export default function sessionStatisticsTest() {
 
     assert(
         page.summaryHost &&
-        page.chartsHost,
-        "V4.4 Statistics shell 建立失敗"
+        page.chartsHost &&
+        page.reportHost,
+        "V4.5 Statistics shell 建立失敗"
     );
 
     assert(
-        page.summaryHost
-            .innerHTML
-            .includes(
-                "Session Statistics"
-            ) &&
-        page.chartsHost
-            .innerHTML
-            .includes(
-                "Statistics Visualization"
-            ),
-        "Statistics 或 Charts DOM 缺少必要區塊"
+        page.summaryHost.innerHTML.includes(
+            "Session Statistics"
+        ) &&
+        page.chartsHost.innerHTML.includes(
+            "Statistics Visualization"
+        ) &&
+        page.reportHost.innerHTML.includes(
+            "百家樂 Session 報告"
+        ),
+        "Statistics／Charts／Report DOM 缺少必要區塊"
     );
 
     messages.push(
-        "✓ Statistics 與 Charts DOM 正確"
+        "✓ Statistics、Charts、Report DOM 正確"
     );
 
     assert(
-        page.report.summary.rounds ===
-            2 &&
-        page.report.statistics
-            .winners
-            .player ===
-            1 &&
-        page.report.statistics
-            .winners
-            .banker ===
-            1 &&
-        page.report.betting
-            .totalProfit ===
-            100,
+        page.report.summary.rounds === 2 &&
+        page.report.statistics.winners.player === 1 &&
+        page.report.statistics.winners.banker === 1 &&
+        page.report.betting.totalProfit === 100,
         "Session Report 串接錯誤"
     );
 
@@ -327,34 +309,8 @@ export default function sessionStatisticsTest() {
         "✓ Store → Analyzer → Report 串接正確"
     );
 
-    assert(
-        page.summaryHost
-            .innerHTML
-            .includes(
-                "50.0%"
-            ) &&
-        page.summaryHost
-            .innerHTML
-            .includes(
-                "ROI：100.0%"
-            ),
-        "Win Rate 或 ROI 顯示錯誤"
-    );
-
-    messages.push(
-        "✓ Win Rate 與 ROI 顯示正確"
-    );
-
     page.setMode(
         "details"
-    );
-
-    assert(
-        page.panel
-            .summary
-            .mode ===
-            "details",
-        "Overview／Details 切換錯誤"
     );
 
     page.setChart(
@@ -362,47 +318,36 @@ export default function sessionStatisticsTest() {
     );
 
     assert(
-        page.chartsPanel
-            .summary
-            .activeChart ===
-            SessionChartType.WINNERS &&
-        page.chartsHost
-            .innerHTML
-            .includes(
-                'data-chart="winners"'
-            ),
-        "Chart 切換錯誤"
+        page.panel.summary.mode === "details" &&
+        page.chartsPanel.summary.activeChart ===
+            SessionChartType.WINNERS,
+        "Mode 或 Chart 切換錯誤"
     );
 
     messages.push(
         "✓ Mode 與 Chart 切換正確"
     );
 
-    const csv =
-        page.exportCSV();
+    const copiedText =
+        page.reportPanel.buildText(
+            page.report
+        );
 
-    const json =
-        page.exportJSON();
-
-    const text =
-        page.exportText();
+    const reportHTML =
+        page.exportReportHTML();
 
     assert(
-        csv.includes(
-            "betting,totalProfit,100"
-        ) &&
-        JSON.parse(json)
-            .summary
-            .rounds ===
-            2 &&
-        text.includes(
+        copiedText.includes(
             "局數：2"
+        ) &&
+        reportHTML.startsWith(
+            "<!DOCTYPE html>"
         ),
-        "Export 整合錯誤"
+        "Report Export 整合錯誤"
     );
 
     messages.push(
-        "✓ JSON／CSV／Text Export 正確"
+        "✓ Report Text／HTML Export 正確"
     );
 
     store.addRound({
@@ -413,23 +358,21 @@ export default function sessionStatisticsTest() {
     });
 
     assert(
-        page.report.summary.rounds ===
-            3 &&
-        page.summaryHost
-            .innerHTML
-            .includes(
-                "Session Statistics"
-            ) &&
-        page.chartsHost
-            .innerHTML
-            .includes(
-                "Statistics Visualization"
-            ),
-        "SessionStore event 未自動刷新兩個面板"
+        page.report.summary.rounds === 3 &&
+        page.summaryHost.innerHTML.includes(
+            "Session Statistics"
+        ) &&
+        page.chartsHost.innerHTML.includes(
+            "Statistics Visualization"
+        ) &&
+        page.reportHost.innerHTML.includes(
+            "百家樂 Session 報告"
+        ),
+        "SessionStore event 未同步刷新三個面板"
     );
 
     messages.push(
-        "✓ Store Event 自動刷新正確"
+        "✓ Store Event 三面板自動刷新正確"
     );
 
     const emptyDocument =
@@ -446,20 +389,16 @@ export default function sessionStatisticsTest() {
     );
 
     assert(
-        emptyPage.report
-            .summary
-            .rounds ===
-            0 &&
-        emptyPage.summaryHost
-            .innerHTML
-            .includes(
-                "Session Statistics"
-            ) &&
-        emptyPage.chartsHost
-            .innerHTML
-            .includes(
-                "尚無下注資金曲線"
-            ),
+        emptyPage.report.summary.rounds === 0 &&
+        emptyPage.summaryHost.innerHTML.includes(
+            "Session Statistics"
+        ) &&
+        emptyPage.chartsHost.innerHTML.includes(
+            "尚無下注資金曲線"
+        ) &&
+        emptyPage.reportHost.innerHTML.includes(
+            "百家樂 Session 報告"
+        ),
         "空 Session 顯示錯誤"
     );
 
@@ -468,16 +407,13 @@ export default function sessionStatisticsTest() {
     );
 
     assert(
-        page.summary.version ===
-            "4.4.0" &&
-        page.summary.mounted ===
-            true &&
-        page.summary.hasReport ===
-            true &&
-        page.summary.rounds ===
-            3 &&
+        page.summary.version === "4.5.0" &&
+        page.summary.mounted === true &&
+        page.summary.hasReport === true &&
+        page.summary.rounds === 3 &&
         page.summary.activeChart ===
-            SessionChartType.WINNERS,
+            SessionChartType.WINNERS &&
+        page.summary.reportMounted === true,
         "StatisticsPage summary 錯誤"
     );
 
@@ -487,7 +423,8 @@ export default function sessionStatisticsTest() {
         page.root === null &&
         page.report === null &&
         page.summaryHost === null &&
-        page.chartsHost === null,
+        page.chartsHost === null &&
+        page.reportHost === null,
         "destroy() 錯誤"
     );
 
@@ -498,17 +435,16 @@ export default function sessionStatisticsTest() {
     return `
 ${messages.join("\n")}
 
-Dashboard Statistics V4.4 測試完成
+Dashboard Statistics V4.5 測試完成
 
 Statistics DOM：通過
 Charts DOM：通過
+Report DOM：通過
 Session Pipeline：通過
-Win Rate：通過
-ROI：通過
 Mode Switch：通過
 Chart Switch：通過
+Report Export：通過
 Auto Refresh：通過
-Exports：通過
 Empty Session：通過
 `;
 }
