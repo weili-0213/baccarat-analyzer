@@ -1,1 +1,227 @@
+/**
+ * Baccarat Analyzer V4.3
+ * styles/statistics.css
+ */
 
+.session-statistics {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+    color: var(--text-primary, #e8eef8);
+}
+
+.session-statistics__header,
+.session-statistics__section,
+.session-statistics__overview {
+    border: 1px solid var(--border-color, #33445c);
+    border-radius: 16px;
+    background: var(--surface-color, #172235);
+}
+
+.session-statistics__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px;
+}
+
+.session-statistics__header h2,
+.session-statistics__section-header h3 {
+    margin: 0;
+}
+
+.session-statistics__eyebrow {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--text-muted, #91a1b9);
+    font-size: 0.75rem;
+}
+
+.session-statistics__tabs {
+    display: flex;
+    gap: 6px;
+}
+
+.session-statistics__tabs button {
+    border: 1px solid var(--border-color, #33445c);
+    border-radius: 10px;
+    padding: 8px 12px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.session-statistics__tabs button[aria-selected="true"] {
+    background: var(--accent-color, #2f7df6);
+    border-color: transparent;
+}
+
+.session-statistics__overview,
+.session-statistics__grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    padding: 12px;
+}
+
+.session-stat-card {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--surface-raised, #202e44);
+}
+
+.session-stat-card__label,
+.session-stat-card__detail {
+    color: var(--text-muted, #91a1b9);
+    font-size: 0.78rem;
+}
+
+.session-stat-card__value {
+    overflow: hidden;
+    font-size: 1.25rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.session-stat-card.is-positive .session-stat-card__value {
+    color: var(--success-color, #3ddc84);
+}
+
+.session-stat-card.is-negative .session-stat-card__value {
+    color: var(--danger-color, #ff6577);
+}
+
+.session-statistics__section {
+    padding: 14px;
+}
+
+.session-statistics__section-header {
+    margin-bottom: 12px;
+}
+
+.session-rate-list,
+.session-side-bet-list {
+    display: grid;
+    gap: 10px;
+}
+
+.session-rate-row {
+    display: grid;
+    gap: 5px;
+}
+
+.session-rate-row__header,
+.session-side-bet-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.session-rate-row__track {
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--track-color, #0f1726);
+}
+
+.session-rate-row__bar {
+    display: block;
+    width: calc(var(--session-rate) * 100%);
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent-color, #2f7df6);
+}
+
+.session-rate-row small {
+    color: var(--text-muted, #91a1b9);
+}
+
+.session-statistics__details {
+    display: grid;
+    grid-template-columns: 1.4fr 0.8fr 1fr;
+    gap: 14px;
+}
+
+.session-statistics[data-statistics-mode="overview"]
+.session-statistics__details {
+    display: none;
+}
+
+.session-equity-chart {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 150px;
+    padding: 8px;
+    border-radius: 12px;
+    background: var(--track-color, #0f1726);
+}
+
+.session-equity-chart__bar {
+    align-self: flex-end;
+    flex: 1;
+    min-width: 4px;
+    max-width: 18px;
+    height: var(--equity-height);
+    border-radius: 5px 5px 2px 2px;
+    background: var(--success-color, #3ddc84);
+}
+
+.session-equity-chart__bar.is-negative {
+    background: var(--danger-color, #ff6577);
+}
+
+.session-statistics__empty {
+    margin: 0;
+    padding: 24px;
+    color: var(--text-muted, #91a1b9);
+    text-align: center;
+}
+
+@media (max-width: 900px) {
+    .session-statistics__overview,
+    .session-statistics__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .session-statistics__details {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 560px) {
+    .session-statistics {
+        gap: 8px;
+    }
+
+    .session-statistics__header {
+        padding: 10px;
+    }
+
+    .session-statistics__header h2 {
+        font-size: 1rem;
+    }
+
+    .session-statistics__overview,
+    .session-statistics__grid {
+        gap: 6px;
+        padding: 8px;
+    }
+
+    .session-stat-card {
+        padding: 9px;
+    }
+
+    .session-stat-card__value {
+        font-size: 1rem;
+    }
+
+    .session-statistics__section {
+        padding: 10px;
+    }
+}
