@@ -79,6 +79,9 @@ import liveDashboardTest
 import dashboardLayoutTest
     from "./dashboardLayout.test.js";
 
+import casinoRuntimeTest
+    from "./casinoRuntime.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -268,6 +271,12 @@ const TESTS = [
         id: "dashboard-layout",
         name: "Dashboard Layout Manager",
         run: dashboardLayoutTest
+    },
+
+    {
+        id: "casino-runtime",
+        name: "Casino Runtime",
+        run: casinoRuntimeTest
     },
 
     {
