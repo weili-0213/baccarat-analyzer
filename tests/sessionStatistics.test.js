@@ -203,7 +203,7 @@ export default function sessionStatisticsTest() {
         SESSION_STATISTICS_PANEL_VERSION === "4.3.0" &&
         SESSION_CHARTS_PANEL_VERSION === "4.4.0" &&
         SESSION_REPORT_PANEL_VERSION === "4.5.0",
-        "V4.5 Statistics 版本錯誤"
+        "V4.6.0 Statistics 版本錯誤"
     );
 
     messages.push(
