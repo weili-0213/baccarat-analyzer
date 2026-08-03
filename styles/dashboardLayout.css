@@ -1,1 +1,74 @@
+/**
+ * Baccarat Analyzer V4.7
+ * styles/dashboardLayout.css
+ */
 
+.dashboard-layout {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+}
+
+.dashboard-layout__section,
+.dashboard-layout__host {
+    min-width: 0;
+}
+
+.dashboard-layout__section[hidden] {
+    display: none !important;
+}
+
+.dashboard-layout[data-layout-mode="compact"] {
+    gap: 8px;
+}
+
+.dashboard-layout[data-layout-mode="compact"]
+.session-statistics__details,
+.dashboard-layout[data-layout-mode="compact"]
+[data-dashboard-section="report"] {
+    display: none;
+}
+
+.dashboard-layout[data-layout-mode="compact"]
+.session-statistics,
+.dashboard-layout[data-layout-mode="compact"]
+.session-charts,
+.dashboard-layout[data-layout-mode="compact"]
+.session-report-panel {
+    gap: 8px;
+}
+
+@media (min-width: 1180px) {
+    .dashboard-layout[data-layout-mode="full"] {
+        grid-template-columns:
+            minmax(0, 1.15fr)
+            minmax(0, .85fr);
+        align-items: start;
+    }
+
+    .dashboard-layout[data-layout-mode="full"]
+    [data-dashboard-section="live"] {
+        grid-column: 1 / -1;
+    }
+
+    .dashboard-layout[data-layout-mode="full"]
+    [data-dashboard-section="statistics"] {
+        grid-column: 1;
+    }
+
+    .dashboard-layout[data-layout-mode="full"]
+    [data-dashboard-section="charts"] {
+        grid-column: 2;
+    }
+
+    .dashboard-layout[data-layout-mode="full"]
+    [data-dashboard-section="report"] {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 700px) {
+    .dashboard-layout {
+        gap: 8px;
+    }
+}
