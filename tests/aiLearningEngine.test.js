@@ -28,4 +28,5 @@ Pause／Resume：通過
 Runtime Adapter：通過
 Events：通過
 Lifecycle：通過
-`; }
+`;
+}
