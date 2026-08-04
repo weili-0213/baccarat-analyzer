@@ -148,6 +148,9 @@ import aiKnowledgeEngineTest
 import aiReasoningEngineTest
     from "./aiReasoningEngine.test.js";
 
+import aiPlanningEngineTest
+    from "./aiPlanningEngine.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -475,6 +478,12 @@ const TESTS = [
         id: "ai-reasoning-engine",
         name: "AI Reasoning Engine",
         run: aiReasoningEngineTest
+    },
+
+    {
+        id: "ai-planning-engine",
+        name: "AI Planning Engine",
+        run: aiPlanningEngineTest
     },
 
     {
