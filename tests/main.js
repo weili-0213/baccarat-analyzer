@@ -157,6 +157,9 @@ import aiExecutionEngineTest
 import aiCollaborationEngineTest
     from "./aiCollaborationEngine.test.js";
 
+import aiGovernanceEngineTest
+    from "./aiGovernanceEngine.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -502,6 +505,12 @@ const TESTS = [
         id: "ai-collaboration-engine",
         name: "AI Collaboration Engine",
         run: aiCollaborationEngineTest
+    },
+
+    {
+        id: "ai-governance-engine",
+        name: "AI Governance Engine",
+        run: aiGovernanceEngineTest
     },
 
     {
