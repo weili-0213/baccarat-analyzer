@@ -139,6 +139,9 @@ import strategyEngineTest
 import aiDecisionEngineTest
     from "./aiDecisionEngine.test.js";
 
+import aiLearningEngineTest
+    from "./aiLearningEngine.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -448,6 +451,12 @@ const TESTS = [
         id: "ai-decision-engine",
         name: "AI Decision Engine",
         run: aiDecisionEngineTest
+    },
+
+    {
+        id: "ai-learning-engine",
+        name: "AI Learning Engine",
+        run: aiLearningEngineTest
     },
 
     {
