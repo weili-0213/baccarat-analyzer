@@ -166,6 +166,9 @@ import aiAssuranceEngineTest
 import aiOptimizationEngineTest
     from "./aiOptimizationEngine.test.js";
 
+import aiAutonomousEngineTest
+    from "./aiAutonomousEngine.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -529,6 +532,12 @@ const TESTS = [
         id: "ai-optimization-engine",
         name: "AI Optimization Engine",
         run: aiOptimizationEngineTest
+    },
+
+    {
+        id: "ai-autonomous-engine",
+        name: "AI Autonomous System",
+        run: aiAutonomousEngineTest
     },
 
     {
