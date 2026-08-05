@@ -199,6 +199,9 @@ import aiOrchestrationEngineTest
 import aiOperatingSystemTest
     from "./aiOperatingSystem.test.js";
 
+import aiUIIntegrationTest
+    from "./aiUIIntegration.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -628,6 +631,12 @@ const TESTS = [
         id: "ai-operating-system",
         name: "AI Operating System",
         run: aiOperatingSystemTest
+    },
+
+    {
+        id: "ai-ui-integration",
+        name: "AI UI Integration",
+        run: aiUIIntegrationTest
     },
 
     {
