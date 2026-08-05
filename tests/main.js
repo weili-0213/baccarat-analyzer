@@ -190,6 +190,9 @@ import aiEthicsEngineTest
 import aiSafetyEngineTest
     from "./aiSafetyEngine.test.js";
 
+import aiMetaIntelligenceEngineTest
+    from "./aiMetaIntelligenceEngine.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -601,6 +604,12 @@ const TESTS = [
         id: "ai-safety-engine",
         name: "AI Safety Engine",
         run: aiSafetyEngineTest
+    },
+
+    {
+        id: "ai-meta-intelligence-engine",
+        name: "AI Meta Intelligence Engine",
+        run: aiMetaIntelligenceEngineTest
     },
 
     {
