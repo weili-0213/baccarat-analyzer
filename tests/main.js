@@ -205,6 +205,9 @@ import aiUIIntegrationTest
 import aiDecisionIntegrationTest
     from "./aiDecisionIntegration.test.js";
 
+import aiSimulationIntegrationTest
+    from "./aiSimulationIntegration.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -646,6 +649,12 @@ const TESTS = [
         id: "ai-decision-integration",
         name: "AI Decision Integration",
         run: aiDecisionIntegrationTest
+    },
+
+    {
+        id: "ai-simulation-integration",
+        name: "AI Simulation Integration",
+        run: aiSimulationIntegrationTest
     },
 
     {
