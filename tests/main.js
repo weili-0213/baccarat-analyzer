@@ -178,6 +178,9 @@ import aiEvolutionEngineTest
 import aiCollectiveIntelligenceEngineTest
     from "./aiCollectiveIntelligenceEngine.test.js";
 
+import aiConsciousnessEngineTest
+    from "./aiConsciousnessEngine.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -565,6 +568,12 @@ const TESTS = [
         id: "ai-collective-intelligence-engine",
         name: "AI Collective Intelligence System",
         run: aiCollectiveIntelligenceEngineTest
+    },
+
+    {
+        id: "ai-consciousness-engine",
+        name: "AI Consciousness Framework",
+        run: aiConsciousnessEngineTest
     },
 
     {
