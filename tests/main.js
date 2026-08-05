@@ -196,6 +196,9 @@ import aiMetaIntelligenceEngineTest
 import aiOrchestrationEngineTest
     from "./aiOrchestrationEngine.test.js";
 
+import aiOperatingSystemTest
+    from "./aiOperatingSystem.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -619,6 +622,12 @@ const TESTS = [
         id: "ai-orchestration-engine",
         name: "AI Orchestration Engine",
         run: aiOrchestrationEngineTest
+    },
+
+    {
+        id: "ai-operating-system",
+        name: "AI Operating System",
+        run: aiOperatingSystemTest
     },
 
     {
