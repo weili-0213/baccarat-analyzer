@@ -181,6 +181,9 @@ import aiCollectiveIntelligenceEngineTest
 import aiConsciousnessEngineTest
     from "./aiConsciousnessEngine.test.js";
 
+import aiValueAlignmentEngineTest
+    from "./aiValueAlignmentEngine.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -574,6 +577,12 @@ const TESTS = [
         id: "ai-consciousness-engine",
         name: "AI Consciousness Framework",
         run: aiConsciousnessEngineTest
+    },
+
+    {
+        id: "ai-value-alignment-engine",
+        name: "AI Value Alignment Framework",
+        run: aiValueAlignmentEngineTest
     },
 
     {
