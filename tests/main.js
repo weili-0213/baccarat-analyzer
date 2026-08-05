@@ -172,6 +172,9 @@ import aiAutonomousEngineTest
 import aiSelfImprovementEngineTest
     from "./aiSelfImprovementEngine.test.js";
 
+import aiEvolutionEngineTest
+    from "./aiEvolutionEngine.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -547,6 +550,12 @@ const TESTS = [
         id: "ai-self-improvement-engine",
         name: "AI Self-Improvement System",
         run: aiSelfImprovementEngineTest
+    },
+
+    {
+        id: "ai-evolution-engine",
+        name: "AI Evolution System",
+        run: aiEvolutionEngineTest
     },
 
     {
