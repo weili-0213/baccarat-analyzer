@@ -223,6 +223,9 @@ import aiStrategyIntegrationTest
 import aiExecutionIntegrationTest
     from "./aiExecutionIntegration.test.js";
 
+import aiFeedbackIntegrationTest
+    from "./aiFeedbackIntegration.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -700,6 +703,12 @@ const TESTS = [
         id: "ai-execution-integration",
         name: "AI Execution Integration",
         run: aiExecutionIntegrationTest
+    },
+
+    {
+        id: "ai-feedback-integration",
+        name: "AI Feedback Integration",
+        run: aiFeedbackIntegrationTest
     },
 
     {
