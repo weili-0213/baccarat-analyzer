@@ -217,6 +217,9 @@ import aiLearningIntegrationTest
 import aiAdaptiveIntegrationTest
     from "./aiAdaptiveIntegration.test.js";
 
+import aiStrategyIntegrationTest
+    from "./aiStrategyIntegration.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -682,6 +685,12 @@ const TESTS = [
         id: "ai-adaptive-integration",
         name: "AI Adaptive Integration",
         run: aiAdaptiveIntegrationTest
+    },
+
+    {
+        id: "ai-strategy-integration",
+        name: "AI Strategy Integration",
+        run: aiStrategyIntegrationTest
     },
 
     {
