@@ -226,6 +226,9 @@ import aiExecutionIntegrationTest
 import aiFeedbackIntegrationTest
     from "./aiFeedbackIntegration.test.js";
 
+import aiClosedLoopIntelligenceSystemTest
+    from "./aiClosedLoopIntelligenceSystem.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -709,6 +712,12 @@ const TESTS = [
         id: "ai-feedback-integration",
         name: "AI Feedback Integration",
         run: aiFeedbackIntegrationTest
+    },
+
+    {
+        id: "ai-closed-loop-intelligence-system",
+        name: "AI Closed-Loop Intelligence System",
+        run: aiClosedLoopIntelligenceSystemTest
     },
 
     {
