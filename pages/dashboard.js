@@ -1,8 +1,8 @@
 /**
- * Baccarat Analyzer V10.4.1
+ * Baccarat Analyzer V10.4.2
  * Path: pages/dashboard.js
  * Purpose:
- *   Dashboard Compatibility Refactor.
+ *   Dashboard Burn Compatibility Fix.
  *   Preserves the legacy Dashboard Page Object API required by app/app.js
  *   while retaining the V10.1 static Dashboard and AI Closed-Loop UI contract.
  */
@@ -63,7 +63,7 @@ export const DASHBOARD_PAGE_VERSION = "10.1.0";
  * - V3.4.3 Page Object API required by app/app.js
  * - V10.1 static Dashboard / AI Closed-Loop HTML contract
  */
-export const DASHBOARD_COMPATIBILITY_VERSION = "10.4.1";
+export const DASHBOARD_COMPATIBILITY_VERSION = "10.4.2";
 
 export const DashboardMode = AnalysisDisplayMode;
 
@@ -398,9 +398,152 @@ export class Dashboard {
             .startNewShoe();
     }
 
-    confirmBurn() {
-        return this.analysisController
-            .confirmBurn();
+    /**
+     * V10.4.2 Burn Compatibility
+     *
+     * Supported Game contracts:
+     *
+     * 1. Legacy / current Baccarat Game
+     *      game.confirmBurnIndicator({ rank, suit })
+     *      -> AnalysisController.confirmBurn()
+     *
+     * 2. Runtime / adapter compatible Game
+     *      game.confirmBurn({ rank, suit })
+     *      -> Dashboard compatibility fallback
+     *
+     * app/app.js only depends on the public Dashboard API:
+     *
+     *      page.ui.selectedRank
+     *      page.ui.selectedSuit
+     *      await page.confirmBurn()
+     *      game.burnConfirmed === true
+     */
+    async confirmBurn() {
+        const card = {
+            rank:
+                this.ui.selectedRank,
+            suit:
+                this.ui.selectedSuit
+        };
+
+        /*
+         * Primary production path.
+         *
+         * AnalysisController owns the existing V3.4.x flow:
+         * confirmBurnIndicator -> first analysis -> render/message lifecycle.
+         */
+        if (
+            typeof this.game
+                ?.confirmBurnIndicator ===
+            "function"
+        ) {
+            const controllerResult =
+                await this.analysisController
+                    .confirmBurn();
+
+            /*
+             * AnalysisController historically returns the result of
+             * GameController.run(), whose callback did not return burnInfo.
+             * Expose a stable public result without changing the controller.
+             */
+            return (
+                this.game.burnInfo ??
+                controllerResult ??
+                {
+                    confirmed:
+                        Boolean(
+                            this.game
+                                .burnConfirmed
+                        ),
+                    indicator:
+                        card
+                }
+            );
+        }
+
+        /*
+         * V10.x / adapter compatibility path.
+         *
+         * Some runtime-facing Game facades expose confirmBurn() instead of
+         * confirmBurnIndicator(). Keep the same Dashboard public contract.
+         */
+        if (
+            typeof this.game
+                ?.confirmBurn ===
+            "function"
+        ) {
+            return this.gameController.run(
+                async () => {
+                    const info =
+                        await this.game
+                            .confirmBurn(
+                                card
+                            );
+
+                    /*
+                     * If a facade reports confirmation in its return value but
+                     * does not mirror the legacy flag, normalize the flag
+                     * because app/app.js explicitly checks game.burnConfirmed.
+                     */
+                    if (
+                        !this.game
+                            .burnConfirmed &&
+                        info?.confirmed ===
+                            true
+                    ) {
+                        this.game
+                            .burnConfirmed =
+                            true;
+                    }
+
+                    /*
+                     * Preserve first-round analysis behavior whenever the
+                     * facade exposes the same analysis lifecycle.
+                     */
+                    if (
+                        !this.game
+                            .isAnalyzing &&
+                        !this.game
+                            .hasNextAnalysis &&
+                        typeof this.game
+                            .analyzeNextRound ===
+                            "function"
+                    ) {
+                        await this.game
+                            .analyzeNextRound();
+                    }
+                    else if (
+                        typeof this.game
+                            .waitForAnalysis ===
+                            "function"
+                    ) {
+                        await this.game
+                            .waitForAnalysis();
+                    }
+
+                    return (
+                        info ??
+                        {
+                            confirmed:
+                                Boolean(
+                                    this.game
+                                        .burnConfirmed
+                                ),
+                            indicator:
+                                card
+                        }
+                    );
+                },
+                {
+                    successMessage:
+                        "燒牌已確認，第一局分析完成。"
+                }
+            );
+        }
+
+        throw new Error(
+            "Dashboard game does not support burn confirmation."
+        );
     }
 
     startRound() {
