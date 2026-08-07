@@ -34,7 +34,10 @@ import {
     NO_COMMISSION_BACCARAT_RULES
 } from "../config/noCommissionBaccarat.js";
 
-export const ANALYZER_NO_COMMISSION_VERSION = "10.4.5";
+export const ANALYZER_VERSION = "10.4.5";
+
+export const ANALYZER_NO_COMMISSION_VERSION =
+    ANALYZER_VERSION;
 
 
 /**
