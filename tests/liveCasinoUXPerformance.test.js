@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.4.4
+ * Baccarat Analyzer V10.4.5
  * Path: tests/liveCasinoUXPerformance.test.js
  * Purpose: Runtime Integration Test for 3-second live decision UX/performance flow.
  */
@@ -156,13 +156,13 @@ export default async function liveCasinoUXPerformanceTest() {
             LIVE_CASINO_UX_FACTORY_VERSION,
             LIVE_CASINO_UX_RUNTIME_ADAPTER_VERSION
         ].every(version =>
-            version === "10.4.4"
+            version === "10.4.5"
         ),
-        "V10.4.4 version contract 錯誤"
+        "V10.4.5 version contract 錯誤"
     );
 
     messages.push(
-        "✓ V10.4.4 Live Casino UX / Performance 版本正確"
+        "✓ V10.4.5 Live Casino UX / Performance 版本正確"
     );
 
 
@@ -407,7 +407,7 @@ export default async function liveCasinoUXPerformanceTest() {
 
     assert(
         adapter.summary.version ===
-            "10.4.4" &&
+            "10.4.5" &&
         adapter.summary.controller
             .decision
             .relativeKey ===
@@ -438,7 +438,7 @@ export default async function liveCasinoUXPerformanceTest() {
     return `
 ${messages.join("\n")}
 
-Live Casino UX & Performance Refactor V10.4.4 測試完成
+Live Casino UX & Performance Refactor V10.4.5 測試完成
 
 Version Contracts：通過
 Quick Analysis Profile：通過
