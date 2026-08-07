@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.4.3
+ * Baccarat Analyzer V10.4.4
  * Path: runtime/liveCasino/LiveCasinoUXController.js
  * Purpose:
  *   3-second live analysis path + compact decision-first Dashboard bridge.
@@ -16,7 +16,7 @@ import {
     LIVE_CASINO_UX_STYLE_ID
 } from "./LiveCasinoUXStyles.js";
 
-export const LIVE_CASINO_UX_CONTROLLER_VERSION = "10.4.3";
+export const LIVE_CASINO_UX_CONTROLLER_VERSION = "10.4.4";
 
 function delay(ms) {
     return new Promise(resolve =>
@@ -309,11 +309,48 @@ export default class LiveCasinoUXController {
                 .confirmBurnIndicator ===
             "function"
         ) {
-            info =
-                await this.game
-                    .confirmBurnIndicator(
-                        card
-                    );
+            /*
+             * V10.4.4 critical-path guard.
+             *
+             * New Game implementations honor the per-call { analyze:false }
+             * override.  The temporary option guard also protects compatible
+             * older Game builds whose confirmBurnIndicator() ignores a second
+             * argument but still reads options.analyzeAfterBurn.
+             */
+            const hasOptions =
+                this.game.options &&
+                typeof this.game.options ===
+                    "object";
+
+            const previousAnalyzeAfterBurn =
+                hasOptions
+                    ? this.game.options
+                        .analyzeAfterBurn
+                    : undefined;
+
+            try {
+                if (hasOptions) {
+                    this.game.options
+                        .analyzeAfterBurn =
+                        false;
+                }
+
+                info =
+                    await this.game
+                        .confirmBurnIndicator(
+                            card,
+                            {
+                                analyze: false
+                            }
+                        );
+            }
+            finally {
+                if (hasOptions) {
+                    this.game.options
+                        .analyzeAfterBurn =
+                        previousAnalyzeAfterBurn;
+                }
+            }
         }
         else if (
             typeof this.game
@@ -403,11 +440,11 @@ export default class LiveCasinoUXController {
 
         return `
             <section
-                class="v1043Decision"
+                class="v1044Decision"
                 data-live-decision
             >
-                <div class="v1043DecisionCard v1043DecisionMain">
-                    <span class="v1043Meta">下一局決策</span>
+                <div class="v1044DecisionCard v1044DecisionMain">
+                    <span class="v1044Meta">下一局決策</span>
                     <strong>${d.strictLabel}</strong>
                     <div>
                         相對最佳：
@@ -419,26 +456,26 @@ export default class LiveCasinoUXController {
                     <small>${d.reason}</small>
                 </div>
 
-                <div class="v1043DecisionCard v1043Player">
+                <div class="v1044DecisionCard v1044Player">
                     <span>閒家</span>
                     <strong>${pct(d.probability.player)}</strong>
                     <small>EV ${evText(d.ev.player)}</small>
                 </div>
 
-                <div class="v1043DecisionCard v1043Banker">
+                <div class="v1044DecisionCard v1044Banker">
                     <span>莊家</span>
                     <strong>${pct(d.probability.banker)}</strong>
                     <small>EV ${evText(d.ev.banker)}</small>
                 </div>
 
-                <div class="v1043DecisionCard v1043Tie">
+                <div class="v1044DecisionCard v1044Tie">
                     <span>和局</span>
                     <strong>${pct(d.probability.tie)}</strong>
                     <small>EV ${evText(d.ev.tie)}</small>
                 </div>
 
-                <div class="v1043DecisionCard v1043DecisionAI">
-                    <span class="v1043Meta">Live AI / Performance</span>
+                <div class="v1044DecisionCard v1044DecisionAI">
+                    <span class="v1044Meta">Live AI / Performance</span>
                     <strong>${status}</strong>
                     <div>
                         信心 ${pct(d.confidence)}
@@ -561,7 +598,7 @@ export default class LiveCasinoUXController {
 
         if (section) {
             section.classList?.add(
-                "v1043RoadSection"
+                "v1044RoadSection"
             );
         }
 
@@ -582,7 +619,7 @@ export default class LiveCasinoUXController {
         this.ensureStyles();
 
         root.setAttribute?.(
-            "data-live-casino-v1043",
+            "data-live-casino-v1044",
             "true"
         );
 
@@ -608,7 +645,7 @@ export default class LiveCasinoUXController {
             this.identifyRoadSection(root);
 
         road?.classList?.toggle(
-            "v1043Collapsed",
+            "v1044Collapsed",
             !roadmapExpanded
         );
 
@@ -618,7 +655,7 @@ export default class LiveCasinoUXController {
             );
 
         aiPanel?.classList?.toggle(
-            "v1043AIHidden",
+            "v1044AIHidden",
             !aiExpanded
         );
 
@@ -632,7 +669,7 @@ export default class LiveCasinoUXController {
                 "beforeend",
                 `
                 <div
-                    class="v1043UtilityBar"
+                    class="v1044UtilityBar"
                     data-live-utility
                 >
                     <button
