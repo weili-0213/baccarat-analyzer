@@ -232,6 +232,9 @@ import aiClosedLoopIntelligenceSystemTest
 import aiClosedLoopUIIntegrationTest
     from "./aiClosedLoopUIIntegration.test.js";
 
+import aiLiveRuntimeIntegrationTest
+    from "./aiLiveRuntimeIntegration.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -727,6 +730,12 @@ const TESTS = [
         id: "ai-closed-loop-ui-integration",
         name: "AI Closed-Loop UI Integration",
         run: aiClosedLoopUIIntegrationTest
+    },
+
+    {
+        id: "ai-live-runtime-integration",
+        name: "AI Live Runtime Integration",
+        run: aiLiveRuntimeIntegrationTest
     },
 
     {
