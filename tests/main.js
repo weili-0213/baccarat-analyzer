@@ -298,6 +298,9 @@ import dashboardCompatibilityTest
 import liveCasinoUXPerformanceTest
     from "./liveCasinoUXPerformance.test.js";
 
+import liveRoundCriticalPathTest
+    from "./liveRoundCriticalPath.test.js";
+
 /**
  * 新增測試時，只需：
  *
@@ -878,6 +881,12 @@ const TESTS = [
         id: "live-casino-ux-performance",
         name: "Live Casino UX & Performance",
         run: liveCasinoUXPerformanceTest
+    },
+
+    {
+        id: "live-round-critical-path",
+        name: "Live Round Critical Path",
+        run: liveRoundCriticalPathTest
     }
 
 ];
