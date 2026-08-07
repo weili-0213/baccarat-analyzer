@@ -3,7 +3,7 @@
  * Path: runtime/liveCasino/LiveCasinoPerformancePolicy.js
  * Purpose: Defines live-casino analysis deadlines and fast/refine profiles.
  */
-export const LIVE_CASINO_PERFORMANCE_POLICY_VERSION = "10.4.4";
+export const LIVE_CASINO_PERFORMANCE_POLICY_VERSION = "10.4.5";
 
 export const LiveCasinoAnalysisProfile = Object.freeze({
     QUICK: "quick",
