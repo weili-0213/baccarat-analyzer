@@ -34,6 +34,8 @@ import Ranking, {
 import Recommendation from "./recommendation.js";
 import dragonBonus from "./dragonBonus.js";
 
+export const ANALYZER_LEGACY_CORE_COMPATIBILITY_VERSION = "10.4.5.1";
+
 
 /**
  * 分析模式
@@ -90,10 +92,13 @@ export const BET_CONFIG = Object.freeze({
             "main",
 
         netOdds:
-            0.95,
+            1,
 
         pushKey:
             "tie",
+
+        payoutRule:
+            "banker-6-half-pay",
 
         recommendationEligible:
             true,
@@ -1182,14 +1187,28 @@ export default class AnalyzerLegacyCore {
 
                     : 0;
 
+            const netOdds =
+
+                name === "banker" &&
+                typeof this.ev
+                    ?.effectiveBankerNetOdds ===
+                    "function"
+
+                    ? this.ev
+                        .effectiveBankerNetOdds(
+                            probability
+                        )
+
+                    : config.netOdds;
+
+
             bets[name] = {
 
                 winProbability,
 
                 pushProbability,
 
-                netOdds:
-                    config.netOdds
+                netOdds
 
             };
 
