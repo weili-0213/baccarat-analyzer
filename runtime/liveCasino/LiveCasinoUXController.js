@@ -16,7 +16,7 @@ import {
     LIVE_CASINO_UX_STYLE_ID
 } from "./LiveCasinoUXStyles.js";
 
-export const LIVE_CASINO_UX_CONTROLLER_VERSION = "10.4.4";
+export const LIVE_CASINO_UX_CONTROLLER_VERSION = "10.4.5";
 
 function delay(ms) {
     return new Promise(resolve =>
