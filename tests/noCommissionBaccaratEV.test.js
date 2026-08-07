@@ -9,7 +9,9 @@ import EV, {
 } from "../analysis/ev.js";
 
 import Analyzer, {
+    ANALYZER_VERSION,
     ANALYZER_NO_COMMISSION_VERSION,
+    ANALYZER_COMPATIBILITY_VERSION,
     BET_CONFIG
 } from "../analysis/analyzer.js";
 
@@ -79,17 +81,21 @@ export default async function noCommissionBaccaratEVTest() {
             "10.4.5" &&
         EV_NO_COMMISSION_VERSION ===
             "10.4.5" &&
+        ANALYZER_VERSION ===
+            "3.7.1" &&
         ANALYZER_NO_COMMISSION_VERSION ===
             "10.4.5" &&
+        ANALYZER_COMPATIBILITY_VERSION ===
+            "10.4.5.1" &&
         GAME_NO_COMMISSION_VERSION ===
             "10.4.5" &&
         DASHBOARD_RENDERER_NO_COMMISSION_VERSION ===
             "10.4.5",
-        "V10.4.5 No Commission version contract 錯誤"
+        "V10.4.5.1 Analyzer / V10.4.5 No Commission version contract 錯誤"
     );
 
     messages.push(
-        "✓ V10.4.5 No Commission version contracts 正確"
+        "✓ Analyzer V3.7.1 / V10.4.5 No Commission / V10.4.5.1 Compatibility contracts 正確"
     );
 
 
@@ -229,16 +235,23 @@ export default async function noCommissionBaccaratEVTest() {
     );
 
 
-    const analyzerLike = {
-        ev
-    };
+    /*
+     * V10.4.5.1 Analyzer is a Facade.
+     *
+     * Do not call:
+     *
+     *     Analyzer.prototype.buildBetInput.call({ ev }, ...)
+     *
+     * because the public Facade delegates to this.core.buildBetInput().
+     * The compatibility test must exercise the real public runtime contract.
+     */
+    const analyzer =
+        new Analyzer();
 
     const betInput =
-        Analyzer.prototype
-            .buildBetInput.call(
-                analyzerLike,
-                p
-            );
+        analyzer.buildBetInput(
+            p
+        );
 
     assert(
         approximatelyEqual(
