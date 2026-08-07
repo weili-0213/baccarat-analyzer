@@ -11,6 +11,9 @@ export const DASHBOARD_RENDERER_VERSION =
 export const DASHBOARD_RENDERER_LIVE_VERSION =
     "10.4.4";
 
+export const DASHBOARD_RENDERER_NO_COMMISSION_VERSION =
+    "10.4.5";
+
 
 function escapeHTML(value) {
 
@@ -161,6 +164,14 @@ export default class DashboardRenderer {
                     <h1>
                         百家樂分析儀
                     </h1>
+
+                    <span
+                        class="v1045RulesBadge"
+                        data-baccarat-ruleset="no-commission-banker-6-half"
+                        title="莊家一般勝 1:1；莊家 6 點勝 0.5:1"
+                    >
+                        免佣百家樂 · 莊6半賠
+                    </span>
 
                 </div>
 
