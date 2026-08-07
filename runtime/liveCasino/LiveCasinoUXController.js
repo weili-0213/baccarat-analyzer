@@ -1,0 +1,689 @@
+/**
+ * Baccarat Analyzer V10.4.3
+ * Path: runtime/liveCasino/LiveCasinoUXController.js
+ * Purpose:
+ *   3-second live analysis path + compact decision-first Dashboard bridge.
+ */
+import LiveCasinoPerformancePolicy, {
+    LiveCasinoAnalysisProfile
+} from "./LiveCasinoPerformancePolicy.js";
+
+import LiveCasinoDecisionModel
+    from "./LiveCasinoDecisionModel.js";
+
+import {
+    LIVE_CASINO_UX_CSS,
+    LIVE_CASINO_UX_STYLE_ID
+} from "./LiveCasinoUXStyles.js";
+
+export const LIVE_CASINO_UX_CONTROLLER_VERSION = "10.4.3";
+
+function delay(ms) {
+    return new Promise(resolve =>
+        setTimeout(resolve, ms)
+    );
+}
+
+function pct(value) {
+    return Number.isFinite(value)
+        ? `${(value * 100).toFixed(2)}%`
+        : "—";
+}
+
+function evText(value) {
+    return Number.isFinite(value)
+        ? `${value >= 0 ? "+" : ""}${(value * 100).toFixed(2)}%`
+        : "—";
+}
+
+function text(root, selector, value) {
+    const element =
+        root?.querySelector?.(selector);
+
+    if (element) {
+        element.textContent =
+            String(value ?? "—");
+    }
+}
+
+export default class LiveCasinoUXController {
+    constructor({
+        game,
+        render = null,
+        aiRuntime = null,
+        policy = null,
+        decisionModel = null,
+        clock = () => Date.now()
+    } = {}) {
+        if (!game) {
+            throw new TypeError(
+                "LiveCasinoUXController requires game."
+            );
+        }
+
+        this.game = game;
+        this.render = render;
+        this.aiRuntime = aiRuntime;
+        this.policy =
+            policy ??
+            new LiveCasinoPerformancePolicy();
+        this.decisionModel =
+            decisionModel ??
+            new LiveCasinoDecisionModel();
+        this.clock = clock;
+
+        this.analysisProfile =
+            LiveCasinoAnalysisProfile.QUICK;
+
+        this.lastDecision = null;
+        this.lastAnalysisDurationMs = null;
+        this.lastAnalysisTimedOut = false;
+        this.analysisSequence = 0;
+        this.pendingRefine = null;
+        this.destroyed = false;
+    }
+
+    setProfile(profile) {
+        if (
+            !Object.values(
+                LiveCasinoAnalysisProfile
+            ).includes(profile)
+        ) {
+            throw new Error(
+                `Unknown live analysis profile: ${profile}`
+            );
+        }
+
+        this.analysisProfile = profile;
+        return this;
+    }
+
+    ensureStyles() {
+        if (
+            typeof document === "undefined" ||
+            document.getElementById(
+                LIVE_CASINO_UX_STYLE_ID
+            )
+        ) {
+            return;
+        }
+
+        const style =
+            document.createElement("style");
+
+        style.id =
+            LIVE_CASINO_UX_STYLE_ID;
+
+        style.textContent =
+            LIVE_CASINO_UX_CSS;
+
+        document.head?.appendChild(style);
+    }
+
+    async runAnalysis({
+        profile = this.analysisProfile,
+        refine = true
+    } = {}) {
+        if (
+            typeof this.game
+                .analyzeNextRound !==
+            "function"
+        ) {
+            return null;
+        }
+
+        const sequence =
+            ++this.analysisSequence;
+
+        const startedAt =
+            this.clock();
+
+        const quickOptions =
+            this.policy.getQuickOptions();
+
+        const analysisPromise =
+            Promise.resolve(
+                this.game.analyzeNextRound(
+                    quickOptions
+                )
+            );
+
+        const timeoutToken =
+            Symbol("deadline");
+
+        const raced =
+            await Promise.race([
+                analysisPromise,
+                delay(
+                    this.policy
+                        .decisionDeadlineMs
+                ).then(() => timeoutToken)
+            ]);
+
+        if (raced === timeoutToken) {
+            this.lastAnalysisTimedOut =
+                true;
+
+            this.lastAnalysisDurationMs =
+                this.policy
+                    .decisionDeadlineMs;
+
+            this.lastDecision =
+                this.decisionModel.build(
+                    this.game.nextAnalysis
+                );
+
+            this.render?.();
+
+            analysisPromise
+                .then(result => {
+                    if (
+                        !this.destroyed &&
+                        sequence ===
+                            this.analysisSequence
+                    ) {
+                        this.acceptAnalysis(
+                            result,
+                            startedAt
+                        );
+                    }
+                })
+                .catch(() => {});
+
+            return {
+                timedOut: true,
+                deadlineMs:
+                    this.policy
+                        .decisionDeadlineMs,
+                analysis:
+                    this.game.nextAnalysis,
+                decision:
+                    this.lastDecision
+            };
+        }
+
+        const result =
+            this.acceptAnalysis(
+                raced,
+                startedAt
+            );
+
+        if (
+            profile ===
+                LiveCasinoAnalysisProfile.FULL &&
+            refine
+        ) {
+            this.scheduleRefinement(
+                sequence
+            );
+        }
+
+        return {
+            timedOut: false,
+            analysis: result,
+            decision:
+                this.lastDecision,
+            durationMs:
+                this.lastAnalysisDurationMs
+        };
+    }
+
+    acceptAnalysis(
+        analysis,
+        startedAt
+    ) {
+        this.lastAnalysisTimedOut =
+            false;
+
+        this.lastAnalysisDurationMs =
+            Math.max(
+                0,
+                this.clock() -
+                startedAt
+            );
+
+        this.lastDecision =
+            this.decisionModel.build(
+                analysis
+            );
+
+        this.render?.();
+
+        return analysis;
+    }
+
+    scheduleRefinement(sequence) {
+        if (
+            typeof this.game
+                .analyzeNextRound !==
+            "function"
+        ) {
+            return;
+        }
+
+        clearTimeout(
+            this.pendingRefine
+        );
+
+        this.pendingRefine =
+            setTimeout(
+                async () => {
+                    if (
+                        this.destroyed ||
+                        sequence !==
+                            this.analysisSequence ||
+                        this.game
+                            .isManualRoundActive
+                    ) {
+                        return;
+                    }
+
+                    try {
+                        const result =
+                            await this.game
+                                .analyzeNextRound(
+                                    this.policy
+                                        .getFullOptions()
+                                );
+
+                        this.lastDecision =
+                            this.decisionModel
+                                .build(result);
+
+                        this.render?.();
+                    }
+                    catch {
+                        // Quick decision is already available.
+                    }
+                },
+                this.policy
+                    .refineDelayMs
+            );
+    }
+
+    async confirmBurn(card) {
+        let info;
+
+        if (
+            typeof this.game
+                .confirmBurnIndicator ===
+            "function"
+        ) {
+            info =
+                await this.game
+                    .confirmBurnIndicator(
+                        card
+                    );
+        }
+        else if (
+            typeof this.game
+                .confirmBurn ===
+            "function"
+        ) {
+            info =
+                await this.game
+                    .confirmBurn(
+                        card
+                    );
+
+            if (
+                info?.confirmed === true &&
+                !this.game
+                    .burnConfirmed
+            ) {
+                this.game.burnConfirmed =
+                    true;
+            }
+        }
+        else {
+            throw new Error(
+                "Dashboard game does not support burn confirmation."
+            );
+        }
+
+        this.render?.();
+
+        // Do not block burn confirmation on analysis.
+        void this.runAnalysis();
+
+        return info;
+    }
+
+    async finishRound() {
+        if (
+            typeof this.game
+                .finishManualRound ===
+            "function"
+        ) {
+            const result =
+                await this.game
+                    .finishManualRound({
+                        analyze: false
+                    });
+
+            this.render?.();
+
+            // Start next decision immediately, but keep UI responsive.
+            void this.runAnalysis();
+
+            return result;
+        }
+
+        return null;
+    }
+
+    getDecision() {
+        const live =
+            this.decisionModel.build(
+                this.game.nextAnalysis
+            );
+
+        if (live.ready) {
+            this.lastDecision = live;
+        }
+
+        return (
+            this.lastDecision ??
+            live
+        );
+    }
+
+    renderDecisionHTML() {
+        const d =
+            this.getDecision();
+
+        const status =
+            this.lastAnalysisTimedOut
+                ? `超過 ${this.policy.decisionDeadlineMs} ms，背景完成中`
+                : Number.isFinite(
+                    this.lastAnalysisDurationMs
+                )
+                    ? `${this.lastAnalysisDurationMs} ms`
+                    : "等待分析";
+
+        return `
+            <section
+                class="v1043Decision"
+                data-live-decision
+            >
+                <div class="v1043DecisionCard v1043DecisionMain">
+                    <span class="v1043Meta">下一局決策</span>
+                    <strong>${d.strictLabel}</strong>
+                    <div>
+                        相對最佳：
+                        <b>${d.relativeLabel}</b>
+                        ${Number.isFinite(d.relativeEV)
+                            ? ` · EV ${evText(d.relativeEV)}`
+                            : ""}
+                    </div>
+                    <small>${d.reason}</small>
+                </div>
+
+                <div class="v1043DecisionCard v1043Player">
+                    <span>閒家</span>
+                    <strong>${pct(d.probability.player)}</strong>
+                    <small>EV ${evText(d.ev.player)}</small>
+                </div>
+
+                <div class="v1043DecisionCard v1043Banker">
+                    <span>莊家</span>
+                    <strong>${pct(d.probability.banker)}</strong>
+                    <small>EV ${evText(d.ev.banker)}</small>
+                </div>
+
+                <div class="v1043DecisionCard v1043Tie">
+                    <span>和局</span>
+                    <strong>${pct(d.probability.tie)}</strong>
+                    <small>EV ${evText(d.ev.tie)}</small>
+                </div>
+
+                <div class="v1043DecisionCard v1043DecisionAI">
+                    <span class="v1043Meta">Live AI / Performance</span>
+                    <strong>${status}</strong>
+                    <div>
+                        信心 ${pct(d.confidence)}
+                        · 建議額 ${d.amount ?? 0}
+                    </div>
+                </div>
+            </section>
+        `;
+    }
+
+    updateAIPanel(root) {
+        const d =
+            this.getDecision();
+
+        const runtimeSummary =
+            this.aiRuntime?.summary ??
+            null;
+
+        text(
+            root,
+            "[data-ai-status]",
+            runtimeSummary?.state ??
+            (d.ready ? "ready" : "idle")
+        );
+
+        text(
+            root,
+            "[data-ai-stage]",
+            runtimeSummary
+                ? "runtime"
+                : (
+                    d.ready
+                        ? "live-analysis-bridge"
+                        : "—"
+                )
+        );
+
+        text(
+            root,
+            "[data-ai-simulation]",
+            d.ready
+                ? this.analysisProfile
+                : "—"
+        );
+
+        text(
+            root,
+            "[data-ai-prediction]",
+            d.relativeLabel
+        );
+
+        text(
+            root,
+            "[data-ai-confidence]",
+            pct(d.confidence)
+        );
+
+        text(
+            root,
+            "[data-ai-decision]",
+            d.strictLabel
+        );
+
+        text(
+            root,
+            "[data-ai-strategy]",
+            d.ready
+                ? `相對最佳 ${d.relativeLabel}`
+                : "—"
+        );
+
+        text(
+            root,
+            "[data-ai-bet]",
+            d.amount > 0
+                ? d.amount
+                : 0
+        );
+
+        if (!runtimeSummary) {
+            text(
+                root,
+                "[data-ai-execution]",
+                "Dashboard bridge"
+            );
+            text(
+                root,
+                "[data-ai-feedback]",
+                "等待 Runtime"
+            );
+            text(
+                root,
+                "[data-ai-learning]",
+                "等待 Runtime"
+            );
+            text(
+                root,
+                "[data-ai-adaptive]",
+                "等待 Runtime"
+            );
+        }
+    }
+
+    identifyRoadSection(root) {
+        const direct =
+            root?.querySelector?.(
+                ".v3RoadmapPanel"
+            );
+
+        const roadButton =
+            root?.querySelector?.(
+                '[data-action="select-road"]'
+            );
+
+        const section =
+            direct ??
+            roadButton?.closest?.("section") ??
+            roadButton?.parentElement ??
+            null;
+
+        if (section) {
+            section.classList?.add(
+                "v1043RoadSection"
+            );
+        }
+
+        return section;
+    }
+
+    applyUI(
+        root,
+        {
+            roadmapExpanded = false,
+            aiExpanded = false
+        } = {}
+    ) {
+        if (!root) {
+            return;
+        }
+
+        this.ensureStyles();
+
+        root.setAttribute?.(
+            "data-live-casino-v1043",
+            "true"
+        );
+
+        root.querySelector?.(
+            "[data-live-decision]"
+        )?.remove?.();
+
+        const page =
+            root.querySelector?.(
+                ".dashboardPage"
+            ) ??
+            root.querySelector?.(
+                "[data-page='dashboard']"
+            ) ??
+            root.firstElementChild;
+
+        page?.insertAdjacentHTML?.(
+            "afterbegin",
+            this.renderDecisionHTML()
+        );
+
+        const road =
+            this.identifyRoadSection(root);
+
+        road?.classList?.toggle(
+            "v1043Collapsed",
+            !roadmapExpanded
+        );
+
+        const aiPanel =
+            root.querySelector?.(
+                "[data-ai-closed-loop-panel]"
+            );
+
+        aiPanel?.classList?.toggle(
+            "v1043AIHidden",
+            !aiExpanded
+        );
+
+        if (
+            page &&
+            !root.querySelector?.(
+                "[data-live-utility]"
+            )
+        ) {
+            page.insertAdjacentHTML(
+                "beforeend",
+                `
+                <div
+                    class="v1043UtilityBar"
+                    data-live-utility
+                >
+                    <button
+                        type="button"
+                        data-action="toggle-roadmap"
+                    >
+                        ${roadmapExpanded
+                            ? "收合路單"
+                            : "路單 ▾"}
+                    </button>
+                    <button
+                        type="button"
+                        data-action="toggle-ai"
+                    >
+                        ${aiExpanded
+                            ? "收合 AI"
+                            : "AI 詳細 ▾"}
+                    </button>
+                </div>
+                `
+            );
+        }
+
+        this.updateAIPanel(root);
+    }
+
+    destroy() {
+        clearTimeout(
+            this.pendingRefine
+        );
+
+        this.destroyed = true;
+        this.aiRuntime = null;
+        return this;
+    }
+
+    get summary() {
+        return {
+            version:
+                LIVE_CASINO_UX_CONTROLLER_VERSION,
+            profile:
+                this.analysisProfile,
+            deadlineMs:
+                this.policy
+                    .decisionDeadlineMs,
+            lastAnalysisDurationMs:
+                this.lastAnalysisDurationMs,
+            timedOut:
+                this.lastAnalysisTimedOut,
+            decision:
+                this.getDecision()
+        };
+    }
+}
