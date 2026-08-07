@@ -3,7 +3,7 @@
  * Path: runtime/adapters/LiveCasinoUXRuntimeAdapter.js
  * Purpose: Runtime adapter for V10.4.4 live casino UX/performance controller.
  */
-export const LIVE_CASINO_UX_RUNTIME_ADAPTER_VERSION = "10.4.4";
+export const LIVE_CASINO_UX_RUNTIME_ADAPTER_VERSION = "10.4.5";
 
 export default class LiveCasinoUXRuntimeAdapter {
     constructor({
