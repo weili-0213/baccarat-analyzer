@@ -295,6 +295,9 @@ import dashboardTest
 import dashboardCompatibilityTest
     from "./dashboardCompatibility.test.js";
 
+import liveCasinoUXPerformanceTest
+    from "./liveCasinoUXPerformance.test.js";
+
 /**
  * 新增測試時，只需：
  *
@@ -868,6 +871,13 @@ const TESTS = [
         id: "dashboard-compatibility",
         name: "Dashboard Compatibility",
         run: dashboardCompatibilityTest
+
+    },
+    
+    {
+        id: "live-casino-ux-performance",
+        name: "Live Casino UX & Performance",
+        run: liveCasinoUXPerformanceTest
     }
 
 ];
