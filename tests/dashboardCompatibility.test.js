@@ -25,88 +25,23 @@ function assert(condition, message) {
 
 
 function createRoot() {
-    const selectors = new Map();
 
+    /*
+     * Browser-safe DOM root.
+     *
+     * Use a real DOM node because Chrome does not allow direct construction
+     * of the native Element base class.
+     */
     const root =
-        new Element();
+        document.createElement(
+            "div"
+        );
 
-    Object.assign(
-        root,
-        {
-        innerHTML: "",
-        listeners: new Map(),
-        insertedHTML: [],
-
-        addEventListener(type, listener) {
-            this.listeners.set(
-                type,
-                listener
-            );
-        },
-
-        removeEventListener(type) {
-            this.listeners.delete(
-                type
-            );
-        },
-
-        contains() {
-            return true;
-        },
-
-        querySelector(selector) {
-            if (
-                selector ===
-                    "[data-ai-closed-loop-panel]" &&
-                this.innerHTML.includes(
-                    "data-ai-closed-loop-panel"
-                )
-            ) {
-                return {
-                    selector
-                };
-            }
-
-            if (
-                selector ===
-                ".dashboardPage"
-            ) {
-                return {
-                    insertAdjacentHTML:
-                        (
-                            position,
-                            html
-                        ) => {
-                            this.insertedHTML.push({
-                                position,
-                                html
-                            });
-
-                            this.innerHTML +=
-                                html;
-                        }
-                };
-            }
-
-            if (
-                selector ===
-                "[data-quick-card-root]"
-            ) {
-                return null;
-            }
-
-            return (
-                selectors.get(
-                    selector
-                ) ??
-                null
-            );
-        }
-    });
+    root.dataset.testRoot =
+        "dashboard-compatibility";
 
     return root;
 }
-
 
 function createGame() {
     return {
