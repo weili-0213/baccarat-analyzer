@@ -1,12 +1,15 @@
 /**
- * Baccarat Analyzer V3.4.3
- * renderers/DashboardRenderer.js
+ * Baccarat Analyzer V10.4.4
+ * Path: renderers/DashboardRenderer.js
  *
  * Dashboard 外框與共用區塊渲染。
  */
 
 export const DASHBOARD_RENDERER_VERSION =
     "3.4.3";
+
+export const DASHBOARD_RENDERER_LIVE_VERSION =
+    "10.4.4";
 
 
 function escapeHTML(value) {
@@ -145,9 +148,9 @@ export default class DashboardRenderer {
 
         return `
 
-            <header class="v3Header dashboardCard">
+            <header class="v3Header dashboardCard v1044Header">
 
-                <div>
+                <div class="v1044Brand">
 
                     <small>
                         BACCARAT ANALYZER V${escapeHTML(
@@ -162,7 +165,7 @@ export default class DashboardRenderer {
                 </div>
 
 
-                <div class="v3HeaderActions">
+                <div class="v3HeaderActions v1044HeaderActions">
 
                     <span
                         class="v31FastBadge"
@@ -171,52 +174,48 @@ export default class DashboardRenderer {
                         FAST INPUT
                     </span>
 
-
                     <div
-                        class="v3ModeSwitch"
+                        class="v1044ControlRow"
                         role="group"
-                        aria-label="分析模式"
+                        aria-label="Dashboard 控制"
                     >
+                        <div
+                            class="v3ModeSwitch v1044ModeSwitch"
+                            role="group"
+                            aria-label="分析模式"
+                        >
 
-                        ${this.modeButton({
+                            ${this.modeButton({
+                                mode:
+                                    this.modes.QUICK,
+                                label:
+                                    "快速",
+                                activeMode:
+                                    ui.mode
+                            })}
 
-                            mode:
-                                this.modes.QUICK,
+                            ${this.modeButton({
+                                mode:
+                                    this.modes.FULL,
+                                label:
+                                    "完整",
+                                activeMode:
+                                    ui.mode
+                            })}
 
-                            label:
-                                "快速",
+                        </div>
 
-                            activeMode:
-                                ui.mode
-
-                        })}
-
-                        ${this.modeButton({
-
-                            mode:
-                                this.modes.FULL,
-
-                            label:
-                                "完整",
-
-                            activeMode:
-                                ui.mode
-
-                        })}
-
+                        <button
+                            type="button"
+                            class="button primary v1044NewShoe"
+                            data-action="new-shoe"
+                            ${ui.busy
+                                ? "disabled"
+                                : ""}
+                        >
+                            新牌靴
+                        </button>
                     </div>
-
-
-                    <button
-                        type="button"
-                        class="button primary"
-                        data-action="new-shoe"
-                        ${ui.busy
-                            ? "disabled"
-                            : ""}
-                    >
-                        新牌靴
-                    </button>
 
                 </div>
 
@@ -260,37 +259,29 @@ export default class DashboardRenderer {
     renderMessage(ui) {
 
         if (!ui.message) {
-
             return "";
-
         }
 
+        const type =
+            String(
+                ui.messageType ??
+                "info"
+            ).toLowerCase();
+
+        if (
+            type !== "error" &&
+            type !== "danger"
+        ) {
+            return "";
+        }
 
         return `
-
             <div
-                class="v3Message ${escapeHTML(
-                    ui.messageType
-                )}"
-                role="status"
+                class="v3Message ${escapeHTML(type)} v1044ErrorMessage"
+                role="alert"
             >
-
-                <span>
-                    ${escapeHTML(
-                        ui.message
-                    )}
-                </span>
-
-                <button
-                    type="button"
-                    data-action="clear-message"
-                    aria-label="關閉訊息"
-                >
-                    ×
-                </button>
-
+                <span>${escapeHTML(ui.message)}</span>
             </div>
-
         `;
 
     }
