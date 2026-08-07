@@ -12,7 +12,7 @@ import LiveCasinoPerformancePolicy
 import LiveCasinoDecisionModel
     from "./LiveCasinoDecisionModel.js";
 
-export const LIVE_CASINO_UX_FACTORY_VERSION = "10.4.4";
+export const LIVE_CASINO_UX_FACTORY_VERSION = "10.4.5";
 
 export default function createLiveCasinoUXController({
     game,
