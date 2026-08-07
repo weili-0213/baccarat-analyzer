@@ -27,6 +27,16 @@
  * - 隱藏燒牌只記錄數量，不虛構牌面
  */
 
+/**
+ * Baccarat Analyzer V10.4.4
+ * Path: engine/game.js
+ * Purpose: Live Round Critical Path Fix.
+ *
+ * Adds a per-call burn-analysis override so live Dashboard flows can confirm
+ * the burn indicator without starting the legacy automatic analysis first.
+ */
+export const GAME_LIVE_CRITICAL_PATH_VERSION = "10.4.4";
+
 import Shoe
     from "./shoe.js";
 
@@ -630,7 +640,14 @@ export default class Game {
     }
 
 
-    confirmBurnIndicator(input) {
+    confirmBurnIndicator(
+        input,
+        {
+            analyze =
+                this.options
+                    .analyzeAfterBurn
+        } = {}
+    ) {
 
         if (!this.shoe) {
 
@@ -681,10 +698,7 @@ export default class Game {
             GameState.SHOE_ACTIVE;
 
 
-        if (
-            this.options
-                .analyzeAfterBurn
-        ) {
+        if (analyze) {
 
             this.runNextAnalysis()
                 .catch(
