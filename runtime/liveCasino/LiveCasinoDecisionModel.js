@@ -1,9 +1,9 @@
 /**
- * Baccarat Analyzer V10.4.3
+ * Baccarat Analyzer V10.4.4
  * Path: runtime/liveCasino/LiveCasinoDecisionModel.js
  * Purpose: Produces strict + relative live decisions without pretending negative EV is positive EV.
  */
-export const LIVE_CASINO_DECISION_MODEL_VERSION = "10.4.3";
+export const LIVE_CASINO_DECISION_MODEL_VERSION = "10.4.4";
 
 const MAIN = Object.freeze([
     ["player", "閒家"],
