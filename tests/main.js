@@ -292,6 +292,9 @@ import recommendationEngineTest
 import dashboardTest
     from "./dashboard.test.js";
 
+import dashboardCompatibilityTest
+    from "./dashboardCompatibility.test.js";
+
 /**
  * 新增測試時，只需：
  *
@@ -859,6 +862,12 @@ const TESTS = [
         id: "dashboard",
         name: "Dashboard",
         run: dashboardTest
+    },
+    
+    {
+        id: "dashboard-compatibility",
+        name: "Dashboard Compatibility",
+        run: dashboardCompatibilityTest
     }
 
 ];
