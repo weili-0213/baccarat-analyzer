@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.4.3
+ * Baccarat Analyzer V10.4.4
  * Path: runtime/liveCasino/createLiveCasinoUXController.js
  * Purpose: Factory for live casino UX/performance controller.
  */
@@ -12,7 +12,7 @@ import LiveCasinoPerformancePolicy
 import LiveCasinoDecisionModel
     from "./LiveCasinoDecisionModel.js";
 
-export const LIVE_CASINO_UX_FACTORY_VERSION = "10.4.3";
+export const LIVE_CASINO_UX_FACTORY_VERSION = "10.4.4";
 
 export default function createLiveCasinoUXController({
     game,
