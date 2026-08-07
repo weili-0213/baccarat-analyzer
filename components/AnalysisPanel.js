@@ -1,9 +1,12 @@
 /**
- * Baccarat Analyzer V3.3 Final
- * components/AnalysisPanel.js
+ * Baccarat Analyzer V10.4.4
+ * Path: components/AnalysisPanel.js
+ * Purpose:
+ *   Unified probability + EV panel for live casino use.
+ *   Removes the duplicated Side Bet Reference section and keeps Dragon Bonus
+ *   rows inside the Full Probability & EV section.
  */
-
-export const ANALYSIS_PANEL_VERSION = "3.3.0";
+export const ANALYSIS_PANEL_LIVE_VERSION = "10.4.4";
 
 export const AnalysisDisplayMode = Object.freeze({
     QUICK: "quick",
@@ -20,6 +23,17 @@ const LABELS = Object.freeze({
     playerDragonBonus: "閒龍寶",
     bankerDragonBonus: "莊龍寶"
 });
+
+const FULL_NAMES = Object.freeze([
+    "player",
+    "banker",
+    "tie",
+    "playerPair",
+    "bankerPair",
+    "super6",
+    "playerDragonBonus",
+    "bankerDragonBonus"
+]);
 
 function escapeHTML(value) {
     return String(value ?? "")
@@ -40,6 +54,18 @@ function number(value) {
         : "—";
 }
 
+function sideProbability(side = {}, name) {
+    const item = side?.[name] ?? {};
+
+    return (
+        Number.isFinite(item.probability)
+            ? item.probability
+            : Number.isFinite(item.winProbability)
+                ? item.winProbability
+                : null
+    );
+}
+
 export default class AnalysisPanel {
     constructor({
         analysis = null,
@@ -51,7 +77,11 @@ export default class AnalysisPanel {
         this.busy = Boolean(busy);
     }
 
-    setData({ analysis = this.analysis, mode = this.mode, busy = this.busy } = {}) {
+    setData({
+        analysis = this.analysis,
+        mode = this.mode,
+        busy = this.busy
+    } = {}) {
         this.analysis = analysis;
         this.mode = mode;
         this.busy = Boolean(busy);
@@ -138,35 +168,33 @@ export default class AnalysisPanel {
         const status = analysis.evStatus ?? {};
         const side = analysis.sideBetAnalysis ?? {};
 
-        const mainNames = ["player", "banker", "tie", "playerPair", "bankerPair", "super6"];
-
         return `
-            <div class="v3FullAnalysis">
+            <div class="v3FullAnalysis v1044UnifiedFullAnalysis">
                 <section>
                     <h3>完整機率與 EV</h3>
                     <div class="v3DataGrid">
-                        ${mainNames.map(name => `
-                            <div>
-                                <span>${LABELS[name]}</span>
-                                <strong>${percent(probability[name])}</strong>
-                                <small>
-                                    ${status[name] === "unavailable" ? "EV 尚不可用" : `EV ${number(ev[name])}`}
-                                </small>
-                            </div>
-                        `).join("")}
-                    </div>
-                </section>
+                        ${FULL_NAMES.map(name => {
+                            const probabilityValue =
+                                Number.isFinite(probability[name])
+                                    ? probability[name]
+                                    : sideProbability(side, name);
 
-                <section>
-                    <h3>邊注參考</h3>
-                    <div class="v3DataGrid">
-                        ${Object.values(side).map(item => `
-                            <div>
-                                <span>${escapeHTML(item.label ?? item.name)}</span>
-                                <strong>${item.available ? number(item.ev) : "暫不可用"}</strong>
-                                <small>不進入主推薦</small>
-                            </div>
-                        `).join("") || `<p class="v3Empty">尚無邊注資料。</p>`}
+                            const unavailable =
+                                status[name] === "unavailable" ||
+                                side?.[name]?.available === false;
+
+                            return `
+                                <div class="v1044FullMetric ${name}">
+                                    <span>${LABELS[name]}</span>
+                                    <strong>${percent(probabilityValue)}</strong>
+                                    <small>
+                                        ${unavailable
+                                            ? "EV 尚不可用"
+                                            : `EV ${number(ev[name])}`}
+                                    </small>
+                                </div>
+                            `;
+                        }).join("")}
                     </div>
                 </section>
             </div>
