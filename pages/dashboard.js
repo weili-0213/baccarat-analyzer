@@ -1,8 +1,8 @@
 /**
- * Baccarat Analyzer V10.4.2
+ * Baccarat Analyzer V10.4.3
  * Path: pages/dashboard.js
  * Purpose:
- *   Dashboard Burn Compatibility Fix.
+ *   Live Casino UX & Performance Refactor.
  *   Preserves the legacy Dashboard Page Object API required by app/app.js
  *   while retaining the V10.1 static Dashboard and AI Closed-Loop UI contract.
  */
@@ -49,6 +49,9 @@ import HistoryRenderer
 import RoadmapRenderer
     from "../renderers/RoadmapRenderer.js";
 
+import createLiveCasinoUXController
+    from "../runtime/liveCasino/createLiveCasinoUXController.js";
+
 
 export const DASHBOARD_VERSION = "3.4.3";
 
@@ -63,7 +66,7 @@ export const DASHBOARD_PAGE_VERSION = "10.1.0";
  * - V3.4.3 Page Object API required by app/app.js
  * - V10.1 static Dashboard / AI Closed-Loop HTML contract
  */
-export const DASHBOARD_COMPATIBILITY_VERSION = "10.4.2";
+export const DASHBOARD_COMPATIBILITY_VERSION = "10.4.3";
 
 export const DashboardMode = AnalysisDisplayMode;
 
@@ -79,6 +82,8 @@ export class Dashboard {
         root = null,
         game = null,
         gameOptions = {},
+        aiRuntime = null,
+        livePerformance = {},
         autoMount = true
     } = {}) {
         if (
@@ -117,6 +122,12 @@ export class Dashboard {
 
         this.ui =
             this.uiController.state;
+
+        this.ui.roadmapExpanded =
+            false;
+
+        this.ui.aiExpanded =
+            false;
 
         this.components = {
             quickCardInput: null,
@@ -170,6 +181,22 @@ export class Dashboard {
                     DashboardSection.INPUT
 
             });
+
+        this.liveCasino =
+            createLiveCasinoUXController({
+                game:
+                    this.game,
+
+                aiRuntime,
+
+                performance:
+                    livePerformance,
+
+                render:
+                    () =>
+                        this.render()
+            });
+
 
         this.renderers = {
 
@@ -331,6 +358,20 @@ export class Dashboard {
                 );
                 this.render();
                 break;
+
+            case "toggle-roadmap":
+                this.ui.roadmapExpanded =
+                    !this.ui
+                        .roadmapExpanded;
+                this.render();
+                break;
+
+            case "toggle-ai":
+                this.ui.aiExpanded =
+                    !this.ui
+                        .aiExpanded;
+                this.render();
+                break;
         }
     }
 
@@ -422,129 +463,25 @@ export class Dashboard {
         const card = {
             rank:
                 this.ui.selectedRank,
+
             suit:
                 this.ui.selectedSuit
         };
 
-        /*
-         * Primary production path.
-         *
-         * AnalysisController owns the existing V3.4.x flow:
-         * confirmBurnIndicator -> first analysis -> render/message lifecycle.
-         */
-        if (
-            typeof this.game
-                ?.confirmBurnIndicator ===
-            "function"
-        ) {
-            const controllerResult =
-                await this.analysisController
-                    .confirmBurn();
+        const info =
+            await this.liveCasino
+                .confirmBurn(card);
 
-            /*
-             * AnalysisController historically returns the result of
-             * GameController.run(), whose callback did not return burnInfo.
-             * Expose a stable public result without changing the controller.
-             */
-            return (
-                this.game.burnInfo ??
-                controllerResult ??
-                {
-                    confirmed:
-                        Boolean(
-                            this.game
-                                .burnConfirmed
-                        ),
-                    indicator:
-                        card
-                }
-            );
-        }
-
-        /*
-         * V10.x / adapter compatibility path.
-         *
-         * Some runtime-facing Game facades expose confirmBurn() instead of
-         * confirmBurnIndicator(). Keep the same Dashboard public contract.
-         */
-        if (
-            typeof this.game
-                ?.confirmBurn ===
-            "function"
-        ) {
-            return this.gameController.run(
-                async () => {
-                    const info =
-                        await this.game
-                            .confirmBurn(
-                                card
-                            );
-
-                    /*
-                     * If a facade reports confirmation in its return value but
-                     * does not mirror the legacy flag, normalize the flag
-                     * because app/app.js explicitly checks game.burnConfirmed.
-                     */
-                    if (
-                        !this.game
-                            .burnConfirmed &&
-                        info?.confirmed ===
-                            true
-                    ) {
-                        this.game
-                            .burnConfirmed =
-                            true;
-                    }
-
-                    /*
-                     * Preserve first-round analysis behavior whenever the
-                     * facade exposes the same analysis lifecycle.
-                     */
-                    if (
-                        !this.game
-                            .isAnalyzing &&
-                        !this.game
-                            .hasNextAnalysis &&
-                        typeof this.game
-                            .analyzeNextRound ===
-                            "function"
-                    ) {
-                        await this.game
-                            .analyzeNextRound();
-                    }
-                    else if (
-                        typeof this.game
-                            .waitForAnalysis ===
-                            "function"
-                    ) {
-                        await this.game
-                            .waitForAnalysis();
-                    }
-
-                    return (
-                        info ??
-                        {
-                            confirmed:
-                                Boolean(
-                                    this.game
-                                        .burnConfirmed
-                                ),
-                            indicator:
-                                card
-                        }
-                    );
-                },
-                {
-                    successMessage:
-                        "燒牌已確認，第一局分析完成。"
-                }
-            );
-        }
-
-        throw new Error(
-            "Dashboard game does not support burn confirmation."
+        this.setMessage(
+            "燒牌已確認；快速分析已在背景啟動。",
+            "success"
         );
+
+        this.render();
+
+        return info;
     }
+
 
     startRound() {
         return this.inputController
@@ -566,14 +503,30 @@ export class Dashboard {
             .cancelRound();
     }
 
-    finishRound() {
-        return this.inputController
-            .finishRound();
+    async finishRound() {
+        const result =
+            await this.liveCasino
+                .finishRound();
+
+        this.setMessage(
+            "本局已確認；下一局快速分析已啟動。",
+            "success"
+        );
+
+        this.render();
+
+        return result;
     }
 
     analyze() {
-        return this.analysisController
-            .analyze();
+        return this.liveCasino
+            .runAnalysis({
+                profile:
+                    this.ui.mode ===
+                    DashboardMode.FULL
+                        ? "full"
+                        : "quick"
+            });
     }
 
     render() {
@@ -706,6 +659,26 @@ export class Dashboard {
         this.mountQuickCardInput();
         this.mountAIClosedLoopPanel();
 
+        this.liveCasino
+            .setProfile(
+                this.ui.mode ===
+                    DashboardMode.FULL
+                    ? "full"
+                    : "quick"
+            )
+            .applyUI(
+                this.root,
+                {
+                    roadmapExpanded:
+                        this.ui
+                            .roadmapExpanded,
+
+                    aiExpanded:
+                        this.ui
+                            .aiExpanded
+                }
+            );
+
         return this;
     }
 
@@ -834,6 +807,9 @@ export class Dashboard {
                 analysis: this.analysisController.summary,
                 input: this.inputController.summary
             },
+            liveCasino:
+                this.liveCasino.summary,
+
             renderers: {
                 dashboard: this.renderers.dashboard.summary,
                 round: this.renderers.round.summary,
