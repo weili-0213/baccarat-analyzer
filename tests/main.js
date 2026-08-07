@@ -235,6 +235,9 @@ import aiClosedLoopUIIntegrationTest
 import aiLiveRuntimeIntegrationTest
     from "./aiLiveRuntimeIntegration.test.js";
 
+import aiGameRuntimeIntegrationTest
+    from "./aiGameRuntimeIntegration.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -736,6 +739,12 @@ const TESTS = [
         id: "ai-live-runtime-integration",
         name: "AI Live Runtime Integration",
         run: aiLiveRuntimeIntegrationTest
+    },
+
+    {
+        id: "ai-game-runtime-integration",
+        name: "AI Game Runtime Integration",
+        run: aiGameRuntimeIntegrationTest
     },
 
     {
