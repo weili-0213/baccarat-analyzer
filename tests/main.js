@@ -64,6 +64,9 @@ import analyzerCoordinatorTest
 import analyzerTest
     from "./analyzer.test.js";
 
+import analyzerLegacyExportCompatibilityTest
+    from "./analyzerLegacyExportCompatibility.test.js";
+
 import sessionAnalyzerTest
     from "./sessionAnalyzer.test.js";
 
@@ -412,6 +415,12 @@ const TESTS = [
         id: "analyzer",
         name: "Analyzer",
         run: analyzerTest
+    },
+
+    {
+        id: "analyzer-legacy-export-compatibility",
+        name: "Analyzer Legacy Export Compatibility",
+        run: analyzerLegacyExportCompatibilityTest
     },
 
     {
