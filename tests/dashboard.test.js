@@ -1,343 +1,443 @@
 /**
- * Baccarat Analyzer V3.4.3
- * tests/dashboard.test.js
+ * Baccarat Analyzer V10.1
+ * Path: tests/dashboard.test.js
+ * Purpose: Tests the V10.1 Dashboard template and AI Closed-Loop UI panel.
  */
 
 import createDashboard, {
-    DASHBOARD_VERSION,
-    Dashboard,
-    DashboardMode
+    DASHBOARD_PAGE_VERSION,
+    renderDashboard,
+    renderAIClosedLoopPanel
 } from "../pages/dashboard.js";
-
-import {
-    QuickCardInput
-} from "../components/QuickCardInput.js";
-
-import AnalysisPanel
-    from "../components/AnalysisPanel.js";
-
-import RecommendationPanel
-    from "../components/RecommendationPanel.js";
-
-import StatusPanel
-    from "../components/StatusPanel.js";
-
-import GameController
-    from "../controllers/GameController.js";
-
-import UIController
-    from "../controllers/UIController.js";
-
-import AnalysisController
-    from "../controllers/AnalysisController.js";
-
-import InputController
-    from "../controllers/InputController.js";
-
-import DashboardRenderer
-    from "../renderers/DashboardRenderer.js";
-
-import RoundRenderer
-    from "../renderers/RoundRenderer.js";
-
-import HistoryRenderer
-    from "../renderers/HistoryRenderer.js";
-
-import RoadmapRenderer
-    from "../renderers/RoadmapRenderer.js";
-
-import createGameMock
-    from "./mocks/gameMock.js";
 
 
 function assert(condition, message) {
-    if (!condition) throw new Error(message);
-}
-
-function createRoot() {
-    const root = document.createElement("div");
-    document.body.appendChild(root);
-    return root;
-}
-
-function nextTick() {
-    return new Promise(resolve => setTimeout(resolve, 0));
-}
-
-async function waitReady(dashboard, attempts = 80) {
-    for (let index = 0; index < attempts; index++) {
-        await nextTick();
-        if (!dashboard.ui.busy) {
-            await nextTick();
-            return;
-        }
+    if (!condition) {
+        throw new Error(message);
     }
-    throw new Error("Dashboard action timeout.");
 }
 
-async function clickAction(root, dashboard, action) {
-    const button = root.querySelector(`[data-action="${action}"]`);
-    assert(button, `找不到按鈕：${action}`);
-    assert(!button.disabled, `按鈕停用：${action}`);
-    button.click();
-    await waitReady(dashboard);
-}
 
-function selectBurn(root, rank, suit) {
-    const rankSelect = root.querySelector('[name="card-rank"]');
-    const suitSelect = root.querySelector('[name="card-suit"]');
-
-    rankSelect.value = rank;
-    rankSelect.dispatchEvent(new Event("change", { bubbles: true }));
-
-    suitSelect.value = suit;
-    suitSelect.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
-async function addQuickCard(root, dashboard, rank) {
-    const rankButton = root.querySelector(`[data-quick-rank="${rank}"]`);
-    assert(rankButton, `缺少點數牌卡：${rank}`);
-
-    rankButton.click();
-    await waitReady(dashboard);
-}
-
-async function addPreciseCard(root, dashboard, rank, suit) {
-    const preciseButton = root.querySelector('[data-quick-mode="precise"]');
-    assert(preciseButton, "缺少指定花色模式按鈕");
-    preciseButton.click();
-
-    const rankButton = root.querySelector(`[data-quick-rank="${rank}"]`);
-    assert(rankButton, `缺少點數牌卡：${rank}`);
-    rankButton.click();
-    await nextTick();
-
-    const suitButton = root.querySelector(`[data-quick-suit="${suit}"]`);
-    assert(suitButton, `缺少花色牌卡：${suit}`);
-    assert(!suitButton.disabled, `花色牌卡未啟用：${suit}`);
-
-    suitButton.click();
-    await waitReady(dashboard);
+function countMatches(source, pattern) {
+    return (source.match(pattern) ?? []).length;
 }
 
 
 export default async function dashboardTest() {
     const messages = [];
-    const root = createRoot();
 
-    try {
-        const game = createGameMock();
-        const dashboard = createDashboard({ root, game });
+    /*
+     * Version / exports
+     */
+    assert(
+        DASHBOARD_PAGE_VERSION === "10.1.0",
+        "Dashboard 頁面版本應為 10.1.0"
+    );
 
-        assert(dashboard instanceof Dashboard, "工廠函式應建立 Dashboard");
-        assert(DASHBOARD_VERSION === "3.4.3", "Dashboard 版本應為 3.4.3");
-        assert(dashboard.components.statusPanel instanceof StatusPanel, "StatusPanel 未建立");
-        assert(dashboard.components.analysisPanel instanceof AnalysisPanel, "AnalysisPanel 未建立");
-        assert(dashboard.components.recommendationPanel instanceof RecommendationPanel, "RecommendationPanel 未建立");
-        assert(dashboard.gameController instanceof GameController, "GameController 未建立");
-        assert(dashboard.uiController instanceof UIController, "UIController 未建立");
-        assert(dashboard.analysisController instanceof AnalysisController, "AnalysisController 未建立");
-        assert(dashboard.inputController instanceof InputController, "InputController 未建立");
-        assert(dashboard.renderers.dashboard instanceof DashboardRenderer, "DashboardRenderer 未建立");
-        assert(dashboard.renderers.round instanceof RoundRenderer, "RoundRenderer 未建立");
-        assert(dashboard.renderers.history instanceof HistoryRenderer, "HistoryRenderer 未建立");
-        assert(dashboard.renderers.roadmap instanceof RoadmapRenderer, "RoadmapRenderer 未建立");
-        messages.push("✓ V3.4.3 Controller 與 Renderer 建立正確");
+    assert(
+        typeof createDashboard === "function",
+        "Dashboard default export 應為 function"
+    );
 
-        assert(root.querySelector(".dashboardV33"), "缺少 Dashboard V3.3");
-        assert(root.querySelector(".v3StatusStrip"), "缺少 StatusPanel");
-        assert(root.querySelector(".v3RoundPanel"), "缺少 Round Panel");
-        assert(root.querySelector(".v3AnalysisPanel"), "缺少 AnalysisPanel");
-        assert(root.querySelector(".v3RecommendationPanel"), "缺少 RecommendationPanel");
-        assert(root.querySelector(".v3HistoryPanel"), "缺少 History Panel");
-        assert(root.querySelector(".v3RoadmapPanel"), "缺少 Roadmap Panel");
-        assert(root.querySelector(".v33CasinoGrid"), "缺少 V3.3 Casino Grid");
-        assert(root.querySelector(".v33InputZone"), "缺少輸牌區");
-        assert(root.querySelector(".v33InsightZone"), "缺少分析區");
-        assert(root.querySelector(".v33RoadZone"), "缺少路單區");
-        assert(root.querySelectorAll("[data-action='set-mobile-section']").length === 3, "手機分區按鈕應為 3 個");
-        messages.push("✓ V3.3 Final Casino Dashboard DOM 正確");
+    assert(
+        typeof renderDashboard === "function",
+        "缺少 renderDashboard export"
+    );
 
-        assert(root.querySelector('[data-mode="quick"]'), "缺少快速模式按鈕");
-        assert(root.querySelector('[data-mode="full"]'), "缺少完整模式按鈕");
-        assert(dashboard.ui.mode === DashboardMode.QUICK || dashboard.ui.mode === DashboardMode.FULL, "模式值錯誤");
+    assert(
+        typeof renderAIClosedLoopPanel === "function",
+        "缺少 renderAIClosedLoopPanel export"
+    );
 
-        root.querySelector('[data-mode="full"]').click();
-        assert(dashboard.ui.mode === DashboardMode.FULL, "完整模式切換失敗");
+    assert(
+        createDashboard.version === DASHBOARD_PAGE_VERSION,
+        "default dashboard.version 錯誤"
+    );
 
-        root.querySelector('[data-mode="quick"]').click();
-        assert(dashboard.ui.mode === DashboardMode.QUICK, "快速模式切換失敗");
-        messages.push("✓ 快速／完整模式切換正確");
+    assert(
+        createDashboard.render === renderDashboard,
+        "default dashboard.render 應指向 renderDashboard"
+    );
 
-        root.querySelector('[data-section="insight"]').click();
-        assert(dashboard.ui.mobileSection === "insight", "手機分析分區切換失敗");
+    messages.push(
+        "✓ V10.1 Dashboard exports 與版本正確"
+    );
 
-        root.querySelector('[data-section="roadmap"]').click();
-        assert(dashboard.ui.mobileSection === "roadmap", "手機路單分區切換失敗");
 
-        root.querySelector('[data-section="input"]').click();
-        assert(dashboard.ui.mobileSection === "input", "手機輸牌分區切換失敗");
-        messages.push("✓ 手機三區切換正確");
+    /*
+     * Dashboard HTML
+     */
+    const html = createDashboard();
 
-        selectBurn(root, "A", "S");
-        await clickAction(root, dashboard, "confirm-burn");
+    assert(
+        typeof html === "string" &&
+        html.length > 0,
+        "Dashboard 應輸出 HTML 字串"
+    );
 
-        assert(game.burnConfirmed === true, "燒牌確認失敗");
-        assert(root.querySelector(".v3MainMetrics"), "缺少橫向主注分析");
-        assert(root.textContent.includes("建議下注"), "缺少下注建議");
-        messages.push("✓ 燒牌、分析與建議正確");
+    assert(
+        html.includes('data-page="dashboard"'),
+        "缺少 data-page=dashboard"
+    );
 
-        root.querySelector('[data-mode="full"]').click();
+    assert(
+        html.includes(
+            'data-dashboard-version="10.1.0"'
+        ),
+        "Dashboard version attribute 錯誤"
+    );
 
-        assert(root.querySelector(".v3FullAnalysis"), "完整模式未顯示完整分析");
-        assert(root.textContent.includes("邊注參考"), "完整模式缺少邊注區");
-        assert(root.textContent.includes("最低"), "完整模式缺少建議限制");
-        messages.push("✓ 完整分析顯示正確");
+    assert(
+        html.includes(
+            "Baccarat Analyzer"
+        ),
+        "Dashboard 標題缺失"
+    );
 
-        await clickAction(root, dashboard, "start-round");
+    messages.push(
+        "✓ Dashboard HTML 基本結構正確"
+    );
 
-        assert(dashboard.components.quickCardInput instanceof QuickCardInput, "QuickCardInput 未掛載");
+
+    /*
+     * Main Dashboard mount zones
+     */
+    const mountTargets = [
+        'data-component="card-input"',
+        'data-component="probability-table"',
+        'data-component="ev-table"',
+        'data-component="recommendation"',
+        'data-component="roadmap"',
+        'data-component="statistics"',
+        'data-component="shoe-status"',
+        'data-component="remaining-cards"',
+        'data-component="bankroll"',
+        'data-component="confidence-bar"'
+    ];
+
+    for (const target of mountTargets) {
         assert(
-            root.querySelectorAll("[data-quick-rank]").length === 13,
-            "點數牌卡應為 13 個"
+            html.includes(target),
+            `缺少 Dashboard mount target：${target}`
+        );
+    }
+
+    messages.push(
+        "✓ Dashboard 元件掛載區正確"
+    );
+
+
+    /*
+     * Main layout
+     */
+    assert(
+        html.includes(
+            'class="dashboard-layout"'
+        ),
+        "缺少 dashboard-layout"
+    );
+
+    assert(
+        html.includes(
+            'class="dashboard-layout__main"'
+        ),
+        "缺少 dashboard-layout__main"
+    );
+
+    assert(
+        html.includes(
+            'class="dashboard-layout__sidebar"'
+        ),
+        "缺少 dashboard-layout__sidebar"
+    );
+
+    messages.push(
+        "✓ Dashboard 主區與側欄結構正確"
+    );
+
+
+    /*
+     * AI Closed-Loop panel
+     */
+    const aiPanel = renderAIClosedLoopPanel();
+
+    assert(
+        aiPanel.includes(
+            "AI Closed-Loop Intelligence"
+        ),
+        "缺少 AI Closed-Loop 標題"
+    );
+
+    assert(
+        aiPanel.includes(
+            "data-ai-closed-loop-panel"
+        ),
+        "缺少 AI Closed-Loop Panel"
+    );
+
+    assert(
+        html.includes(
+            "data-ai-closed-loop-panel"
+        ),
+        "AI Panel 未插入 Dashboard"
+    );
+
+    messages.push(
+        "✓ AI Closed-Loop Panel 正確"
+    );
+
+
+    /*
+     * V10.1 renderer selectors.
+     *
+     * Must stay aligned with:
+     * ui/closedloop/ClosedLoopUIRenderer.js
+     */
+    const aiDisplaySelectors = [
+        "data-ai-status",
+        "data-ai-stage",
+        "data-ai-simulation",
+        "data-ai-prediction",
+        "data-ai-confidence",
+        "data-ai-decision",
+        "data-ai-strategy",
+        "data-ai-bet",
+        "data-ai-execution",
+        "data-ai-feedback",
+        "data-ai-learning",
+        "data-ai-adaptive",
+        "data-ai-error"
+    ];
+
+    for (const selector of aiDisplaySelectors) {
+        assert(
+            aiPanel.includes(selector),
+            `AI Panel 缺少 ${selector}`
         );
 
         assert(
-            root.querySelector('[data-quick-mode="auto"]'),
-            "缺少自動花色模式按鈕"
+            countMatches(
+                aiPanel,
+                new RegExp(
+                    selector,
+                    "g"
+                )
+            ) === 1,
+            `${selector} 應只存在一次`
         );
+    }
 
+    messages.push(
+        "✓ V10.1 AI Renderer selectors 正確"
+    );
+
+
+    /*
+     * V10.1 action selectors.
+     *
+     * Must stay aligned with:
+     * ui/closedloop/ClosedLoopUIEventBinder.js
+     */
+    const aiActionSelectors = [
+        "data-ai-analyze",
+        "data-ai-submit-result",
+        "data-ai-pause",
+        "data-ai-resume",
+        "data-ai-reset"
+    ];
+
+    for (const selector of aiActionSelectors) {
         assert(
-            root.querySelector('[data-quick-mode="precise"]'),
-            "缺少指定花色模式按鈕"
+            aiPanel.includes(selector),
+            `AI Panel 缺少 ${selector}`
+        );
+    }
+
+    assert(
+        countMatches(
+            aiPanel,
+            /<button/g
+        ) === 5,
+        "AI Panel 應有 5 個控制按鈕"
+    );
+
+    assert(
+        /data-ai-resume[\s\S]*?disabled/.test(
+            aiPanel
+        ),
+        "Resume 初始狀態應為 disabled"
+    );
+
+    messages.push(
+        "✓ V10.1 AI Action selectors 正確"
+    );
+
+
+    /*
+     * Placement:
+     * Analysis → AI Closed Loop → Roadmap
+     */
+    const analysisIndex =
+        html.indexOf(
+            "data-dashboard-analysis"
         );
 
-        /*
-         * V3.3 自動花色模式下不顯示四個花色牌卡；
-         * 切換為指定花色模式後才應出現。
-         */
-        assert(
-            root.querySelectorAll("[data-quick-suit]").length === 0,
-            "自動花色模式不應顯示花色牌卡"
+    const aiIndex =
+        html.indexOf(
+            "data-ai-closed-loop-panel"
         );
 
-        root.querySelector('[data-quick-mode="precise"]').click();
-
-        assert(
-            root.querySelectorAll("[data-quick-suit]").length === 4,
-            "指定花色模式下花色牌卡應為 4 個"
+    const roadmapIndex =
+        html.indexOf(
+            "data-dashboard-roadmap"
         );
 
-        root.querySelector('[data-quick-mode="auto"]').click();
+    assert(
+        analysisIndex >= 0 &&
+        aiIndex > analysisIndex &&
+        roadmapIndex > aiIndex,
+        "AI Panel 應位於 Analysis 之後、Roadmap 之前"
+    );
 
-        messages.push("✓ QuickCardInput V3.3 模式掛載正確");
+    messages.push(
+        "✓ AI Panel Dashboard 插入位置正確"
+    );
 
-        /*
-         * V3.3 鍵盤一鍵輸牌：
-         * 按 9 應自動選花色並立即加入。
-         */
-        window.dispatchEvent(new KeyboardEvent("keydown", {
-            key: "9",
-            bubbles: true
-        }));
 
-        await waitReady(dashboard);
+    /*
+     * Dynamic text escaping
+     */
+    const escapedHTML =
+        renderDashboard({
+            title:
+                '<script>alert("x")</script>',
+            subtitle:
+                '<b>unsafe</b>'
+        });
 
-        assert(game.calls.addManualCard === 1, "鍵盤 9 未自動加入");
-        assert(game.manualCards[0]?.card.rank === "9", "鍵盤加入 Rank 錯誤");
-        assert(game.manualCards[0]?.card.suit, "自動花色未產生");
-        messages.push("✓ V3.3 鍵盤一鍵輸牌正確");
+    assert(
+        !escapedHTML.includes(
+            '<script>alert("x")</script>'
+        ),
+        "Dashboard title 未 escape"
+    );
 
-        await clickAction(root, dashboard, "undo-card");
+    assert(
+        escapedHTML.includes(
+            "&lt;script&gt;"
+        ),
+        "Dashboard title escape 結果錯誤"
+    );
 
-        const clickInputCallsBefore =
-            game.calls.addManualCard;
+    assert(
+        !escapedHTML.includes(
+            "<b>unsafe</b>"
+        ),
+        "Dashboard subtitle 未 escape"
+    );
 
-        await addQuickCard(root, dashboard, "9");
+    assert(
+        escapedHTML.includes(
+            "&lt;b&gt;unsafe&lt;/b&gt;"
+        ),
+        "Dashboard subtitle escape 結果錯誤"
+    );
 
-        assert(
-            game.calls.addManualCard ===
-                clickInputCallsBefore + 1,
-            "點數牌卡未一鍵自動加入"
+    messages.push(
+        "✓ Dashboard 動態文字 escape 正確"
+    );
+
+
+    /*
+     * Optional browser DOM verification.
+     *
+     * This block runs on the GitHub Pages Test Runner.
+     * Node Runtime Test skips it automatically.
+     */
+    if (
+        typeof document !== "undefined" &&
+        document?.createElement
+    ) {
+        const root =
+            document.createElement(
+                "div"
+            );
+
+        root.innerHTML =
+            html;
+
+        document.body.appendChild(
+            root
         );
 
-        assert(game.manualCards.length === 1, "牌面未加入");
-        assert(game.manualCards[0]?.card.rank === "9", "一鍵加入點數錯誤");
-        messages.push("✓ 點數一鍵自動花色正確");
+        try {
+            assert(
+                root.querySelector(
+                    '[data-page="dashboard"]'
+                ),
+                "DOM 缺少 Dashboard root"
+            );
 
-        await clickAction(root, dashboard, "undo-card");
+            assert(
+                root.querySelector(
+                    "[data-ai-closed-loop-panel]"
+                ),
+                "DOM 缺少 AI Closed-Loop Panel"
+            );
 
-        await addPreciseCard(root, dashboard, "8", "D");
+            assert(
+                root.querySelector(
+                    "[data-ai-status]"
+                ),
+                "DOM 缺少 AI Status"
+            );
 
-        assert(game.manualCards[0]?.card.rank === "8", "指定花色 Rank 錯誤");
-        assert(game.manualCards[0]?.card.suit === "D", "指定花色 Suit 錯誤");
-        messages.push("✓ 指定花色模式正確");
+            assert(
+                root.querySelector(
+                    "[data-ai-analyze]"
+                ),
+                "DOM 缺少 AI Analyze button"
+            );
 
-        await clickAction(root, dashboard, "undo-card");
-        assert(game.manualCards.length === 0, "復原失敗");
+            assert(
+                root.querySelector(
+                    "[data-ai-submit-result]"
+                ),
+                "DOM 缺少 Submit Result button"
+            );
 
-        await addQuickCard(root, dashboard, "9");
-        await addQuickCard(root, dashboard, "5");
-        await addQuickCard(root, dashboard, "K");
-        await addQuickCard(root, dashboard, "2");
+            assert(
+                root.querySelectorAll(
+                    "[data-ai-closed-loop-panel] button"
+                ).length === 5,
+                "DOM AI Panel 控制按鈕數量錯誤"
+            );
 
-        assert(game.canFinishManualRound === true, "四張牌後應可確認");
-        assert(dashboard.components.quickCardInput === null, "完成輸牌後應卸載 QuickCardInput");
+            messages.push(
+                "✓ Browser DOM 驗證正確"
+            );
+        }
+        finally {
+            root.remove();
+        }
+    }
 
-        await clickAction(root, dashboard, "finish-round");
 
-        assert(game.history.count === 1, "History 未新增");
-        assert(root.querySelector(".v3HistoryRoad"), "History 未顯示");
-        messages.push("✓ 完成本局與 History 正確");
-
-        const roadmapButton = root.querySelector('[data-road="smallRoad"]');
-        assert(roadmapButton, "缺少小路按鈕");
-        roadmapButton.click();
-        assert(dashboard.ui.activeRoad === "smallRoad", "路單切換失敗");
-        messages.push("✓ Roadmap 切換正確");
-
-        const summary = dashboard.summary;
-        assert(summary.version === "3.4.3", "summary.version 錯誤");
-        assert(summary.mounted === true, "summary.mounted 錯誤");
-        assert(summary.roundCount === 1, "summary.roundCount 錯誤");
-        assert(summary.hasAnalysis === true, "summary.hasAnalysis 錯誤");
-        assert(summary.autoSuit === true, "summary.autoSuit 錯誤");
-        assert(summary.casinoLayout === true, "summary.casinoLayout 錯誤");
-        assert(summary.mobileSection === "input", "summary.mobileSection 錯誤");
-        assert(summary.controllers?.game?.version === "3.4.2", "GameController summary 錯誤");
-        assert(summary.controllers?.ui?.version === "3.4.2", "UIController summary 錯誤");
-        assert(summary.controllers?.analysis?.version === "3.4.2", "AnalysisController summary 錯誤");
-        assert(summary.controllers?.input?.version === "3.4.2", "InputController summary 錯誤");
-        assert(summary.renderers?.dashboard?.version === "3.4.3", "DashboardRenderer summary 錯誤");
-        assert(summary.renderers?.round?.version === "3.4.3", "RoundRenderer summary 錯誤");
-        assert(summary.renderers?.history?.version === "3.4.3", "HistoryRenderer summary 錯誤");
-        assert(summary.renderers?.roadmap?.version === "3.4.3", "RoadmapRenderer summary 錯誤");
-        messages.push("✓ Controller 與 Renderer summary 正確");
-
-        dashboard.destroy();
-        assert(root.innerHTML === "", "destroy() 應清空 root");
-        messages.push("✓ destroy() 正確");
-
-        return `
+    return `
 ${messages.join("\n")}
 
-Dashboard V3.4.3 Renderer Refactor 測試完成
+Dashboard V10.1 Test Refactor 測試完成
 
-元件化：通過
-快速／完整模式：通過
-13 點數牌卡：通過
-4 花色牌卡：通過
-自動加入：通過
-單頁版面：通過
-鍵盤一鍵輸牌：通過
-自動花色：通過
-指定花色模式：通過
-Renderer Refactor：通過
-Casino Grid：通過
-手機三區切換：通過
+Dashboard Version：通過
+Dashboard Exports：通過
+Dashboard HTML：通過
+Component Mount Targets：通過
+Dashboard Layout：通過
+AI Closed-Loop Panel：通過
+AI Renderer Selectors：通過
+AI Action Selectors：通過
+AI Panel Placement：通過
+HTML Escaping：通過
+Browser DOM：通過（瀏覽器環境執行）
 `;
-    }
-    finally {
-        root.remove();
-    }
 }
