@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.4.4
+ * Baccarat Analyzer V10.4.5
  * Path: tests/liveRoundCriticalPath.test.js
  * Purpose:
  *   Verifies the burn critical path, compact live layout, unified full EV panel,
@@ -184,9 +184,9 @@ export default async function liveRoundCriticalPathTest() {
         ANALYSIS_PANEL_LIVE_VERSION === "10.4.4" &&
         STATUS_PANEL_LIVE_VERSION === "10.4.4" &&
         DASHBOARD_RENDERER_LIVE_VERSION === "10.4.4" &&
-        LIVE_CASINO_UX_CONTROLLER_VERSION === "10.4.4" &&
-        LIVE_CASINO_UX_STYLES_VERSION === "10.4.4",
-        "V10.4.4 version contracts 錯誤"
+        LIVE_CASINO_UX_CONTROLLER_VERSION === "10.4.5" &&
+        LIVE_CASINO_UX_STYLES_VERSION === "10.4.5",
+        "V10.4.5 version contracts 錯誤"
     );
 
     assert(
@@ -195,7 +195,7 @@ export default async function liveRoundCriticalPathTest() {
     );
 
     messages.push(
-        "✓ V10.4.4 / Legacy version contracts 正確"
+        "✓ V10.4.5 / Legacy version contracts 正確"
     );
 
 
@@ -439,7 +439,7 @@ export default async function liveRoundCriticalPathTest() {
         LIVE_CASINO_UX_CSS.includes("v1044StatusStrip") &&
         LIVE_CASINO_UX_CSS.includes("v1044ControlRow") &&
         LIVE_CASINO_UX_CSS.includes("v1044UnifiedFullAnalysis"),
-        "V10.4.4 compact CSS contract 錯誤"
+        "V10.4.5 compact CSS contract 錯誤"
     );
 
     messages.push(
@@ -452,7 +452,7 @@ export default async function liveRoundCriticalPathTest() {
     return `
 ${messages.join("\n")}
 
-Live Round Critical Path Fix V10.4.4 測試完成
+Live Round Critical Path Fix V10.4.5 測試完成
 
 Game Burn Override：通過
 Legacy Compatibility：通過
