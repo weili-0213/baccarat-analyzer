@@ -25,27 +25,84 @@ function assert(condition, message) {
 
 
 function createRoot() {
-
-    /*
-     * Browser-safe DOM root.
-     *
-     * 不可以使用：
-     *
-     *     new Element()
-     *
-     * 因為瀏覽器原生 Element 不能直接 new，
-     * Chrome 會拋出：
-     *
-     *     TypeError: Illegal constructor
-     */
+    const selectors = new Map();
 
     const root =
-        document.createElement(
-            "div"
-        );
+        new Element();
 
-    root.dataset.testRoot =
-        "dashboard-compatibility";
+    Object.assign(
+        root,
+        {
+        innerHTML: "",
+        listeners: new Map(),
+        insertedHTML: [],
+
+        addEventListener(type, listener) {
+            this.listeners.set(
+                type,
+                listener
+            );
+        },
+
+        removeEventListener(type) {
+            this.listeners.delete(
+                type
+            );
+        },
+
+        contains() {
+            return true;
+        },
+
+        querySelector(selector) {
+            if (
+                selector ===
+                    "[data-ai-closed-loop-panel]" &&
+                this.innerHTML.includes(
+                    "data-ai-closed-loop-panel"
+                )
+            ) {
+                return {
+                    selector
+                };
+            }
+
+            if (
+                selector ===
+                ".dashboardPage"
+            ) {
+                return {
+                    insertAdjacentHTML:
+                        (
+                            position,
+                            html
+                        ) => {
+                            this.insertedHTML.push({
+                                position,
+                                html
+                            });
+
+                            this.innerHTML +=
+                                html;
+                        }
+                };
+            }
+
+            if (
+                selector ===
+                "[data-quick-card-root]"
+            ) {
+                return null;
+            }
+
+            return (
+                selectors.get(
+                    selector
+                ) ??
+                null
+            );
+        }
+    });
 
     return root;
 }
