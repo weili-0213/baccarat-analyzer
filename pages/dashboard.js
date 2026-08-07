@@ -66,7 +66,7 @@ export const DASHBOARD_PAGE_VERSION = "10.1.0";
  * - V3.4.3 Page Object API required by app/app.js
  * - V10.1 static Dashboard / AI Closed-Loop HTML contract
  */
-export const DASHBOARD_COMPATIBILITY_VERSION = "10.4.4";
+export const DASHBOARD_COMPATIBILITY_VERSION = "10.4.5";
 
 export const DashboardMode = AnalysisDisplayMode;
 
