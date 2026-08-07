@@ -238,6 +238,9 @@ import aiLiveRuntimeIntegrationTest
 import aiGameRuntimeIntegrationTest
     from "./aiGameRuntimeIntegration.test.js";
 
+import aiCasinoRuntimeIntegrationTest
+    from "./aiCasinoRuntimeIntegration.test.js";
+
 import sessionStatisticsTest
     from "./sessionStatistics.test.js";
 
@@ -745,6 +748,12 @@ const TESTS = [
         id: "ai-game-runtime-integration",
         name: "AI Game Runtime Integration",
         run: aiGameRuntimeIntegrationTest
+    },
+
+    {
+        id: "ai-casino-runtime-integration",
+        name: "AI Casino Runtime Integration",
+        run: aiCasinoRuntimeIntegrationTest
     },
 
     {
