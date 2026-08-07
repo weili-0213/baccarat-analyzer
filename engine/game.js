@@ -36,6 +36,7 @@
  * the burn indicator without starting the legacy automatic analysis first.
  */
 export const GAME_LIVE_CRITICAL_PATH_VERSION = "10.4.4";
+export const GAME_NO_COMMISSION_VERSION = "10.4.5";
 
 import Shoe
     from "./shoe.js";
@@ -71,6 +72,11 @@ import RoadmapAnalyzer
 
 import Analyzer
     from "../analysis/analyzer.js";
+
+import {
+    NO_COMMISSION_BACCARAT_RULES,
+    NO_COMMISSION_PAYOUT
+} from "../config/noCommissionBaccarat.js";
 
 
 /**
@@ -1694,10 +1700,18 @@ export default class Game {
             lastResult:
                 this.lastResult,
 
-            payouts:
-                analyzerOptions
-                    .payouts ??
-                {},
+            ruleset: {
+                ...NO_COMMISSION_BACCARAT_RULES
+            },
+
+            payouts: {
+                ...NO_COMMISSION_PAYOUT,
+                ...(
+                    analyzerOptions
+                        .payouts ??
+                    {}
+                )
+            },
 
             monteCarloOptions: {
 
