@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.4.3
+ * Baccarat Analyzer V10.4.4
  * Path: pages/dashboard.js
  * Purpose:
  *   Live Casino UX & Performance Refactor.
@@ -66,7 +66,7 @@ export const DASHBOARD_PAGE_VERSION = "10.1.0";
  * - V3.4.3 Page Object API required by app/app.js
  * - V10.1 static Dashboard / AI Closed-Loop HTML contract
  */
-export const DASHBOARD_COMPATIBILITY_VERSION = "10.4.3";
+export const DASHBOARD_COMPATIBILITY_VERSION = "10.4.4";
 
 export const DashboardMode = AnalysisDisplayMode;
 
@@ -440,7 +440,7 @@ export class Dashboard {
     }
 
     /**
-     * V10.4.2 Burn Compatibility
+     * V10.4.4 Burn Critical Path Compatibility
      *
      * Supported Game contracts:
      *
