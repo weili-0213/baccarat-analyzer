@@ -3,7 +3,7 @@
  * Path: runtime/liveCasino/LiveCasinoDecisionModel.js
  * Purpose: Produces strict + relative live decisions without pretending negative EV is positive EV.
  */
-export const LIVE_CASINO_DECISION_MODEL_VERSION = "10.4.4";
+export const LIVE_CASINO_DECISION_MODEL_VERSION = "10.4.5";
 
 const MAIN = Object.freeze([
     ["player", "閒家"],
