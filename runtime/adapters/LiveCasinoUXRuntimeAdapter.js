@@ -1,9 +1,9 @@
 /**
- * Baccarat Analyzer V10.4.3
+ * Baccarat Analyzer V10.4.4
  * Path: runtime/adapters/LiveCasinoUXRuntimeAdapter.js
- * Purpose: Runtime adapter for V10.4.3 live casino UX/performance controller.
+ * Purpose: Runtime adapter for V10.4.4 live casino UX/performance controller.
  */
-export const LIVE_CASINO_UX_RUNTIME_ADAPTER_VERSION = "10.4.3";
+export const LIVE_CASINO_UX_RUNTIME_ADAPTER_VERSION = "10.4.4";
 
 export default class LiveCasinoUXRuntimeAdapter {
     constructor({
