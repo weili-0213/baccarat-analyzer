@@ -301,6 +301,9 @@ import liveCasinoUXPerformanceTest
 import liveRoundCriticalPathTest
     from "./liveRoundCriticalPath.test.js";
 
+import noCommissionBaccaratEVTest
+    from "./noCommissionBaccaratEV.test.js";
+
 /**
  * 新增測試時，只需：
  *
@@ -887,6 +890,12 @@ const TESTS = [
         id: "live-round-critical-path",
         name: "Live Round Critical Path",
         run: liveRoundCriticalPathTest
+    },
+
+    {
+        id:"no-commission-baccarat-ev",
+        name:"No Commission Baccarat EV",
+        run:noCommissionBaccaratEVTest
     }
 
 ];
