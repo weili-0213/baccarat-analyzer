@@ -1,14 +1,19 @@
 /**
- * Baccarat Analyzer V5.1
- * tests/runtimeAdapters.test.js
+ * Baccarat Analyzer V10.3
+ * Path: tests/runtimeAdapters.test.js
+ * Purpose:
+ *   Compatibility regression test for the legacy V5.1 CasinoRuntime
+ *   plus the V10.3 GameRuntimeAdapter integration API.
  */
 
 import createCasinoRuntime, {
     RUNTIME_ADAPTERS_VERSION
 } from "../runtime/createCasinoRuntime.js";
 
-import {
-    GAME_RUNTIME_ADAPTER_VERSION
+import GameRuntimeAdapter, {
+    GAME_RUNTIME_ADAPTER_VERSION,
+    GAME_RUNTIME_ADAPTER_LEGACY_COMPAT_VERSION,
+    GameRuntimeAdapterMode
 } from "../runtime/adapters/GameRuntimeAdapter.js";
 
 import {
@@ -33,11 +38,8 @@ function assert(condition, message) {
 
 function createGame() {
     return {
-        started:
-            false,
-
-        current:
-            null,
+        started: false,
+        current: null,
 
         async start() {
             this.started = true;
@@ -75,12 +77,9 @@ function createAnalyzer() {
     return {
         async analyze(context) {
             return {
-                shouldBet:
-                    true,
-
+                shouldBet: true,
                 recommendedBet:
                     "player",
-
                 context
             };
         }
@@ -90,17 +89,10 @@ function createAnalyzer() {
 
 function createStore() {
     return {
-        active:
-            false,
-
-        rounds:
-            [],
-
-        analyses:
-            [],
-
-        bets:
-            [],
+        active: false,
+        rounds: [],
+        analyses: [],
+        bets: [],
 
         start() {
             this.active = true;
@@ -113,7 +105,9 @@ function createStore() {
         },
 
         addAnalysis(analysis) {
-            this.analyses.push(analysis);
+            this.analyses.push(
+                analysis
+            );
             return analysis;
         },
 
@@ -139,13 +133,10 @@ function createStore() {
                     this.active
                         ? "active"
                         : "ended",
-
                 rounds:
                     [...this.rounds],
-
                 analyses:
                     [...this.analyses],
-
                 bets:
                     [...this.bets]
             };
@@ -156,14 +147,13 @@ function createStore() {
 
 function createDashboard() {
     return {
-        sessions:
-            [],
-
-        paused:
-            false,
+        sessions: [],
+        paused: false,
 
         async renderSession(session) {
-            this.sessions.push(session);
+            this.sessions.push(
+                session
+            );
 
             return {
                 rounds:
@@ -182,13 +172,153 @@ function createDashboard() {
 }
 
 
+function createAIIntegration() {
+    return {
+        calls: [],
+        paused: false,
+        destroyed: false,
+
+        connect(input = {}) {
+            this.calls.push([
+                "connect",
+                input
+            ]);
+
+            return {
+                state: "ready"
+            };
+        },
+
+        sync(input = {}) {
+            this.calls.push([
+                "sync",
+                input
+            ]);
+
+            return {
+                synced: true
+            };
+        },
+
+        beginRound(input = {}) {
+            this.calls.push([
+                "beginRound",
+                input
+            ]);
+
+            return {
+                roundId:
+                    input.roundId ??
+                    "ai-round-1"
+            };
+        },
+
+        analyzeCurrentRound(input = {}) {
+            this.calls.push([
+                "analyzeCurrentRound",
+                input
+            ]);
+
+            return {
+                prediction:
+                    "Banker"
+            };
+        },
+
+        settleCurrentRound(input = {}) {
+            this.calls.push([
+                "settleCurrentRound",
+                input
+            ]);
+
+            return {
+                feedback:
+                    "update"
+            };
+        },
+
+        nextRound(input = {}) {
+            this.calls.push([
+                "nextRound",
+                input
+            ]);
+
+            return {
+                roundId:
+                    "ai-round-2"
+            };
+        },
+
+        completeRoundAndPrepareNext(
+            input = {}
+        ) {
+            this.calls.push([
+                "completeRoundAndPrepareNext",
+                input
+            ]);
+
+            return {
+                completed: true
+            };
+        },
+
+        resetShoe(input = {}) {
+            this.calls.push([
+                "resetShoe",
+                input
+            ]);
+
+            return {
+                shoeId:
+                    input.shoeId ??
+                    "shoe-2"
+            };
+        },
+
+        pause() {
+            this.paused = true;
+        },
+
+        resume() {
+            this.paused = false;
+        },
+
+        stop() {
+            return {
+                state: "stopped"
+            };
+        },
+
+        reset() {
+            return {
+                state: "idle"
+            };
+        },
+
+        destroy() {
+            this.destroyed = true;
+        },
+
+        get summary() {
+            return {
+                callCount:
+                    this.calls.length
+            };
+        }
+    };
+}
+
+
 export default async function runtimeAdaptersTest() {
     const messages = [];
 
+    /*
+     * Mixed-version compatibility is intentional.
+     * createCasinoRuntime and three legacy adapters remain V5.1.
+     * GameRuntimeAdapter is V10.3.1 and explicitly advertises V5.1 compatibility.
+     */
     assert(
         RUNTIME_ADAPTERS_VERSION ===
-            "5.1.0" &&
-        GAME_RUNTIME_ADAPTER_VERSION ===
             "5.1.0" &&
         ANALYZER_RUNTIME_ADAPTER_VERSION ===
             "5.1.0" &&
@@ -196,13 +326,25 @@ export default async function runtimeAdaptersTest() {
             "5.1.0" &&
         DASHBOARD_RUNTIME_ADAPTER_VERSION ===
             "5.1.0",
-        "V5.1 Adapter 版本錯誤"
+        "Legacy V5.1 Runtime Adapter versions 錯誤"
+    );
+
+    assert(
+        GAME_RUNTIME_ADAPTER_VERSION ===
+            "10.3.1" &&
+        GAME_RUNTIME_ADAPTER_LEGACY_COMPAT_VERSION ===
+            "5.1.0",
+        "V10.3 GameRuntimeAdapter compatibility version 錯誤"
     );
 
     messages.push(
-        "✓ V5.1 Adapter 版本正確"
+        "✓ V5.1 / V10.3 Adapter compatibility versions 正確"
     );
 
+
+    /*
+     * Legacy CasinoRuntime flow.
+     */
     const game =
         createGame();
 
@@ -238,8 +380,14 @@ export default async function runtimeAdaptersTest() {
         "Runtime Adapters 建立錯誤"
     );
 
+    assert(
+        runtime.adapters.game.mode ===
+            GameRuntimeAdapterMode.LEGACY_GAME,
+        "CasinoRuntime 應使用 legacy-game mode"
+    );
+
     messages.push(
-        "✓ Runtime Adapters 建立正確"
+        "✓ Legacy CasinoRuntime Adapters 建立正確"
     );
 
     await runtime.start();
@@ -263,11 +411,11 @@ export default async function runtimeAdaptersTest() {
             1 &&
         dashboard.sessions.length ===
             2,
-        "Adapter 自動流程錯誤"
+        "Legacy Adapter 自動流程錯誤"
     );
 
     messages.push(
-        "✓ Game → Analyzer → Session → Dashboard 正確"
+        "✓ Legacy Game → Analyzer → Session → Dashboard 正確"
     );
 
     await runtime.addBet({
@@ -284,11 +432,11 @@ export default async function runtimeAdaptersTest() {
             1 &&
         dashboard.sessions.length ===
             3,
-        "Bet Adapter 流程錯誤"
+        "Legacy Bet Adapter 流程錯誤"
     );
 
     messages.push(
-        "✓ Bet Adapter 正確"
+        "✓ Legacy Bet Adapter 正確"
     );
 
     runtime.pause();
@@ -307,10 +455,6 @@ export default async function runtimeAdaptersTest() {
         "Dashboard resumeLive() 錯誤"
     );
 
-    messages.push(
-        "✓ Dashboard Live Adapter 正確"
-    );
-
     assert(
         runtime.adapters.game
             .summary
@@ -324,28 +468,118 @@ export default async function runtimeAdaptersTest() {
             .summary
             .updateCount ===
             3,
-        "Adapter summary 錯誤"
+        "Legacy Adapter summary 錯誤"
+    );
+
+    messages.push(
+        "✓ Legacy Adapter Lifecycle 與 Summary 正確"
     );
 
     await runtime.stop();
-
     runtime.destroy();
 
-    messages.push(
-        "✓ Adapter Lifecycle 正確"
+
+    /*
+     * V10.3 AI integration mode.
+     */
+    const integration =
+        createAIIntegration();
+
+    const aiAdapter =
+        new GameRuntimeAdapter({
+            integration
+        });
+
+    assert(
+        aiAdapter.mode ===
+            GameRuntimeAdapterMode.AI_INTEGRATION &&
+        aiAdapter.summary.version ===
+            "10.3.1",
+        "AI Integration mode 建立錯誤"
     );
+
+    await aiAdapter.connect({
+        shoeId:
+            "shoe-1"
+    });
+
+    await aiAdapter.sync();
+
+    await aiAdapter.beginRound({
+        roundId:
+            "ai-round-1"
+    });
+
+    const analysis =
+        await aiAdapter
+            .analyzeCurrentRound();
+
+    const settlement =
+        await aiAdapter
+            .settleCurrentRound({
+                roundResult: {
+                    winner:
+                        "Banker"
+                }
+            });
+
+    await aiAdapter.nextRound();
+
+    await aiAdapter
+        .completeRoundAndPrepareNext();
+
+    await aiAdapter.resetShoe({
+        shoeId:
+            "shoe-2"
+    });
+
+    assert(
+        analysis.prediction ===
+            "Banker" &&
+        settlement.feedback ===
+            "update",
+        "V10.3 AI Integration API 錯誤"
+    );
+
+    aiAdapter.pause();
+
+    assert(
+        integration.paused,
+        "V10.3 AI Integration pause 錯誤"
+    );
+
+    aiAdapter.resume();
+
+    assert(
+        !integration.paused,
+        "V10.3 AI Integration resume 錯誤"
+    );
+
+    aiAdapter.destroy();
+
+    assert(
+        integration.destroyed,
+        "V10.3 AI Integration destroy 錯誤"
+    );
+
+    messages.push(
+        "✓ V10.3 AI Game Runtime Adapter API 正確"
+    );
+
 
     return `
 ${messages.join("\n")}
 
-Runtime Adapters V5.1 測試完成
+Runtime Adapter Compatibility Refactor V10.3 測試完成
 
-Game Adapter：通過
+Legacy V5.1 Runtime Factory：通過
+Legacy Game Adapter：通過
 Analyzer Adapter：通過
 Session Adapter：通過
 Dashboard Adapter：通過
-Runtime Factory：通過
-Integration Flow：通過
+Legacy Integration Flow：通過
+V10.3 Game Runtime Adapter：通過
+Dual Mode Compatibility：通過
 Lifecycle：通過
 `;
 }
