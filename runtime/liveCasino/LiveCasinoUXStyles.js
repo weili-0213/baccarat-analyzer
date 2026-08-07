@@ -3,7 +3,7 @@
  * Path: runtime/liveCasino/LiveCasinoUXStyles.js
  * Purpose: Compact single-screen live casino UX styles.
  */
-export const LIVE_CASINO_UX_STYLES_VERSION = "10.4.4";
+export const LIVE_CASINO_UX_STYLES_VERSION = "10.4.5";
 
 export const LIVE_CASINO_UX_STYLE_ID =
     "baccarat-live-casino-v1044";
@@ -293,5 +293,19 @@ export const LIVE_CASINO_UX_CSS = `
     [data-live-casino-v1044] .v1044DecisionAI {
         grid-column: 1 / -1;
     }
+}
+
+[data-live-casino-v1043] .v1045RulesBadge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-top: .2rem;
+    padding: .18rem .5rem;
+    border: 1px solid rgba(255, 213, 74, .45);
+    border-radius: 999px;
+    font-size: .76rem;
+    font-weight: 700;
+    color: #ffe58a;
+    background: rgba(255, 213, 74, .09);
 }
 `;
