@@ -225,12 +225,14 @@ export default async function corePipelinesTest() {
             result.state.ev
                 .banker -
             (
-                0.458 *
-                0.95 -
+                (0.458 - 0.054) *
+                    1 +
+                0.054 *
+                    0.5 -
                 0.446
             )
         ) < 1e-12,
-        "Banker EV 錯誤"
+        "免佣 Banker EV（莊6半賠）錯誤"
     );
 
 
