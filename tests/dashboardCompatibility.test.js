@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.4.2
+ * Baccarat Analyzer V10.4.3
  * Path: tests/dashboardCompatibility.test.js
  * Purpose:
  *   Verifies Dashboard burn compatibility across:
@@ -284,12 +284,12 @@ export default async function dashboardCompatibilityTest() {
 
     assert(
         DASHBOARD_COMPATIBILITY_VERSION ===
-            "10.4.2",
-        "V10.4.2 Dashboard burn compatibility version 錯誤"
+            "10.4.3",
+        "V10.4.3 Dashboard live compatibility version 錯誤"
     );
 
     messages.push(
-        "✓ V3.4.3 / V10.1 / V10.4.2 version contracts 正確"
+        "✓ V3.4.3 / V10.1 / V10.4.3 version contracts 正確"
     );
 
 
@@ -317,7 +317,7 @@ export default async function dashboardCompatibilityTest() {
         createDashboard.version ===
             "10.1.0" &&
         createDashboard.compatibilityVersion ===
-            "10.4.2" &&
+            "10.4.3" &&
         createDashboard.legacyVersion ===
             "3.4.3",
         "Dashboard factory metadata 錯誤"
@@ -381,10 +381,14 @@ export default async function dashboardCompatibilityTest() {
         "Legacy burn result 錯誤"
     );
 
+    await new Promise(resolve =>
+        setTimeout(resolve, 0)
+    );
+
     assert(
         legacyGame.hasNextAnalysis ===
             true,
-        "Legacy burn 後未完成第一局分析"
+        "Legacy burn 後背景第一局分析未完成"
     );
 
     messages.push(
@@ -432,7 +436,7 @@ export default async function dashboardCompatibilityTest() {
     assert(
         runtimeGame.burnConfirmed ===
             true,
-        "V10.4.2 fallback 未正規化 game.burnConfirmed"
+        "V10.4.3 fallback 未正規化 game.burnConfirmed"
     );
 
     assert(
@@ -440,13 +444,17 @@ export default async function dashboardCompatibilityTest() {
             "K" &&
         runtimeGame.burnCard?.suit ===
             "D",
-        "V10.4.2 fallback burn card 錯誤"
+        "V10.4.3 fallback burn card 錯誤"
+    );
+
+    await new Promise(resolve =>
+        setTimeout(resolve, 0)
     );
 
     assert(
         runtimeGame.hasNextAnalysis ===
             true,
-        "V10.4.2 fallback burn 後未觸發分析"
+        "V10.4.3 fallback burn 後未觸發背景分析"
     );
 
     messages.push(
@@ -501,7 +509,7 @@ export default async function dashboardCompatibilityTest() {
     return `
 ${messages.join("\n")}
 
-Dashboard Burn Compatibility Fix V10.4.2 測試完成
+Dashboard Live Compatibility V10.4.3 測試完成
 
 Version Contracts：通過
 V10.1 Static Dashboard：通過
