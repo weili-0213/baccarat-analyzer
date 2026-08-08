@@ -20,7 +20,6 @@
  */
 
 import AnalyzerLegacyCore, {
-    ANALYZER_ARCHITECTURE_VERSION,
     AnalysisMode,
     BET_CONFIG,
     MAIN_RECOMMENDATION_BETS,
@@ -60,7 +59,6 @@ export const ANALYZER_COMPATIBILITY_VERSION =
 
 
 export {
-    ANALYZER_ARCHITECTURE_VERSION,
     AnalysisMode,
     BET_CONFIG,
     MAIN_RECOMMENDATION_BETS,
@@ -660,9 +658,6 @@ export default class Analyzer {
 
             compatibilityVersion:
                 ANALYZER_COMPATIBILITY_VERSION,
-
-            architectureVersion:
-                ANALYZER_ARCHITECTURE_VERSION,
 
             facade:
                 true,
