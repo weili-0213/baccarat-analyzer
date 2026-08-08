@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.5.0
+ * Baccarat Analyzer V10.5.2
  * Path: tests/aiLiveDecisionEngine.test.js
  * Test Runner: tests/main.js
  * AI Live Decision Engine classification and safety regressions.
@@ -7,16 +7,28 @@
 
 import AILiveDecisionEngine, {
     AI_LIVE_DECISION_ENGINE_VERSION,
+    AI_LIVE_DECISION_CALIBRATION_VERSION,
+    DEFAULT_LIVE_DECISION_THRESHOLDS,
     LiveDecisionAction,
     LiveDecisionCategory
 } from "../runtime/liveCasino/AILiveDecisionEngine.js";
+
+import Risk
+    from "../analysis/risk.js";
+
+import Kelly
+    from "../analysis/kelly.js";
+
+import Recommendation
+    from "../analysis/recommendation.js";
 
 import LiveCasinoDecisionModel, {
     LIVE_CASINO_DECISION_MODEL_VERSION
 } from "../runtime/liveCasino/LiveCasinoDecisionModel.js";
 
 import LiveCasinoUXController, {
-    AI_LIVE_DECISION_UX_VERSION
+    AI_LIVE_DECISION_UX_VERSION,
+    AI_LIVE_DECISION_EVIDENCE_UX_VERSION
 } from "../runtime/liveCasino/LiveCasinoUXController.js";
 
 
@@ -34,7 +46,7 @@ function analysis({
         tie: -0.1450
     },
     confidence = 0.72,
-    risk = 0.35,
+    risk = 0.95,
     shouldBet = false,
     key = "player",
     amount = 0,
@@ -60,7 +72,9 @@ function analysis({
         overallConfidence: confidence,
         risk: {
             [key]: {
-                relativeRisk: risk
+                relativeRisk: risk,
+                standardDeviation: risk,
+                riskLabel: "中等風險"
             }
         },
         ranking: [
@@ -68,7 +82,8 @@ function analysis({
                 key,
                 ev: ev[key],
                 confidence,
-                risk
+                risk,
+                standardDeviation: risk
             }
         ],
         recommendation: {
@@ -80,6 +95,135 @@ function analysis({
 }
 
 
+function realisticPlayerAnalysis({
+    player = 0.51,
+    tie = 0,
+    confidence = 0.82,
+    method = "hybrid",
+    sampleSize = 5000
+} = {}) {
+    const banker =
+        1 - player - tie;
+
+    const ev = {
+        player:
+            player - banker,
+        banker:
+            banker - player,
+        tie:
+            tie * 8 -
+            (1 - tie)
+    };
+
+    const risk =
+        new Risk().calculate({
+            name: "player",
+            winProbability:
+                player,
+            pushProbability:
+                tie,
+            netOdds: 1
+        });
+
+    const kelly =
+        new Kelly().calculate({
+            winProbability:
+                player,
+            pushProbability:
+                tie,
+            netOdds: 1
+        });
+
+    const rankingItem = {
+        name: "player",
+        label: "閒家",
+        probability:
+            player,
+        ev:
+            ev.player,
+        kelly:
+            kelly.appliedKelly,
+        fullKelly:
+            kelly.fullKelly,
+        amount:
+            kelly.amount,
+        rawAmount:
+            kelly.rawAmount,
+        risk:
+            risk.relativeRisk,
+        riskLabel:
+            risk.riskLabel,
+        standardDeviation:
+            risk.standardDeviation,
+        confidence,
+        confidenceProvisional:
+            false,
+        score: 0.8,
+        eligible: true,
+        recommendationEligible:
+            true
+    };
+
+    const recommendation =
+        new Recommendation()
+            .calculate([
+                rankingItem
+            ]);
+
+    return {
+        method,
+        probability: {
+            player,
+            banker,
+            tie
+        },
+        ev,
+        monteCarlo: {
+            sampleSize
+        },
+        exact:
+            method === "hybrid" ||
+            method === "exact"
+                ? {
+                    probability: {
+                        player,
+                        banker,
+                        tie
+                    }
+                }
+                : null,
+        confidence: {
+            overall:
+                confidence,
+            player: {
+                confidenceScore:
+                    confidence,
+                zScore:
+                    1.959963984540054
+            }
+        },
+        overallConfidence:
+            confidence,
+        risk: {
+            player:
+                risk
+        },
+        kelly: {
+            player:
+                kelly
+        },
+        amount: {
+            player:
+                kelly.amount
+        },
+        ranking: [
+            rankingItem
+        ],
+        recommendation
+    };
+}
+
+
 export default async function aiLiveDecisionEngineTest() {
     const messages = [];
     const engine =
@@ -87,27 +231,20 @@ export default async function aiLiveDecisionEngineTest() {
 
     assert(
         AI_LIVE_DECISION_ENGINE_VERSION === "10.5.0" &&
+        AI_LIVE_DECISION_CALIBRATION_VERSION === "10.5.2" &&
+        AI_LIVE_DECISION_EVIDENCE_UX_VERSION === "10.5.2" &&
         AI_LIVE_DECISION_UX_VERSION === "10.5.0" &&
         LIVE_CASINO_DECISION_MODEL_VERSION === "10.4.5" &&
+        DEFAULT_LIVE_DECISION_THRESHOLDS
+            .maxRelativeRisk === 1.05 &&
         engine.summary.categories.length === 6,
-        "V10.5 / compatibility version contract 錯誤"
+        "V10.5.2 calibration / compatibility version contract 錯誤"
     );
 
-    messages.push("✓ V10.5 engine / V10.4.5 facade 版本契約正確");
+    messages.push("✓ V10.5.2 calibration / V10.4.5 facade 版本契約正確");
 
     const positive = engine.decide(
-        analysis({
-            ev: {
-                player: -0.008,
-                banker: 0.006,
-                tie: -0.14
-            },
-            confidence: 0.81,
-            risk: 0.32,
-            shouldBet: true,
-            key: "banker",
-            amount: 100
-        })
+        realisticPlayerAnalysis()
     );
 
     assert(
@@ -115,10 +252,16 @@ export default async function aiLiveDecisionEngineTest() {
             LiveDecisionCategory.POSITIVE_EV &&
         positive.action ===
             LiveDecisionAction.BET &&
-        positive.strictKey === "banker" &&
-        positive.recommendationLabel === "莊家" &&
-        positive.amount === 100,
-        "絕對正 EV 可下注分類錯誤"
+        positive.strictKey === "player" &&
+        positive.recommendationLabel === "閒家" &&
+        positive.amount === 100 &&
+        positive.risk > 0.95 &&
+        positive.risk <= 1.05 &&
+        positive.evidence.hasExact === true &&
+        positive.evidence.robustPositiveEV === true &&
+        positive.sizing.calculatedAmount === 100 &&
+        positive.blockers.length === 0,
+        "真實 Risk / Kelly / Recommendation 正 EV 鏈路錯誤"
     );
 
     const relative = engine.decide(
@@ -139,17 +282,9 @@ export default async function aiLiveDecisionEngineTest() {
     );
 
     const weak = engine.decide(
-        analysis({
-            ev: {
-                player: 0.003,
-                banker: -0.004,
-                tie: -0.14
-            },
-            confidence: 0.62,
-            risk: 0.30,
-            shouldBet: true,
-            key: "player",
-            amount: 100
+        realisticPlayerAnalysis({
+            method: "monteCarlo",
+            sampleSize: 1200
         })
     );
 
@@ -158,8 +293,36 @@ export default async function aiLiveDecisionEngineTest() {
             LiveDecisionCategory.WEAK_SIGNAL &&
         weak.action ===
             LiveDecisionAction.WAIT &&
-        weak.amount === 0,
-        "弱勢訊號不應產生下注額"
+        weak.amount === 0 &&
+        weak.evidence.evLowerBound < 0 &&
+        weak.blockers.some(blocker =>
+            blocker.code ===
+                "UNCERTAINTY_CROSSES_ZERO"
+        ),
+        "Monte Carlo 正 EV 未跨過誤差時仍應觀望"
+    );
+
+    const belowMinimumBet =
+        engine.decide(
+            realisticPlayerAnalysis({
+                player: 0.503
+            })
+        );
+
+    assert(
+        belowMinimumBet.category ===
+            LiveDecisionCategory.WEAK_SIGNAL &&
+        belowMinimumBet.action ===
+            LiveDecisionAction.WAIT &&
+        belowMinimumBet.sizing
+            .calculatedAmount === 30 &&
+        belowMinimumBet.sizing
+            .minBet === 100 &&
+        belowMinimumBet.blockers.some(blocker =>
+            blocker.code ===
+                "BELOW_MIN_BET"
+        ),
+        "Kelly 金額低於最低下注時阻擋原因錯誤"
     );
 
     const noEdge = engine.decide(
@@ -198,28 +361,25 @@ export default async function aiLiveDecisionEngineTest() {
         "資料不足分類錯誤"
     );
 
-    const highRisk = engine.decide(
-        analysis({
-            ev: {
-                player: -0.006,
-                banker: 0.008,
-                tie: -0.14
-            },
-            confidence: 0.85,
-            risk: 0.82,
-            shouldBet: true,
-            key: "banker",
-            amount: 200
-        })
-    );
+    const highRisk =
+        new AILiveDecisionEngine({
+            maxRelativeRisk: 0.90
+        }).decide(
+            realisticPlayerAnalysis()
+        );
 
     assert(
         highRisk.category ===
             LiveDecisionCategory.RISK_TOO_HIGH &&
         highRisk.action ===
             LiveDecisionAction.WAIT &&
-        highRisk.amount === 0,
-        "風險過高仍不可下注"
+        highRisk.amount === 0 &&
+        highRisk.risk > 0.90 &&
+        highRisk.blockers.some(blocker =>
+            blocker.code ===
+                "VOLATILITY_TOO_HIGH"
+        ),
+        "相對波動比超過設定上限時仍不可下注"
     );
 
     const forcedNegative = engine.decide(
@@ -240,21 +400,10 @@ export default async function aiLiveDecisionEngineTest() {
     );
 
     const missingRecommendationKey =
-        analysis({
-            ev: {
-                player: 0.006,
-                banker: -0.004,
-                tie: -0.14
-            },
-            confidence: 0.82,
-            risk: 0.25,
-            shouldBet: true,
-            key: "player",
-            amount: 100
-        });
+        realisticPlayerAnalysis();
 
     delete missingRecommendationKey
-        .recommendation.key;
+        .recommendation.bet;
 
     const incompleteRecommendation =
         engine.decide(
@@ -266,8 +415,38 @@ export default async function aiLiveDecisionEngineTest() {
             LiveDecisionCategory.WEAK_SIGNAL &&
         incompleteRecommendation.action ===
             LiveDecisionAction.WAIT &&
-        incompleteRecommendation.amount === 0,
+        incompleteRecommendation.amount === 0 &&
+        incompleteRecommendation.blockers
+            .some(blocker =>
+                blocker.code ===
+                    "UPSTREAM_RECOMMENDATION_BLOCKED"
+            ),
         "缺少合法下注項目的上游推薦不可產生下注"
+    );
+
+    const unboundedProvided =
+        realisticPlayerAnalysis({
+            method: "provided"
+        });
+
+    unboundedProvided.exact = null;
+
+    const unboundedDecision =
+        engine.decide(
+            unboundedProvided
+        );
+
+    assert(
+        unboundedDecision.category ===
+            LiveDecisionCategory.INSUFFICIENT_DATA &&
+        unboundedDecision.action ===
+            LiveDecisionAction.WAIT &&
+        unboundedDecision.blockers
+            .some(blocker =>
+                blocker.code ===
+                    "UNCERTAINTY_MISSING"
+            ),
+        "只有外部點估計、沒有誤差界線時不可下注"
     );
 
     let rejectedNegativeThreshold =
@@ -289,23 +468,26 @@ export default async function aiLiveDecisionEngineTest() {
     );
 
     const incompletePositive = engine.decide({
-        ...analysis({
-            ev: {
-                player: 0.004,
-                banker: -0.006,
-                tie: -0.14
-            },
-            shouldBet: true,
-            key: "player"
-        }),
+        ...realisticPlayerAnalysis(),
         risk: {},
         ranking: [
             {
+                name: "player",
                 key: "player",
-                ev: 0.004,
+                ev: 0.02,
                 confidence: 0.72
             }
-        ]
+        ],
+        recommendation: {
+            shouldBet: true,
+            action: "bet",
+            bet: "player",
+            amount: 100,
+            limits: {
+                minBet: 100,
+                maxBet: 10000
+            }
+        }
     });
 
     assert(
@@ -341,7 +523,8 @@ export default async function aiLiveDecisionEngineTest() {
         compatibility.strictAction === "WAIT" &&
         compatibility.relativeKey === "player" &&
         compatibility.relativeLabel === "閒家" &&
-        model.summary.engineVersion === "10.5.0",
+        model.summary.engineVersion === "10.5.0" &&
+        model.summary.calibrationVersion === "10.5.2",
         "LiveCasinoDecisionModel compatibility facade 錯誤"
     );
 
@@ -364,11 +547,15 @@ export default async function aiLiveDecisionEngineTest() {
         html.includes(
             'data-decision-category="relative-best"'
         ) &&
-        html.includes("推薦：") &&
+        html.includes("相對最佳：") &&
+        !html.includes("推薦：閒家") &&
         html.includes("策略：") &&
         html.includes("信號：") &&
+        html.includes("證據：") &&
+        html.includes("估計可靠度：") &&
         html.includes("相對優勢：") &&
-        html.includes("原因："),
+        html.includes("EV 證據範圍：") &&
+        html.includes("阻擋："),
         "Dashboard 首屏決策資訊不完整"
     );
 
@@ -390,7 +577,7 @@ export default async function aiLiveDecisionEngineTest() {
     assert(
         fields.get("[data-ai-stage]")
             .textContent ===
-            "live-decision-engine-v10.5" &&
+            "decision-gate-calibration-v10.5.2" &&
         fields.get("[data-ai-decision]")
             .textContent.includes("閒家") &&
         fields.get("[data-ai-strategy]")
@@ -407,11 +594,15 @@ export default async function aiLiveDecisionEngineTest() {
     return `
 ${messages.join("\n")}
 
-AI Live Decision Engine V10.5.0 測試完成
+AI Live Decision Engine V10.5.2 測試完成
 
 Positive EV：通過
 Relative Best：通過
 Weak Signal：通過
+Real Risk Calibration：通過
+Evidence Bounds：通過
+Unbounded Estimate Guard：通過
+Kelly Minimum Bet Blocker：通過
 No Edge：通過
 Insufficient Data：通過
 Risk Too High：通過
