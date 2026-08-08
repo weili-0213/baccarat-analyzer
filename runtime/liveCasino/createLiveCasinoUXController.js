@@ -13,6 +13,7 @@ import LiveCasinoDecisionModel
     from "./LiveCasinoDecisionModel.js";
 
 export const LIVE_CASINO_UX_FACTORY_VERSION = "10.4.5";
+export const AI_LIVE_DECISION_FACTORY_VERSION = "10.5.0";
 
 export default function createLiveCasinoUXController({
     game,
@@ -21,6 +22,11 @@ export default function createLiveCasinoUXController({
     clock = () => Date.now(),
     performance = {}
 } = {}) {
+    const {
+        decision = {},
+        ...performancePolicy
+    } = performance ?? {};
+
     return new LiveCasinoUXController({
         game,
         render,
@@ -28,9 +34,12 @@ export default function createLiveCasinoUXController({
         clock,
         policy:
             new LiveCasinoPerformancePolicy(
-                performance
+                performancePolicy
             ),
         decisionModel:
-            new LiveCasinoDecisionModel()
+            new LiveCasinoDecisionModel({
+                thresholds:
+                    decision
+            })
     });
 }
