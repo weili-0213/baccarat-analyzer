@@ -17,6 +17,7 @@ import {
 } from "./LiveCasinoUXStyles.js";
 
 export const LIVE_CASINO_UX_CONTROLLER_VERSION = "10.4.5";
+export const AI_LIVE_DECISION_UX_VERSION = "10.5.0";
 
 function delay(ms) {
     return new Promise(resolve =>
@@ -34,6 +35,21 @@ function evText(value) {
     return Number.isFinite(value)
         ? `${value >= 0 ? "+" : ""}${(value * 100).toFixed(2)}%`
         : "—";
+}
+
+function advantageText(value) {
+    return Number.isFinite(value)
+        ? `${value >= 0 ? "+" : ""}${(value * 100).toFixed(2)}%`
+        : "—";
+}
+
+function escapeHTML(value) {
+    return String(value ?? "—")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
 }
 
 function text(root, selector, value) {
@@ -440,20 +456,50 @@ export default class LiveCasinoUXController {
 
         return `
             <section
-                class="v1044Decision"
+                class="v1044Decision v105LiveDecision"
                 data-live-decision
+                data-decision-category="${escapeHTML(d.category)}"
+                data-decision-action="${escapeHTML(d.action)}"
             >
                 <div class="v1044DecisionCard v1044DecisionMain">
                     <span class="v1044Meta">下一局決策</span>
-                    <strong>${d.strictLabel}</strong>
-                    <div>
-                        相對最佳：
-                        <b>${d.relativeLabel}</b>
-                        ${Number.isFinite(d.relativeEV)
-                            ? ` · EV ${evText(d.relativeEV)}`
-                            : ""}
+                    <div class="v105DecisionHeadline">
+                        推薦：
+                        <strong data-decision-recommendation>
+                            ${escapeHTML(d.recommendationLabel)}
+                        </strong>
                     </div>
-                    <small>${d.reason}</small>
+                    <div class="v105DecisionBadges">
+                        <span>
+                            策略：
+                            <b data-decision-strategy>
+                                ${escapeHTML(d.actionLabel)}
+                            </b>
+                        </span>
+                        <span>
+                            信號：
+                            <b data-decision-signal>
+                                ${escapeHTML(d.categoryLabel)}
+                            </b>
+                        </span>
+                        <span>
+                            信心：
+                            <b data-decision-confidence>
+                                ${pct(d.confidence)}
+                            </b>
+                        </span>
+                    </div>
+                    <div class="v105DecisionMeta">
+                        相對優勢：
+                        <b data-decision-advantage>
+                            ${advantageText(d.relativeAdvantage)}
+                        </b>
+                        · 建議額：
+                        <b data-decision-amount>${d.amount ?? 0}</b>
+                    </div>
+                    <small data-decision-reason>
+                        原因：${escapeHTML(d.reason)}
+                    </small>
                 </div>
 
                 <div class="v1044DecisionCard v1044Player">
@@ -475,11 +521,11 @@ export default class LiveCasinoUXController {
                 </div>
 
                 <div class="v1044DecisionCard v1044DecisionAI">
-                    <span class="v1044Meta">Live AI / Performance</span>
+                    <span class="v1044Meta">AI Live Decision Engine</span>
                     <strong>${status}</strong>
                     <div>
-                        信心 ${pct(d.confidence)}
-                        · 建議額 ${d.amount ?? 0}
+                        ${escapeHTML(d.categoryLabel)}
+                        · 風險 ${pct(d.risk)}
                     </div>
                 </div>
             </section>
@@ -497,20 +543,15 @@ export default class LiveCasinoUXController {
         text(
             root,
             "[data-ai-status]",
-            runtimeSummary?.state ??
-            (d.ready ? "ready" : "idle")
+            d.ready
+                ? "decision-ready"
+                : "waiting-data"
         );
 
         text(
             root,
             "[data-ai-stage]",
-            runtimeSummary
-                ? "runtime"
-                : (
-                    d.ready
-                        ? "live-analysis-bridge"
-                        : "—"
-                )
+            "live-decision-engine-v10.5"
         );
 
         text(
@@ -524,7 +565,7 @@ export default class LiveCasinoUXController {
         text(
             root,
             "[data-ai-prediction]",
-            d.relativeLabel
+            d.recommendationLabel
         );
 
         text(
@@ -536,14 +577,16 @@ export default class LiveCasinoUXController {
         text(
             root,
             "[data-ai-decision]",
-            d.strictLabel
+            d.ready
+                ? `${d.recommendationLabel} · ${d.actionLabel}`
+                : "等待分析"
         );
 
         text(
             root,
             "[data-ai-strategy]",
             d.ready
-                ? `相對最佳 ${d.relativeLabel}`
+                ? d.categoryLabel
                 : "—"
         );
 
@@ -555,28 +598,37 @@ export default class LiveCasinoUXController {
                 : 0
         );
 
-        if (!runtimeSummary) {
-            text(
-                root,
-                "[data-ai-execution]",
-                "Dashboard bridge"
-            );
-            text(
-                root,
-                "[data-ai-feedback]",
-                "等待 Runtime"
-            );
-            text(
-                root,
-                "[data-ai-learning]",
-                "等待 Runtime"
-            );
-            text(
-                root,
-                "[data-ai-adaptive]",
-                "等待 Runtime"
-            );
-        }
+        text(
+            root,
+            "[data-ai-execution]",
+            d.ready
+                ? d.actionLabel
+                : "等待分析"
+        );
+
+        text(
+            root,
+            "[data-ai-feedback]",
+            d.ready
+                ? d.reason
+                : "尚無決策回饋"
+        );
+
+        text(
+            root,
+            "[data-ai-learning]",
+            runtimeSummary?.state
+                ? `Runtime ${runtimeSummary.state}`
+                : "Probability→EV→Confidence→Risk"
+        );
+
+        text(
+            root,
+            "[data-ai-adaptive]",
+            d.ready
+                ? `Ranking→${d.categoryLabel}`
+                : "等待下一局資料"
+        );
     }
 
     identifyRoadSection(root) {
@@ -620,6 +672,11 @@ export default class LiveCasinoUXController {
 
         root.setAttribute?.(
             "data-live-casino-v1044",
+            "true"
+        );
+
+        root.setAttribute?.(
+            "data-live-casino-v105",
             "true"
         );
 
@@ -710,6 +767,8 @@ export default class LiveCasinoUXController {
         return {
             version:
                 LIVE_CASINO_UX_CONTROLLER_VERSION,
+            liveDecisionVersion:
+                AI_LIVE_DECISION_UX_VERSION,
             profile:
                 this.analysisProfile,
             deadlineMs:
