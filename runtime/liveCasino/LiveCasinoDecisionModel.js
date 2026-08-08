@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.5.0
+ * Baccarat Analyzer V10.5.2
  * Path: runtime/liveCasino/LiveCasinoDecisionModel.js
  *
  * Compatibility facade. Existing callers keep using build(), while V10.5
@@ -7,7 +7,8 @@
  */
 
 import AILiveDecisionEngine, {
-    AI_LIVE_DECISION_ENGINE_VERSION
+    AI_LIVE_DECISION_ENGINE_VERSION,
+    AI_LIVE_DECISION_CALIBRATION_VERSION
 } from "./AILiveDecisionEngine.js";
 
 /**
@@ -42,6 +43,8 @@ export default class LiveCasinoDecisionModel {
                 LIVE_CASINO_DECISION_MODEL_VERSION,
             engineVersion:
                 AI_LIVE_DECISION_ENGINE_VERSION,
+            calibrationVersion:
+                AI_LIVE_DECISION_CALIBRATION_VERSION,
             engine:
                 this.engine.summary
         };
@@ -49,6 +52,6 @@ export default class LiveCasinoDecisionModel {
 }
 
 export {
-    AI_LIVE_DECISION_ENGINE_VERSION
+    AI_LIVE_DECISION_ENGINE_VERSION,
+    AI_LIVE_DECISION_CALIBRATION_VERSION
 };
-
