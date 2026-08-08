@@ -307,8 +307,8 @@ import liveRoundCriticalPathTest
 import noCommissionBaccaratEVTest
     from "./noCommissionBaccaratEV.test.js";
 
-import analyzerLegacyExportCompatibilityTest
-    from "./analyzerLegacyExportCompatibility.test.js";
+import aiLiveDecisionEngineTest
+    from "./aiLiveDecisionEngine.test.js";
 
 
 /**
@@ -912,9 +912,9 @@ const TESTS = [
     },
     
     {
-        id:"analyzer-legacy-export-compatibility",
-        name:"Analyzer Legacy Export Compatibility",
-        run:analyzerLegacyExportCompatibilityTest
+        id: "ai-live-decision-engine-v105",
+        name: "AI Live Decision Engine V10.5",
+        run: aiLiveDecisionEngineTest
     }
 
 ];
