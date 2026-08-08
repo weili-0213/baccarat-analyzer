@@ -846,7 +846,7 @@ export function renderAIClosedLoopPanel() {
                 <div>
                     <p class="dashboard-section__eyebrow">V10.5</p>
                     <h2 id="ai-closed-loop-title">
-                        AI Live Decision Engine
+                        AI Closed-Loop Intelligence · AI Live Decision Engine
                     </h2>
                     <p class="dashboard-section__description">
                         Probability → EV → Confidence → Risk → Ranking → Recommendation → Live Decision。
