@@ -13,15 +13,23 @@ import LiveCasinoDecisionModel, {
 } from "../runtime/liveCasino/LiveCasinoDecisionModel.js";
 
 import {
-    LIVE_CASINO_UX_STYLES_VERSION
+    AI_LIVE_DECISION_ENGINE_VERSION,
+    LiveDecisionCategory
+} from "../runtime/liveCasino/AILiveDecisionEngine.js";
+
+import {
+    LIVE_CASINO_UX_STYLES_VERSION,
+    AI_LIVE_DECISION_STYLES_VERSION
 } from "../runtime/liveCasino/LiveCasinoUXStyles.js";
 
 import LiveCasinoUXController, {
-    LIVE_CASINO_UX_CONTROLLER_VERSION
+    LIVE_CASINO_UX_CONTROLLER_VERSION,
+    AI_LIVE_DECISION_UX_VERSION
 } from "../runtime/liveCasino/LiveCasinoUXController.js";
 
 import createLiveCasinoUXController, {
-    LIVE_CASINO_UX_FACTORY_VERSION
+    LIVE_CASINO_UX_FACTORY_VERSION,
+    AI_LIVE_DECISION_FACTORY_VERSION
 } from "../runtime/liveCasino/createLiveCasinoUXController.js";
 
 import LiveCasinoUXRuntimeAdapter, {
@@ -165,6 +173,22 @@ export default async function liveCasinoUXPerformanceTest() {
         "✓ V10.4.5 Live Casino UX / Performance 版本正確"
     );
 
+    assert(
+        [
+            AI_LIVE_DECISION_ENGINE_VERSION,
+            AI_LIVE_DECISION_STYLES_VERSION,
+            AI_LIVE_DECISION_UX_VERSION,
+            AI_LIVE_DECISION_FACTORY_VERSION
+        ].every(version =>
+            version === "10.5.0"
+        ),
+        "V10.5 AI Live Decision version contract 錯誤"
+    );
+
+    messages.push(
+        "✓ V10.5 AI Live Decision Engine 版本正確"
+    );
+
 
     const policy =
         new LiveCasinoPerformancePolicy({
@@ -197,6 +221,8 @@ export default async function liveCasinoUXPerformanceTest() {
     assert(
         decision.strictAction ===
             "WAIT" &&
+        decision.category ===
+            LiveDecisionCategory.RELATIVE_BEST &&
         decision.relativeKey ===
             "banker" &&
         decision.relativeLabel ===
@@ -244,7 +270,10 @@ export default async function liveCasinoUXPerformanceTest() {
         controller.summary
             .decision
             .relativeKey ===
-            "banker",
+            "banker" &&
+        controller.summary
+            .liveDecisionVersion ===
+            "10.5.0",
         "Live decision mapping 錯誤"
     );
 
@@ -441,6 +470,7 @@ ${messages.join("\n")}
 Live Casino UX & Performance Refactor V10.4.5 測試完成
 
 Version Contracts：通過
+V10.5 Decision Engine：通過
 Quick Analysis Profile：通過
 Strict + Relative Decision：通過
 3-Second Deadline Architecture：通過
