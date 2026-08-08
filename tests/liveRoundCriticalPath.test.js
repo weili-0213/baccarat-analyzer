@@ -30,6 +30,7 @@ import LiveCasinoUXController, {
 
 import {
     LIVE_CASINO_UX_STYLES_VERSION,
+    RESPONSIVE_LIVE_DECISION_UX_VERSION,
     LIVE_CASINO_UX_CSS
 } from "../runtime/liveCasino/LiveCasinoUXStyles.js";
 
@@ -438,12 +439,15 @@ export default async function liveRoundCriticalPathTest() {
     assert(
         LIVE_CASINO_UX_CSS.includes("v1044StatusStrip") &&
         LIVE_CASINO_UX_CSS.includes("v1044ControlRow") &&
-        LIVE_CASINO_UX_CSS.includes("v1044UnifiedFullAnalysis"),
+        LIVE_CASINO_UX_CSS.includes("v1044UnifiedFullAnalysis") &&
+        LIVE_CASINO_UX_CSS.includes("v105DecisionDock") &&
+        LIVE_CASINO_UX_CSS.includes("repeat(auto-fit, minmax(128px, 1fr))") &&
+        RESPONSIVE_LIVE_DECISION_UX_VERSION === "10.5.1",
         "V10.4.5 compact CSS contract 錯誤"
     );
 
     messages.push(
-        "✓ Compact Live CSS contract 正確"
+        "✓ Compact Live CSS + V10.5.1 響應式 EV contract 正確"
     );
 
 
@@ -462,6 +466,8 @@ Unified Full EV：通過
 Dragon Bonus Rows：通過
 Compact Status：通過
 Compact Header：通過
+Decision Dock：通過
+Responsive Full EV：通過
 Message Cleanup：通過
 Lifecycle：通過
 `;
