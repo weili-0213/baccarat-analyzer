@@ -910,9 +910,11 @@ const TESTS = [
         name:"No Commission Baccarat EV",
         run:noCommissionBaccaratEVTest
     },
-        id: "analyzer-legacy-export-compatibility",
-        name: "Analyzer Legacy Export Compatibility",
-        run: analyzerLegacyExportCompatibilityTest
+    
+    {
+        id:"analyzer-legacy-export-compatibility",
+        name:"Analyzer Legacy Export Compatibility",
+        run:analyzerLegacyExportCompatibilityTest
     }
 
 ];
