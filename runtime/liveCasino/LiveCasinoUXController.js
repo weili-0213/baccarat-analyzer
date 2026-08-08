@@ -18,6 +18,7 @@ import {
 
 export const LIVE_CASINO_UX_CONTROLLER_VERSION = "10.4.5";
 export const AI_LIVE_DECISION_UX_VERSION = "10.5.0";
+export const AI_LIVE_DECISION_DOCK_VERSION = "10.5.1";
 
 function delay(ms) {
     return new Promise(resolve =>
@@ -96,6 +97,7 @@ export default class LiveCasinoUXController {
         this.lastAnalysisTimedOut = false;
         this.analysisSequence = 0;
         this.pendingRefine = null;
+        this.decisionObserver = null;
         this.destroyed = false;
     }
 
@@ -532,6 +534,119 @@ export default class LiveCasinoUXController {
         `;
     }
 
+    renderDecisionDockHTML() {
+        const d =
+            this.getDecision();
+
+        return `
+            <section
+                class="v105DecisionDock"
+                data-live-decision-dock
+                data-decision-category="${escapeHTML(d.category)}"
+                data-decision-action="${escapeHTML(d.action)}"
+                aria-live="polite"
+                aria-hidden="true"
+            >
+                <span class="v105DecisionDockLabel">下一局</span>
+                <strong class="v105DecisionDockPick">
+                    推薦：${escapeHTML(d.recommendationLabel)}
+                </strong>
+                <span class="v105DecisionDockAction">
+                    ${escapeHTML(d.actionLabel)} · ${escapeHTML(d.categoryLabel)}
+                </span>
+                <span class="v105DecisionDockConfidence">
+                    信心 ${pct(d.confidence)}
+                </span>
+                <span class="v105DecisionDockAmount">
+                    建議額 ${d.amount ?? 0}
+                </span>
+                <small
+                    class="v105DecisionDockReason"
+                    title="${escapeHTML(d.reason)}"
+                >
+                    ${escapeHTML(d.reason)}
+                </small>
+            </section>
+        `;
+    }
+
+    observeDecisionVisibility(root) {
+        this.decisionObserver
+            ?.disconnect?.();
+
+        this.decisionObserver = null;
+
+        const decision =
+            root?.querySelector?.(
+                "[data-live-decision]"
+            );
+
+        const dock =
+            root?.querySelector?.(
+                "[data-live-decision-dock]"
+            );
+
+        if (!decision || !dock) {
+            return;
+        }
+
+        const setVisible = visible => {
+            dock.classList?.toggle(
+                "v105DecisionDockVisible",
+                visible
+            );
+
+            dock.setAttribute?.(
+                "aria-hidden",
+                visible ? "false" : "true"
+            );
+        };
+
+        if (
+            typeof IntersectionObserver ===
+            "undefined"
+        ) {
+            const rect =
+                decision
+                    .getBoundingClientRect?.();
+
+            setVisible(
+                Boolean(
+                    rect &&
+                    (
+                        rect.bottom <= 0 ||
+                        rect.top < 0
+                    )
+                )
+            );
+
+            return;
+        }
+
+        this.decisionObserver =
+            new IntersectionObserver(
+                entries => {
+                    const entry =
+                        entries[0];
+
+                    if (!entry) {
+                        return;
+                    }
+
+                    setVisible(
+                        !entry.isIntersecting ||
+                        entry.intersectionRatio < 0.6
+                    );
+                },
+                {
+                    threshold: [0, 0.6, 1]
+                }
+            );
+
+        this.decisionObserver
+            .observe(decision);
+    }
+
     updateAIPanel(root) {
         const d =
             this.getDecision();
@@ -684,6 +799,10 @@ export default class LiveCasinoUXController {
             "[data-live-decision]"
         )?.remove?.();
 
+        root.querySelector?.(
+            "[data-live-decision-dock]"
+        )?.remove?.();
+
         const page =
             root.querySelector?.(
                 ".dashboardPage"
@@ -696,6 +815,11 @@ export default class LiveCasinoUXController {
         page?.insertAdjacentHTML?.(
             "afterbegin",
             this.renderDecisionHTML()
+        );
+
+        root.insertAdjacentHTML?.(
+            "beforeend",
+            this.renderDecisionDockHTML()
         );
 
         const road =
@@ -751,12 +875,18 @@ export default class LiveCasinoUXController {
         }
 
         this.updateAIPanel(root);
+        this.observeDecisionVisibility(root);
     }
 
     destroy() {
         clearTimeout(
             this.pendingRefine
         );
+
+        this.decisionObserver
+            ?.disconnect?.();
+
+        this.decisionObserver = null;
 
         this.destroyed = true;
         this.aiRuntime = null;
