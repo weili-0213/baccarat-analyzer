@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.4.4
+ * Baccarat Analyzer V10.5.2
  * Path: runtime/liveCasino/LiveCasinoUXController.js
  * Purpose:
  *   3-second live analysis path + compact decision-first Dashboard bridge.
@@ -19,6 +19,7 @@ import {
 export const LIVE_CASINO_UX_CONTROLLER_VERSION = "10.4.5";
 export const AI_LIVE_DECISION_UX_VERSION = "10.5.0";
 export const AI_LIVE_DECISION_DOCK_VERSION = "10.5.1";
+export const AI_LIVE_DECISION_EVIDENCE_UX_VERSION = "10.5.2";
 
 function delay(ms) {
     return new Promise(resolve =>
@@ -42,6 +43,39 @@ function advantageText(value) {
     return Number.isFinite(value)
         ? `${value >= 0 ? "+" : ""}${(value * 100).toFixed(2)}%`
         : "—";
+}
+
+function ratioText(value) {
+    return Number.isFinite(value)
+        ? value.toFixed(3)
+        : "—";
+}
+
+function integerText(value) {
+    return Number.isFinite(value)
+        ? Math.floor(value).toLocaleString()
+        : "—";
+}
+
+function evRangeText(evidence = {}) {
+    if (
+        !Number.isFinite(
+            evidence.evLowerBound
+        ) ||
+        !Number.isFinite(
+            evidence.evUpperBound
+        )
+    ) {
+        return "—";
+    }
+
+    if (evidence.hasExact) {
+        return evText(
+            evidence.evLowerBound
+        );
+    }
+
+    return `${evText(evidence.evLowerBound)} ～ ${evText(evidence.evUpperBound)}`;
 }
 
 function escapeHTML(value) {
@@ -95,6 +129,7 @@ export default class LiveCasinoUXController {
         this.lastDecision = null;
         this.lastAnalysisDurationMs = null;
         this.lastAnalysisTimedOut = false;
+        this.lastAnalysisStage = "idle";
         this.analysisSequence = 0;
         this.pendingRefine = null;
         this.decisionObserver = null;
@@ -153,6 +188,9 @@ export default class LiveCasinoUXController {
         const sequence =
             ++this.analysisSequence;
 
+        this.lastAnalysisStage =
+            "quick-running";
+
         const startedAt =
             this.clock();
 
@@ -182,6 +220,9 @@ export default class LiveCasinoUXController {
             this.lastAnalysisTimedOut =
                 true;
 
+            this.lastAnalysisStage =
+                "background";
+
             this.lastAnalysisDurationMs =
                 this.policy
                     .decisionDeadlineMs;
@@ -202,7 +243,8 @@ export default class LiveCasinoUXController {
                     ) {
                         this.acceptAnalysis(
                             result,
-                            startedAt
+                            startedAt,
+                            "quick"
                         );
                     }
                 })
@@ -223,7 +265,8 @@ export default class LiveCasinoUXController {
         const result =
             this.acceptAnalysis(
                 raced,
-                startedAt
+                startedAt,
+                "quick"
             );
 
         if (
@@ -248,7 +291,8 @@ export default class LiveCasinoUXController {
 
     acceptAnalysis(
         analysis,
-        startedAt
+        startedAt,
+        stage = "quick"
     ) {
         this.lastAnalysisTimedOut =
             false;
@@ -259,6 +303,9 @@ export default class LiveCasinoUXController {
                 this.clock() -
                 startedAt
             );
+
+        this.lastAnalysisStage =
+            stage;
 
         this.lastDecision =
             this.decisionModel.build(
@@ -297,6 +344,14 @@ export default class LiveCasinoUXController {
                     }
 
                     try {
+                        const startedAt =
+                            this.clock();
+
+                        this.lastAnalysisStage =
+                            "refining";
+
+                        this.render?.();
+
                         const result =
                             await this.game
                                 .analyzeNextRound(
@@ -304,13 +359,15 @@ export default class LiveCasinoUXController {
                                         .getFullOptions()
                                 );
 
-                        this.lastDecision =
-                            this.decisionModel
-                                .build(result);
-
-                        this.render?.();
+                        this.acceptAnalysis(
+                            result,
+                            startedAt,
+                            "refined"
+                        );
                     }
                     catch {
+                        this.lastAnalysisStage =
+                            "quick";
                         // Quick decision is already available.
                     }
                 },
@@ -450,11 +507,32 @@ export default class LiveCasinoUXController {
         const status =
             this.lastAnalysisTimedOut
                 ? `超過 ${this.policy.decisionDeadlineMs} ms，背景完成中`
+                : this.lastAnalysisStage ===
+                    "refining"
+                    ? "背景精算中（目前為快速結果）"
                 : Number.isFinite(
                     this.lastAnalysisDurationMs
                 )
-                    ? `${this.lastAnalysisDurationMs} ms`
+                    ? `${this.lastAnalysisStage === "refined"
+                        ? "精算"
+                        : "快速"} ${this.lastAnalysisDurationMs} ms`
                     : "等待分析";
+
+        const evidence =
+            d.evidence ?? {};
+
+        const blockerHTML =
+            d.primaryBlocker
+                ? `
+                    <small data-decision-blocker>
+                        阻擋：${escapeHTML(d.primaryBlocker)}
+                    </small>
+                `
+                : `
+                    <small data-decision-pass>
+                        通過：穩健正 EV、證據、波動與 Kelly
+                    </small>
+                `;
 
         return `
             <section
@@ -466,7 +544,7 @@ export default class LiveCasinoUXController {
                 <div class="v1044DecisionCard v1044DecisionMain">
                     <span class="v1044Meta">下一局決策</span>
                     <div class="v105DecisionHeadline">
-                        推薦：
+                        ${escapeHTML(d.headlineLabel ?? "狀態")}：
                         <strong data-decision-recommendation>
                             ${escapeHTML(d.recommendationLabel)}
                         </strong>
@@ -485,9 +563,15 @@ export default class LiveCasinoUXController {
                             </b>
                         </span>
                         <span>
-                            信心：
+                            證據：
+                            <b data-decision-evidence>
+                                ${escapeHTML(evidence.label ?? "等待分析")}
+                            </b>
+                        </span>
+                        <span>
+                            估計可靠度：
                             <b data-decision-confidence>
-                                ${pct(d.confidence)}
+                                ${pct(evidence.confidence)}
                             </b>
                         </span>
                     </div>
@@ -499,8 +583,23 @@ export default class LiveCasinoUXController {
                         · 建議額：
                         <b data-decision-amount>${d.amount ?? 0}</b>
                     </div>
+                    <div class="v105DecisionEvidence">
+                        EV 證據範圍：
+                        <b data-decision-ev-range>
+                            ${evRangeText(evidence)}
+                        </b>
+                        · 相對波動比：
+                        <b data-decision-volatility>
+                            ${ratioText(d.risk)}
+                        </b>
+                        · Kelly 試算：
+                        <b data-decision-kelly-amount>
+                            ${integerText(d.sizing?.calculatedAmount)}
+                        </b>
+                    </div>
+                    ${blockerHTML}
                     <small data-decision-reason>
-                        原因：${escapeHTML(d.reason)}
+                        判斷：${escapeHTML(d.reason)}
                     </small>
                 </div>
 
@@ -527,7 +626,8 @@ export default class LiveCasinoUXController {
                     <strong>${status}</strong>
                     <div>
                         ${escapeHTML(d.categoryLabel)}
-                        · 風險 ${pct(d.risk)}
+                        · ${escapeHTML(evidence.shortLabel ?? "等待")}
+                        · 波動比 ${ratioText(d.risk)}
                     </div>
                 </div>
             </section>
@@ -537,6 +637,13 @@ export default class LiveCasinoUXController {
     renderDecisionDockHTML() {
         const d =
             this.getDecision();
+
+        const evidence =
+            d.evidence ?? {};
+
+        const dockReason =
+            d.primaryBlocker ??
+            d.reason;
 
         return `
             <section
@@ -549,22 +656,22 @@ export default class LiveCasinoUXController {
             >
                 <span class="v105DecisionDockLabel">下一局</span>
                 <strong class="v105DecisionDockPick">
-                    推薦：${escapeHTML(d.recommendationLabel)}
+                    ${escapeHTML(d.headlineLabel ?? "狀態")}：${escapeHTML(d.recommendationLabel)}
                 </strong>
                 <span class="v105DecisionDockAction">
                     ${escapeHTML(d.actionLabel)} · ${escapeHTML(d.categoryLabel)}
                 </span>
                 <span class="v105DecisionDockConfidence">
-                    信心 ${pct(d.confidence)}
+                    ${escapeHTML(evidence.shortLabel ?? "等待")}
                 </span>
                 <span class="v105DecisionDockAmount">
                     建議額 ${d.amount ?? 0}
                 </span>
                 <small
                     class="v105DecisionDockReason"
-                    title="${escapeHTML(d.reason)}"
+                    title="${escapeHTML(dockReason)}"
                 >
-                    ${escapeHTML(d.reason)}
+                    ${escapeHTML(dockReason)}
                 </small>
             </section>
         `;
@@ -666,34 +773,35 @@ export default class LiveCasinoUXController {
         text(
             root,
             "[data-ai-stage]",
-            "live-decision-engine-v10.5"
+            "decision-gate-calibration-v10.5.2"
         );
 
         text(
             root,
             "[data-ai-simulation]",
             d.ready
-                ? this.analysisProfile
+                ? d.evidence?.label ??
+                    this.analysisProfile
                 : "—"
         );
 
         text(
             root,
             "[data-ai-prediction]",
-            d.recommendationLabel
+            `${d.headlineLabel ?? "狀態"}：${d.recommendationLabel}`
         );
 
         text(
             root,
             "[data-ai-confidence]",
-            pct(d.confidence)
+            pct(d.evidence?.confidence)
         );
 
         text(
             root,
             "[data-ai-decision]",
             d.ready
-                ? `${d.recommendationLabel} · ${d.actionLabel}`
+                ? `${d.headlineLabel ?? "狀態"} ${d.recommendationLabel} · ${d.actionLabel}`
                 : "等待分析"
         );
 
@@ -725,7 +833,8 @@ export default class LiveCasinoUXController {
             root,
             "[data-ai-feedback]",
             d.ready
-                ? d.reason
+                ? d.primaryBlocker ??
+                    d.reason
                 : "尚無決策回饋"
         );
 
@@ -734,14 +843,14 @@ export default class LiveCasinoUXController {
             "[data-ai-learning]",
             runtimeSummary?.state
                 ? `Runtime ${runtimeSummary.state}`
-                : "Probability→EV→Confidence→Risk"
+                : `${d.evidence?.shortLabel ?? "Evidence"}→EV 範圍→波動→Kelly`
         );
 
         text(
             root,
             "[data-ai-adaptive]",
             d.ready
-                ? `Ranking→${d.categoryLabel}`
+                ? `Evidence Gate→${d.categoryLabel}`
                 : "等待下一局資料"
         );
     }
@@ -899,6 +1008,8 @@ export default class LiveCasinoUXController {
                 LIVE_CASINO_UX_CONTROLLER_VERSION,
             liveDecisionVersion:
                 AI_LIVE_DECISION_UX_VERSION,
+            evidenceUXVersion:
+                AI_LIVE_DECISION_EVIDENCE_UX_VERSION,
             profile:
                 this.analysisProfile,
             deadlineMs:
@@ -906,6 +1017,8 @@ export default class LiveCasinoUXController {
                     .decisionDeadlineMs,
             lastAnalysisDurationMs:
                 this.lastAnalysisDurationMs,
+            analysisStage:
+                this.lastAnalysisStage,
             timedOut:
                 this.lastAnalysisTimedOut,
             decision:
