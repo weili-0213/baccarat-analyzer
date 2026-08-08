@@ -5,6 +5,7 @@
  */
 export const LIVE_CASINO_UX_STYLES_VERSION = "10.4.5";
 export const AI_LIVE_DECISION_STYLES_VERSION = "10.5.0";
+export const RESPONSIVE_LIVE_DECISION_UX_VERSION = "10.5.1";
 
 export const LIVE_CASINO_UX_STYLE_ID =
     "baccarat-live-casino-v1044";
@@ -147,6 +148,82 @@ export const LIVE_CASINO_UX_CSS = `
 [data-live-casino-v105] [data-decision-category="no-edge"] .v1044DecisionMain,
 [data-live-casino-v105] [data-decision-category="insufficient-data"] .v1044DecisionMain {
     border-left: 4px solid #94a3b8;
+}
+
+[data-live-casino-v105] .v105DecisionDock {
+    position: fixed;
+    left: 50%;
+    bottom: max(.55rem, env(safe-area-inset-bottom));
+    z-index: 80;
+    display: grid;
+    grid-template-columns: auto auto auto auto auto minmax(120px, 1fr);
+    align-items: center;
+    gap: .35rem .65rem;
+    width: min(calc(100% - 1rem), 780px);
+    box-sizing: border-box;
+    min-width: 0;
+    padding: .55rem .7rem;
+    border: 1px solid rgba(255,255,255,.24);
+    border-left: 5px solid #60a5fa;
+    border-radius: 12px;
+    color: #fff;
+    background: rgba(2,42,25,.96);
+    box-shadow: 0 10px 30px rgba(0,0,0,.42);
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translate(-50%, calc(100% + 1rem));
+    transition:
+        opacity .16s ease,
+        transform .16s ease,
+        visibility .16s ease;
+}
+
+[data-live-casino-v105] .v105DecisionDock.v105DecisionDockVisible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translate(-50%, 0);
+}
+
+[data-live-casino-v105] .v105DecisionDock[data-decision-category="positive-ev"] {
+    border-left-color: #4ade80;
+}
+
+[data-live-casino-v105] .v105DecisionDock[data-decision-category="risk-too-high"],
+[data-live-casino-v105] .v105DecisionDock[data-decision-category="weak-signal"] {
+    border-left-color: #f59e0b;
+}
+
+[data-live-casino-v105] .v105DecisionDock[data-decision-category="no-edge"],
+[data-live-casino-v105] .v105DecisionDock[data-decision-category="insufficient-data"] {
+    border-left-color: #94a3b8;
+}
+
+[data-live-casino-v105] .v105DecisionDockLabel {
+    font-size: .72rem;
+    opacity: .72;
+}
+
+[data-live-casino-v105] .v105DecisionDockPick {
+    white-space: nowrap;
+    color: #ffe06a;
+}
+
+[data-live-casino-v105] .v105DecisionDockAction,
+[data-live-casino-v105] .v105DecisionDockConfidence,
+[data-live-casino-v105] .v105DecisionDockAmount {
+    white-space: nowrap;
+    font-size: .8rem;
+}
+
+[data-live-casino-v105] .v105DecisionDockReason {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: .82;
 }
 
 [data-live-casino-v1044] .v1044Player {
@@ -309,18 +386,27 @@ export const LIVE_CASINO_UX_CSS = `
 }
 
 [data-live-casino-v1044] .v1044UnifiedFullAnalysis > section {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
     margin-bottom: 0 !important;
 }
 
 [data-live-casino-v1044] .v1044UnifiedFullAnalysis .v3DataGrid {
     display: grid !important;
-    grid-template-columns: repeat(4, minmax(105px, 1fr)) !important;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)) !important;
     gap: .35rem !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
 }
 
 [data-live-casino-v1044] .v1044FullMetric {
     min-height: 0 !important;
+    min-width: 0 !important;
     padding: .35rem .45rem !important;
+    overflow-wrap: anywhere !important;
 }
 
 [data-live-casino-v1044] .v1044Decision {
@@ -351,6 +437,47 @@ export const LIVE_CASINO_UX_CSS = `
     [data-live-casino-v1044] .v1044DecisionMain,
     [data-live-casino-v1044] .v1044DecisionAI {
         grid-column: 1 / -1;
+    }
+
+    [data-live-casino-v105] .v33InputZone,
+    [data-live-casino-v105] .v33InsightZone {
+        padding-bottom: calc(5.25rem + env(safe-area-inset-bottom)) !important;
+        scroll-padding-bottom: calc(5.25rem + env(safe-area-inset-bottom));
+    }
+}
+
+@media (max-width: 620px) {
+    [data-live-casino-v105] .v105DecisionDock {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: .2rem .45rem;
+        padding: .45rem .55rem;
+    }
+
+    [data-live-casino-v105] .v105DecisionDockLabel,
+    [data-live-casino-v105] .v105DecisionDockAmount {
+        display: none;
+    }
+
+    [data-live-casino-v105] .v105DecisionDockPick {
+        grid-column: 1 / 2;
+    }
+
+    [data-live-casino-v105] .v105DecisionDockAction {
+        grid-column: 2 / 3;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    [data-live-casino-v105] .v105DecisionDockConfidence {
+        grid-column: 3 / 4;
+    }
+
+    [data-live-casino-v105] .v105DecisionDockReason {
+        grid-column: 1 / -1;
+    }
+
+    [data-live-casino-v1044] .v1044UnifiedFullAnalysis .v3DataGrid {
+        grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)) !important;
     }
 }
 
