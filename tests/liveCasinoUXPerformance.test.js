@@ -19,12 +19,14 @@ import {
 
 import {
     LIVE_CASINO_UX_STYLES_VERSION,
-    AI_LIVE_DECISION_STYLES_VERSION
+    AI_LIVE_DECISION_STYLES_VERSION,
+    RESPONSIVE_LIVE_DECISION_UX_VERSION
 } from "../runtime/liveCasino/LiveCasinoUXStyles.js";
 
 import LiveCasinoUXController, {
     LIVE_CASINO_UX_CONTROLLER_VERSION,
-    AI_LIVE_DECISION_UX_VERSION
+    AI_LIVE_DECISION_UX_VERSION,
+    AI_LIVE_DECISION_DOCK_VERSION
 } from "../runtime/liveCasino/LiveCasinoUXController.js";
 
 import createLiveCasinoUXController, {
@@ -189,6 +191,20 @@ export default async function liveCasinoUXPerformanceTest() {
         "✓ V10.5 AI Live Decision Engine 版本正確"
     );
 
+    assert(
+        [
+            RESPONSIVE_LIVE_DECISION_UX_VERSION,
+            AI_LIVE_DECISION_DOCK_VERSION
+        ].every(version =>
+            version === "10.5.1"
+        ),
+        "V10.5.1 responsive decision UX version contract 錯誤"
+    );
+
+    messages.push(
+        "✓ V10.5.1 Decision Dock / Responsive EV 版本正確"
+    );
+
 
     const policy =
         new LiveCasinoPerformancePolicy({
@@ -279,6 +295,28 @@ export default async function liveCasinoUXPerformanceTest() {
 
     messages.push(
         "✓ 快速分析在 deadline 內完成並產生決策"
+    );
+
+    const dockHTML =
+        controller
+            .renderDecisionDockHTML();
+
+    assert(
+        dockHTML.includes(
+            "data-live-decision-dock"
+        ) &&
+        dockHTML.includes(
+            'data-decision-category="relative-best"'
+        ) &&
+        dockHTML.includes("推薦：莊家") &&
+        dockHTML.includes("觀望 · 相對最佳") &&
+        dockHTML.includes("信心 72.00%") &&
+        dockHTML.includes("建議額 0"),
+        "V10.5.1 compact Decision Dock 資訊不完整"
+    );
+
+    messages.push(
+        "✓ 離開首屏後的精簡下一局決策資訊完整"
     );
 
 
@@ -471,6 +509,7 @@ Live Casino UX & Performance Refactor V10.4.5 測試完成
 
 Version Contracts：通過
 V10.5 Decision Engine：通過
+V10.5.1 Decision Dock：通過
 Quick Analysis Profile：通過
 Strict + Relative Decision：通過
 3-Second Deadline Architecture：通過
