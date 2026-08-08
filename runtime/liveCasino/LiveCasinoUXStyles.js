@@ -1,11 +1,12 @@
 /**
- * Baccarat Analyzer V10.4.4
+ * Baccarat Analyzer V10.5.2
  * Path: runtime/liveCasino/LiveCasinoUXStyles.js
  * Purpose: Compact single-screen live casino UX styles.
  */
 export const LIVE_CASINO_UX_STYLES_VERSION = "10.4.5";
 export const AI_LIVE_DECISION_STYLES_VERSION = "10.5.0";
 export const RESPONSIVE_LIVE_DECISION_UX_VERSION = "10.5.1";
+export const AI_LIVE_DECISION_EVIDENCE_STYLES_VERSION = "10.5.2";
 
 export const LIVE_CASINO_UX_STYLE_ID =
     "baccarat-live-casino-v1044";
@@ -124,6 +125,32 @@ export const LIVE_CASINO_UX_CSS = `
 
 [data-live-casino-v105] .v105DecisionMeta {
     font-size: .82rem;
+}
+
+[data-live-casino-v105] .v105DecisionEvidence {
+    margin-top: .18rem;
+    font-size: .78rem;
+    line-height: 1.35;
+    opacity: .9;
+}
+
+[data-live-casino-v105] [data-decision-blocker],
+[data-live-casino-v105] [data-decision-pass] {
+    display: block;
+    margin-top: .2rem;
+    padding: .18rem .35rem;
+    border-radius: 6px;
+    line-height: 1.3;
+}
+
+[data-live-casino-v105] [data-decision-blocker] {
+    color: #ffe08a;
+    background: rgba(245,158,11,.12);
+}
+
+[data-live-casino-v105] [data-decision-pass] {
+    color: #86efac;
+    background: rgba(34,197,94,.12);
 }
 
 [data-live-casino-v105] [data-decision-reason] {
