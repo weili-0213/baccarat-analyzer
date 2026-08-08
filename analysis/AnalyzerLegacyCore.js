@@ -27,263 +27,43 @@ import EV from "./ev.js";
 import Kelly from "./kelly.js";
 import Risk from "./risk.js";
 import Confidence from "./confidence.js";
-import Ranking, {
-    MAIN_RECOMMENDATION_BETS,
-    SIDE_BETS
-} from "./ranking.js";
+import Ranking from "./ranking.js";
 import Recommendation from "./recommendation.js";
 import dragonBonus from "./dragonBonus.js";
-
-export const ANALYZER_LEGACY_CORE_COMPATIBILITY_VERSION = "10.4.5.1";
-
-
-/**
- * 分析模式
- */
-export const AnalysisMode = Object.freeze({
-
-    MONTE_CARLO:
-        "monteCarlo",
-
-    EXACT:
-        "exact",
-
-    HYBRID:
-        "hybrid"
-
-});
-
-
-/**
- * 支援下注項目
- *
- * netOdds 為淨賠率。
- */
-export const BET_CONFIG = Object.freeze({
-
-    player: Object.freeze({
-
-        label:
-            "閒",
-
-        group:
-            "main",
-
-        netOdds:
-            1,
-
-        pushKey:
-            "tie",
-
-        recommendationEligible:
-            true,
-
-        analysisAvailable:
-            true
-
-    }),
-
-    banker: Object.freeze({
-
-        label:
-            "莊",
-
-        group:
-            "main",
-
-        netOdds:
-            1,
-
-        pushKey:
-            "tie",
-
-        payoutRule:
-            "banker-6-half-pay",
-
-        recommendationEligible:
-            true,
-
-        analysisAvailable:
-            true
-
-    }),
-
-    tie: Object.freeze({
-
-        label:
-            "和",
-
-        group:
-            "main",
-
-        netOdds:
-            8,
-
-        pushKey:
-            null,
-
-        recommendationEligible:
-            true,
-
-        analysisAvailable:
-            true
-
-    }),
-
-    playerPair: Object.freeze({
-
-        label:
-            "閒對",
-
-        group:
-            "side",
-
-        netOdds:
-            11,
-
-        pushKey:
-            null,
-
-        recommendationEligible:
-            false,
-
-        analysisAvailable:
-            true
-
-    }),
-
-    bankerPair: Object.freeze({
-
-        label:
-            "莊對",
-
-        group:
-            "side",
-
-        netOdds:
-            11,
-
-        pushKey:
-            null,
-
-        recommendationEligible:
-            false,
-
-        analysisAvailable:
-            true
-
-    }),
-
-    super6: Object.freeze({
-
-        label:
-            "超級 6",
-
-        group:
-            "side",
-
-        netOdds:
-            12,
-
-        pushKey:
-            null,
-
-        recommendationEligible:
-            false,
-
-        analysisAvailable:
-            true
-
-    }),
-
-    playerDragonBonus: Object.freeze({
-
-        label:
-            "閒龍寶",
-
-        group:
-            "side",
-
-        netOdds:
-            null,
-
-        pushKey:
-            null,
-
-        provisional:
-            true,
-
-        recommendationEligible:
-            false,
-
-        analysisAvailable:
-            false
-
-    }),
-
-    bankerDragonBonus: Object.freeze({
-
-        label:
-            "莊龍寶",
-
-        group:
-            "side",
-
-        netOdds:
-            null,
-
-        pushKey:
-            null,
-
-        provisional:
-            true,
-
-        recommendationEligible:
-            false,
-
-        analysisAvailable:
-            false
-
-    })
-
-});
+import {
+    ANALYZER_ARCHITECTURE_VERSION,
+    ANALYZER_LEGACY_CORE_COMPATIBILITY_VERSION,
+    AnalysisMode,
+    BET_CONFIG,
+    DEFAULT_ANALYZER_OPTIONS as DEFAULT_OPTIONS,
+    MAIN_RECOMMENDATION_BETS,
+    SIDE_BETS
+} from "./core/AnalyzerContracts.js";
+import {
+    extractProbability as extractProbabilityValue,
+    getSampleSize as resolveSampleSize,
+    normalizeProbability as normalizeProbabilityValue,
+    validateProbabilityValue as assertProbabilityValue
+} from "./core/AnalyzerProbabilityService.js";
+import {
+    buildBetInput as createBetInput,
+    buildKellyOptions as createKellyOptions
+} from "./core/AnalyzerBetService.js";
+import {
+    buildRankingInput as createRankingInput,
+    buildSideBetAnalysis as createSideBetAnalysis,
+    getBestFromRanking as selectBestFromRanking
+} from "./core/AnalyzerRankingService.js";
 
 
 export {
+    ANALYZER_ARCHITECTURE_VERSION,
+    ANALYZER_LEGACY_CORE_COMPATIBILITY_VERSION,
+    AnalysisMode,
+    BET_CONFIG,
     MAIN_RECOMMENDATION_BETS,
     SIDE_BETS
 };
-
-
-const DEFAULT_OPTIONS = Object.freeze({
-
-    /**
-     * 手機即時分析預設使用 Monte Carlo。
-     */
-    mode:
-        AnalysisMode.MONTE_CARLO,
-
-    monteCarlo: Object.freeze({
-
-        simulations:
-            100000,
-
-        batchSize:
-            1000
-
-    }),
-
-    exact: Object.freeze({
-
-        batchSize:
-            8
-
-    }),
-
-    includeDebugData:
-        false
-
-});
 
 
 function isObject(value) {
@@ -670,17 +450,10 @@ export default class AnalyzerLegacyCore {
         name
     ) {
 
-        if (
-            !Number.isFinite(value) ||
-            value < 0 ||
-            value > 1
-        ) {
-
-            throw new RangeError(
-                `${name} probability must be between 0 and 1.`
-            );
-
-        }
+        return assertProbabilityValue(
+            value,
+            name
+        );
 
     }
 
@@ -690,23 +463,9 @@ export default class AnalyzerLegacyCore {
      */
     extractProbability(source) {
 
-        if (!isObject(source)) {
-
-            return null;
-
-        }
-
-        if (
-            isObject(
-                source.probability
-            )
-        ) {
-
-            return source.probability;
-
-        }
-
-        return source;
+        return extractProbabilityValue(
+            source
+        );
 
     }
 
@@ -716,92 +475,9 @@ export default class AnalyzerLegacyCore {
      */
     normalizeProbability(source) {
 
-        const input =
-            this.extractProbability(
-                source
-            );
-
-        if (!input) {
-
-            throw new Error(
-                "Probability data is required."
-            );
-
-        }
-
-        const result = {};
-
-        for (
-            const name of
-            Object.keys(
-                BET_CONFIG
-            )
-        ) {
-
-            const value =
-                input[name];
-
-            if (
-                value === undefined ||
-                value === null
-            ) {
-
-                continue;
-
-            }
-
-            this.validateProbabilityValue(
-                value,
-                name
-            );
-
-            result[name] =
-                value;
-
-        }
-
-        for (
-            const name of
-            [
-                "player",
-                "banker",
-                "tie"
-            ]
-        ) {
-
-            if (
-                !Number.isFinite(
-                    result[name]
-                )
-            ) {
-
-                throw new Error(
-                    `Missing required probability: ${name}`
-                );
-
-            }
-
-        }
-
-        const total =
-
-            result.player +
-            result.banker +
-            result.tie;
-
-        if (
-            Math.abs(
-                total - 1
-            ) > 0.001
-        ) {
-
-            throw new RangeError(
-                "Player, Banker and Tie probabilities must total approximately 1."
-            );
-
-        }
-
-        return result;
+        return normalizeProbabilityValue(
+            source
+        );
 
     }
 
@@ -1139,82 +815,10 @@ export default class AnalyzerLegacyCore {
      */
     buildBetInput(probability) {
 
-        const bets = {};
-
-        for (
-            const [
-                name,
-                config
-            ] of Object.entries(
-                BET_CONFIG
-            )
-        ) {
-
-            if (
-                config.analysisAvailable ===
-                    false ||
-                !Number.isFinite(
-                    config.netOdds
-                )
-            ) {
-
-                continue;
-
-            }
-
-            const winProbability =
-                probability[name];
-
-            if (
-                !Number.isFinite(
-                    winProbability
-                )
-            ) {
-
-                continue;
-
-            }
-
-            const pushProbability =
-
-                config.pushKey
-
-                    ? (
-                        probability[
-                            config.pushKey
-                        ] ?? 0
-                    )
-
-                    : 0;
-
-            const netOdds =
-
-                name === "banker" &&
-                typeof this.ev
-                    ?.effectiveBankerNetOdds ===
-                    "function"
-
-                    ? this.ev
-                        .effectiveBankerNetOdds(
-                            probability
-                        )
-
-                    : config.netOdds;
-
-
-            bets[name] = {
-
-                winProbability,
-
-                pushProbability,
-
-                netOdds
-
-            };
-
-        }
-
-        return bets;
+        return createBetInput(
+            probability,
+            this.ev
+        );
 
     }
 
@@ -1236,55 +840,13 @@ export default class AnalyzerLegacyCore {
 
     } = {}) {
 
-        const result = {};
-
-        if (
-            bankroll !== undefined
-        ) {
-
-            result.bankroll =
-                bankroll;
-
-        }
-
-        if (
-            fraction !== undefined
-        ) {
-
-            result.fraction =
-                fraction;
-
-        }
-
-        if (
-            minBet !== undefined
-        ) {
-
-            result.minBet =
-                minBet;
-
-        }
-
-        if (
-            maxBet !== undefined
-        ) {
-
-            result.maxBet =
-                maxBet;
-
-        }
-
-        if (
-            maxBankrollRatio !==
-            undefined
-        ) {
-
-            result.maxBankrollRatio =
-                maxBankrollRatio;
-
-        }
-
-        return result;
+        return createKellyOptions({
+            bankroll,
+            fraction,
+            minBet,
+            maxBet,
+            maxBankrollRatio
+        });
 
     }
 
@@ -1333,27 +895,9 @@ export default class AnalyzerLegacyCore {
      */
     getSampleSize(monteCarlo) {
 
-        if (!monteCarlo) {
-
-            return null;
-
-        }
-
-        const value =
-
-            monteCarlo.sampleSize ??
-            monteCarlo.samples ??
-            monteCarlo.simulations ??
-            null;
-
-        return (
-
-            Number.isInteger(value) &&
-            value > 0
-
-        )
-            ? value
-            : null;
+        return resolveSampleSize(
+            monteCarlo
+        );
 
     }
 
@@ -1540,143 +1084,13 @@ export default class AnalyzerLegacyCore {
 
     }) {
 
-        const result = {};
-
-        for (
-            const [
-                name,
-                config
-            ] of Object.entries(
-                BET_CONFIG
-            )
-        ) {
-
-            if (
-                !Number.isFinite(
-                    probability[name]
-                )
-            ) {
-
-                continue;
-
-            }
-
-            const evValue =
-                ev[name];
-
-            const kellyValue =
-                kelly[name];
-
-            const riskValue =
-                risk[name];
-
-            const confidenceValue =
-                confidence[name];
-
-            if (
-                !Number.isFinite(
-                    evValue
-                ) ||
-                !kellyValue ||
-                !riskValue ||
-                !confidenceValue
-            ) {
-
-                continue;
-
-            }
-
-            result[name] = {
-
-                label:
-                    config.label,
-
-                group:
-                    config.group,
-
-                recommendationEligible:
-                    config.recommendationEligible ===
-                    true,
-
-                analysisAvailable:
-                    config.analysisAvailable !==
-                    false,
-
-                provisionalBet:
-                    config.provisional ??
-                    false,
-
-                probability:
-                    probability[name],
-
-                ev:
-                    evValue,
-
-                kelly:
-                    kellyValue
-                        .appliedKelly ?? 0,
-
-                fullKelly:
-                    kellyValue
-                        .fullKelly ?? 0,
-
-                amount:
-                    kellyValue
-                        .amount ?? 0,
-
-                rawAmount:
-                    kellyValue
-                        .rawAmount ?? 0,
-
-                capped:
-                    kellyValue
-                        .capped ?? false,
-
-                risk:
-                    riskValue
-                        .relativeRisk ?? 0,
-
-                riskLevel:
-                    riskValue
-                        .riskLevel ?? null,
-
-                riskLabel:
-                    riskValue
-                        .riskLabel ?? null,
-
-                variance:
-                    riskValue
-                        .variance ?? null,
-
-                standardDeviation:
-                    riskValue
-                        .standardDeviation ??
-                    null,
-
-                confidence:
-                    confidenceValue
-                        .confidenceScore ?? 0,
-
-                confidenceLevel:
-                    confidenceValue
-                        .confidenceLevel ??
-                    null,
-
-                confidenceLabel:
-                    confidenceValue
-                        .confidenceLabel ??
-                    null,
-
-                confidenceProvisional:
-                    confidenceValue
-                        .provisional ??
-                    false
-
-            };
-
-        }
-
-        return result;
+        return createRankingInput({
+            probability,
+            ev,
+            kelly,
+            risk,
+            confidence
+        });
 
     }
 
@@ -1703,103 +1117,16 @@ export default class AnalyzerLegacyCore {
 
     }) {
 
-        const dragon =
-            dragonBonus();
-
-        const result = {};
-
-        for (
-            const name of
-            SIDE_BETS
-        ) {
-
-            const config =
-                BET_CONFIG[name];
-
-            const available =
-                config.analysisAvailable !==
-                false &&
-                evStatus[name] ===
-                    "available";
-
-            result[name] = {
-
-                name,
-
-                label:
-                    config.label,
-
-                group:
-                    "side",
-
-                probability:
-                    Number.isFinite(
-                        probability[name]
-                    )
-                        ? probability[name]
-                        : null,
-
-                ev:
-                    available &&
-                    Number.isFinite(
-                        ev[name]
-                    )
-                        ? ev[name]
-                        : null,
-
-                evStatus:
-                    evStatus[name] ??
-                    "unavailable",
-
-                available,
-
-                provisional:
-                    config.provisional ??
-                    false,
-
-                recommendationEligible:
-                    false,
-
-                kelly:
-                    available
-                        ? (
-                            kelly[name]
-                                ?.appliedKelly ??
-                            0
-                        )
-                        : 0,
-
-                amount:
-                    0,
-
-                risk:
-                    available
-                        ? (
-                            risk[name]
-                                ?.relativeRisk ??
-                            null
-                        )
-                        : null,
-
-                confidence:
-                    confidence[name]
-                        ?.confidenceScore ??
-                    null,
-
-                reason:
-                    name ===
-                        "playerDragonBonus"
-                        ? dragon.player.reason
-                        : name ===
-                            "bankerDragonBonus"
-                            ? dragon.banker.reason
-                            : null
-
-            };
-
-        }
-
-        return result;
+        return createSideBetAnalysis({
+            probability,
+            ev,
+            evStatus,
+            kelly,
+            risk,
+            confidence,
+            dragon:
+                dragonBonus()
+        });
 
     }
 
@@ -1822,25 +1149,8 @@ export default class AnalyzerLegacyCore {
      */
     getBestFromRanking(ranking) {
 
-        if (!Array.isArray(ranking)) {
-
-            return null;
-
-        }
-
-        return (
-
-            ranking.find(
-                item =>
-                    item.eligible &&
-                    MAIN_RECOMMENDATION_BETS
-                        .includes(
-                            item.name
-                        )
-            ) ??
-
-            null
-
+        return selectBestFromRanking(
+            ranking
         );
 
     }
@@ -2456,6 +1766,9 @@ export default class AnalyzerLegacyCore {
             0;
 
         return {
+
+            architectureVersion:
+                ANALYZER_ARCHITECTURE_VERSION,
 
             mode:
                 this.options.mode,
