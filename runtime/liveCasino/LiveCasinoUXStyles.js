@@ -4,6 +4,7 @@
  * Purpose: Compact single-screen live casino UX styles.
  */
 export const LIVE_CASINO_UX_STYLES_VERSION = "10.4.5";
+export const AI_LIVE_DECISION_STYLES_VERSION = "10.5.0";
 
 export const LIVE_CASINO_UX_STYLE_ID =
     "baccarat-live-casino-v1044";
@@ -88,6 +89,64 @@ export const LIVE_CASINO_UX_CSS = `
 [data-live-casino-v1044] .v1044DecisionMain strong {
     display: block;
     font-size: 1.25rem;
+}
+
+[data-live-casino-v105] .v105LiveDecision {
+    grid-template-columns: minmax(340px,1.45fr) repeat(3,minmax(105px,.62fr)) minmax(180px,.82fr);
+}
+
+[data-live-casino-v105] .v105DecisionHeadline {
+    display: flex;
+    align-items: baseline;
+    gap: .35rem;
+}
+
+[data-live-casino-v105] .v105DecisionHeadline strong {
+    display: inline;
+    font-size: 1.25rem !important;
+}
+
+[data-live-casino-v105] .v105DecisionBadges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .3rem .65rem;
+    margin: .2rem 0;
+}
+
+[data-live-casino-v105] .v105DecisionBadges span {
+    padding: .1rem .38rem;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 999px;
+    background: rgba(0,0,0,.12);
+    font-size: .8rem;
+}
+
+[data-live-casino-v105] .v105DecisionMeta {
+    font-size: .82rem;
+}
+
+[data-live-casino-v105] [data-decision-reason] {
+    display: block;
+    margin-top: .18rem;
+    line-height: 1.3;
+}
+
+[data-live-casino-v105] [data-decision-category="positive-ev"] .v1044DecisionMain {
+    border-left: 4px solid #4ade80;
+}
+
+[data-live-casino-v105] [data-decision-category="risk-too-high"] .v1044DecisionMain,
+[data-live-casino-v105] [data-decision-category="weak-signal"] .v1044DecisionMain {
+    border-left: 4px solid #f59e0b;
+}
+
+[data-live-casino-v105] [data-decision-category="relative-best"] .v1044DecisionMain {
+    border-left: 4px solid #60a5fa;
+}
+
+[data-live-casino-v105] [data-decision-category="no-edge"] .v1044DecisionMain,
+[data-live-casino-v105] [data-decision-category="insufficient-data"] .v1044DecisionMain {
+    border-left: 4px solid #94a3b8;
 }
 
 [data-live-casino-v1044] .v1044Player {
