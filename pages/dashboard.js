@@ -67,6 +67,7 @@ export const DASHBOARD_PAGE_VERSION = "10.1.0";
  * - V10.1 static Dashboard / AI Closed-Loop HTML contract
  */
 export const DASHBOARD_COMPATIBILITY_VERSION = "10.4.5";
+export const DASHBOARD_LIVE_DECISION_VERSION = "10.5.0";
 
 export const DashboardMode = AnalysisDisplayMode;
 
@@ -801,6 +802,8 @@ export class Dashboard {
             keyboardShortcuts: true,
             autoSuit: this.ui.quickInputMode === QuickInputMode.AUTO,
             version: DASHBOARD_VERSION,
+            liveDecisionVersion:
+                DASHBOARD_LIVE_DECISION_VERSION,
             controllers: {
                 game: this.gameController.summary,
                 ui: this.uiController.summary,
@@ -841,18 +844,18 @@ export function renderAIClosedLoopPanel() {
         >
             <header class="dashboard-section__header">
                 <div>
-                    <p class="dashboard-section__eyebrow">V10.1</p>
+                    <p class="dashboard-section__eyebrow">V10.5</p>
                     <h2 id="ai-closed-loop-title">
-                        AI Closed-Loop Intelligence
+                        AI Live Decision Engine
                     </h2>
                     <p class="dashboard-section__description">
-                        模擬、預測、決策、策略、執行、回饋、學習與自適應整合。
+                        Probability → EV → Confidence → Risk → Ranking → Recommendation → Live Decision。
                     </p>
                 </div>
 
                 <div class="ai-status-badge" aria-live="polite">
                     <span class="ai-status-badge__label">系統狀態</span>
-                    <strong data-ai-status>idle</strong>
+                    <strong data-ai-status>waiting-data</strong>
                 </div>
             </header>
 
@@ -1263,6 +1266,9 @@ createDashboard.version =
 
 createDashboard.compatibilityVersion =
     DASHBOARD_COMPATIBILITY_VERSION;
+
+createDashboard.liveDecisionVersion =
+    DASHBOARD_LIVE_DECISION_VERSION;
 
 createDashboard.legacyVersion =
     DASHBOARD_VERSION;
