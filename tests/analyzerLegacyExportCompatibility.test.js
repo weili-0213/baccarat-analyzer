@@ -10,6 +10,7 @@ import Analyzer, {
     ANALYZER_VERSION,
     ANALYZER_NO_COMMISSION_VERSION,
     ANALYZER_COMPATIBILITY_VERSION,
+    ANALYZER_ARCHITECTURE_VERSION,
     AnalysisMode,
     BET_CONFIG,
     MAIN_RECOMMENDATION_BETS,
@@ -49,6 +50,12 @@ export default async function analyzerLegacyExportCompatibilityTest() {
         ANALYZER_LEGACY_CORE_COMPATIBILITY_VERSION ===
             "10.4.5.1",
         "V10.4.5.1 compatibility version 錯誤"
+    );
+
+    assert(
+        ANALYZER_ARCHITECTURE_VERSION ===
+            "10.5.0",
+        "V10.5 architecture version 錯誤"
     );
 
     messages.push(
@@ -155,7 +162,10 @@ export default async function analyzerLegacyExportCompatibilityTest() {
             "10.4.5" &&
         analyzer.summary
             .compatibilityVersion ===
-            "10.4.5.1",
+            "10.4.5.1" &&
+        analyzer.summary
+            .architectureVersion ===
+            "10.5.0",
         "Analyzer summary compatibility metadata 錯誤"
     );
 
