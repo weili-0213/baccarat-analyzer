@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.4.5
+ * Baccarat Analyzer V10.5.2
  * Path: tests/dashboardCompatibility.test.js
  * Purpose:
  *   Verifies Dashboard burn compatibility across:
@@ -13,6 +13,7 @@ import createDashboard, {
     DASHBOARD_PAGE_VERSION,
     DASHBOARD_COMPATIBILITY_VERSION,
     DASHBOARD_LIVE_DECISION_VERSION,
+    DASHBOARD_DECISION_CALIBRATION_VERSION,
     Dashboard,
     renderDashboard
 } from "../pages/dashboard.js";
@@ -295,6 +296,12 @@ export default async function dashboardCompatibilityTest() {
         "V10.5 Dashboard live decision version 錯誤"
     );
 
+    assert(
+        DASHBOARD_DECISION_CALIBRATION_VERSION ===
+            "10.5.2",
+        "V10.5.2 Dashboard decision calibration version 錯誤"
+    );
+
     messages.push(
         "✓ V3.4.3 / V10.1 / V10.4.5 version contracts 正確"
     );
@@ -330,6 +337,8 @@ export default async function dashboardCompatibilityTest() {
             "10.4.5" &&
         createDashboard.liveDecisionVersion ===
             "10.5.0" &&
+        createDashboard.decisionCalibrationVersion ===
+            "10.5.2" &&
         createDashboard.legacyVersion ===
             "3.4.3",
         "Dashboard factory metadata 錯誤"
