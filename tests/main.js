@@ -307,6 +307,10 @@ import liveRoundCriticalPathTest
 import noCommissionBaccaratEVTest
     from "./noCommissionBaccaratEV.test.js";
 
+import analyzerLegacyExportCompatibilityTest
+    from "./analyzerLegacyExportCompatibility.test.js";
+
+
 /**
  * 新增測試時，只需：
  *
@@ -905,6 +909,10 @@ const TESTS = [
         id:"no-commission-baccarat-ev",
         name:"No Commission Baccarat EV",
         run:noCommissionBaccaratEVTest
+    },
+        id: "analyzer-legacy-export-compatibility",
+        name: "Analyzer Legacy Export Compatibility",
+        run: analyzerLegacyExportCompatibilityTest
     }
 
 ];
