@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.5.3
+ * Baccarat Analyzer V10.5.4
  * Path: tests/aiLiveDecisionEngine.test.js
  * Test Runner: tests/main.js
  * AI Live Decision Engine classification and safety regressions.
@@ -8,6 +8,7 @@
 import AILiveDecisionEngine, {
     AI_LIVE_DECISION_ENGINE_VERSION,
     AI_LIVE_DECISION_CALIBRATION_VERSION,
+    EXACT_OPPORTUNITY_CONFIRMATION_ENGINE_VERSION,
     DEFAULT_LIVE_DECISION_THRESHOLDS,
     LiveDecisionAction,
     LiveDecisionCategory
@@ -29,7 +30,8 @@ import LiveCasinoDecisionModel, {
 import LiveCasinoUXController, {
     AI_LIVE_DECISION_UX_VERSION,
     AI_LIVE_DECISION_EVIDENCE_UX_VERSION,
-    SIGNAL_TREND_OPPORTUNITY_UX_VERSION
+    SIGNAL_TREND_OPPORTUNITY_UX_VERSION,
+    EXACT_OPPORTUNITY_CONFIRMATION_UX_VERSION
 } from "../runtime/liveCasino/LiveCasinoUXController.js";
 
 
@@ -235,15 +237,17 @@ export default async function aiLiveDecisionEngineTest() {
         AI_LIVE_DECISION_CALIBRATION_VERSION === "10.5.2" &&
         AI_LIVE_DECISION_EVIDENCE_UX_VERSION === "10.5.2" &&
         SIGNAL_TREND_OPPORTUNITY_UX_VERSION === "10.5.3" &&
+        EXACT_OPPORTUNITY_CONFIRMATION_ENGINE_VERSION === "10.5.4" &&
+        EXACT_OPPORTUNITY_CONFIRMATION_UX_VERSION === "10.5.4" &&
         AI_LIVE_DECISION_UX_VERSION === "10.5.0" &&
         LIVE_CASINO_DECISION_MODEL_VERSION === "10.4.5" &&
         DEFAULT_LIVE_DECISION_THRESHOLDS
             .maxRelativeRisk === 1.05 &&
         engine.summary.categories.length === 6,
-        "V10.5.2 calibration / compatibility version contract 錯誤"
+        "V10.5.4 confirmation / compatibility version contract 錯誤"
     );
 
-    messages.push("✓ V10.5.2 calibration / V10.4.5 facade 版本契約正確");
+    messages.push("✓ V10.5.4 confirmation / V10.4.5 facade 版本契約正確");
 
     const positive = engine.decide(
         realisticPlayerAnalysis()
@@ -549,8 +553,13 @@ export default async function aiLiveDecisionEngineTest() {
         html.includes(
             'data-decision-category="relative-best"'
         ) &&
-        html.includes("相對最佳：") &&
+        html.includes(
+            'data-decision-final="false"'
+        ) &&
+        html.includes("暫定候選：") &&
         !html.includes("推薦：閒家") &&
+        html.includes("暫定 MC") &&
+        html.includes("不可作為正式下注依據") &&
         html.includes("策略：") &&
         html.includes("信號：") &&
         html.includes("證據：") &&
@@ -584,24 +593,24 @@ export default async function aiLiveDecisionEngineTest() {
     assert(
         fields.get("[data-ai-stage]")
             .textContent ===
-            "signal-trend-opportunity-v10.5.3" &&
+            "exact-opportunity-confirmation-v10.5.4" &&
         fields.get("[data-ai-decision]")
             .textContent.includes("閒家") &&
         fields.get("[data-ai-strategy]")
             .textContent === "相對最佳" &&
         !fields.get("[data-ai-feedback]")
             .textContent.includes("等待 Runtime"),
-        "AI Closed-Loop 尚未接入 Live Decision"
+        "AI Closed-Loop 尚未接入 Exact Confirmation"
     );
 
     controller.destroy();
 
-    messages.push("✓ Dashboard 首屏、趨勢監測與 AI Closed-Loop 已接入決策結果");
+    messages.push("✓ Dashboard 首屏、趨勢監測與 AI Closed-Loop 已接入 Exact 決策結果");
 
     return `
 ${messages.join("\n")}
 
-AI Live Decision Engine / Signal Trend UX V10.5.3 測試完成
+AI Live Decision Engine / Exact Confirmation UX V10.5.4 測試完成
 
 Positive EV：通過
 Relative Best：通過
