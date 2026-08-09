@@ -313,6 +313,9 @@ import aiLiveDecisionEngineTest
 import signalTrendMonitorTest
     from "./signalTrendMonitor.test.js";
 
+import exactOpportunityConfirmationTest
+    from "./exactOpportunityConfirmation.test.js";
+
 
 /**
  * 新增測試時，只需：
@@ -924,6 +927,12 @@ const TESTS = [
         id: "signal-trend-monitor-v1053",
         name: "Signal Trend & Opportunity Monitor V10.5.3",
         run: signalTrendMonitorTest
+    },
+
+    {
+        id: "exact-opportunity-confirmation-v1054",
+        name: "Exact Opportunity Confirmation V10.5.4",
+        run: exactOpportunityConfirmationTest
     }
 
 ];
