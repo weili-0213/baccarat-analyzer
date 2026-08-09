@@ -316,6 +316,10 @@ import signalTrendMonitorTest
 import exactOpportunityConfirmationTest
     from "./exactOpportunityConfirmation.test.js";
 
+import decisionStabilityExplainabilityTest
+    from "./decisionStabilityExplainability.test.js";
+
+
 
 /**
  * 新增測試時，只需：
@@ -933,6 +937,12 @@ const TESTS = [
         id: "exact-opportunity-confirmation-v1054",
         name: "Exact Opportunity Confirmation V10.5.4",
         run: exactOpportunityConfirmationTest
+    },
+
+    {
+        id: "decision-stability-explainability-v106",
+        name: "Decision Stability & Explainability Engine V10.6",
+        run: decisionStabilityExplainabilityTest
     }
 
 ];
