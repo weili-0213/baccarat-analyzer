@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.5.2
+ * Baccarat Analyzer V10.5.3
  * Path: tests/dashboardCompatibility.test.js
  * Purpose:
  *   Verifies Dashboard burn compatibility across:
@@ -14,6 +14,7 @@ import createDashboard, {
     DASHBOARD_COMPATIBILITY_VERSION,
     DASHBOARD_LIVE_DECISION_VERSION,
     DASHBOARD_DECISION_CALIBRATION_VERSION,
+    DASHBOARD_SIGNAL_TREND_VERSION,
     Dashboard,
     renderDashboard
 } from "../pages/dashboard.js";
@@ -302,6 +303,12 @@ export default async function dashboardCompatibilityTest() {
         "V10.5.2 Dashboard decision calibration version 錯誤"
     );
 
+    assert(
+        DASHBOARD_SIGNAL_TREND_VERSION ===
+            "10.5.3",
+        "V10.5.3 Dashboard signal trend version 錯誤"
+    );
+
     messages.push(
         "✓ V3.4.3 / V10.1 / V10.4.5 version contracts 正確"
     );
@@ -339,6 +346,8 @@ export default async function dashboardCompatibilityTest() {
             "10.5.0" &&
         createDashboard.decisionCalibrationVersion ===
             "10.5.2" &&
+        createDashboard.signalTrendVersion ===
+            "10.5.3" &&
         createDashboard.legacyVersion ===
             "3.4.3",
         "Dashboard factory metadata 錯誤"
@@ -516,6 +525,102 @@ export default async function dashboardCompatibilityTest() {
     );
 
 
+    /*
+     * V10.5.3 signal history belongs to one shoe only.
+     * Starting a new shoe must clear the previous opportunity trend.
+     */
+    runtimePage.liveCasino
+        .observeSignalTrend(
+            {
+                generatedAfterRound:
+                    1,
+
+                ev: {
+                    player:
+                        -0.004,
+
+                    banker:
+                        -0.012,
+
+                    tie:
+                        -0.145
+                }
+            },
+            {
+                ready:
+                    true,
+
+                action:
+                    "WAIT",
+
+                relativeKey:
+                    "player",
+
+                relativeLabel:
+                    "閒家",
+
+                risk:
+                    0.30,
+
+                evidence: {
+                    source:
+                        "exact",
+
+                    shortLabel:
+                        "Exact",
+
+                    uncertaintyComplete:
+                        true,
+
+                    confidence:
+                        0.82
+                },
+
+                thresholds: {
+                    minPositiveEV:
+                        0,
+
+                    minConfidence:
+                        0.70,
+
+                    maxRelativeRisk:
+                        1.05
+                },
+
+                sizing: {
+                    calculatedAmount:
+                        0,
+
+                    minBet:
+                        100
+                }
+            }
+        );
+
+    assert(
+        runtimePage.liveCasino
+            .getSignalTrend()
+            .observedCount === 1,
+        "V10.5.3 測試前未建立牌靴趨勢"
+    );
+
+    await runtimePage.startNewShoe();
+
+    assert(
+        runtimePage.liveCasino
+            .getSignalTrend()
+            .ready === false &&
+        runtimePage.liveCasino
+            .getSignalTrend()
+            .observedCount === 0,
+        "新牌靴未清除上一靴 Signal Trend"
+    );
+
+    messages.push(
+        "✓ New Shoe → Signal Trend reset 正確"
+    );
+
+
     runtimePage.destroy();
     legacyPage.destroy();
 
@@ -539,6 +644,7 @@ Runtime Burn Fallback：通過
 First Analysis Flow：通過
 app/app.js Compatibility：通過
 AI Closed-Loop Panel：通過
+New Shoe Signal Reset：通過
 Lifecycle：通過
 `;
 }
