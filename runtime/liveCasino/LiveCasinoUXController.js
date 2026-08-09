@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.5.4
+ * Baccarat Analyzer V10.6.0
  * Path: runtime/liveCasino/LiveCasinoUXController.js
  * Purpose:
  *   3-second live analysis path + compact decision-first Dashboard bridge.
@@ -21,6 +21,11 @@ import ExactOpportunityConfirmation, {
     isExactOpportunityAnalysis
 } from "./ExactOpportunityConfirmation.js";
 
+import DecisionStabilityExplainabilityEngine, {
+    DECISION_STABILITY_EXPLAINABILITY_VERSION,
+    StableDecisionLifecycle
+} from "./DecisionStabilityExplainabilityEngine.js";
+
 import {
     LIVE_CASINO_UX_CSS,
     LIVE_CASINO_UX_STYLE_ID
@@ -32,6 +37,7 @@ export const AI_LIVE_DECISION_DOCK_VERSION = "10.5.1";
 export const AI_LIVE_DECISION_EVIDENCE_UX_VERSION = "10.5.2";
 export const SIGNAL_TREND_OPPORTUNITY_UX_VERSION = "10.5.3";
 export const EXACT_OPPORTUNITY_CONFIRMATION_UX_VERSION = "10.5.4";
+export const DECISION_STABILITY_EXPLAINABILITY_UX_VERSION = "10.6.0";
 
 function delay(ms) {
     return new Promise(resolve =>
@@ -54,6 +60,18 @@ function evText(value) {
 function advantageText(value) {
     return Number.isFinite(value)
         ? `${value >= 0 ? "+" : ""}${(value * 100).toFixed(2)}%`
+        : "—";
+}
+
+function exactEVText(value) {
+    return Number.isFinite(value)
+        ? `${value >= 0 ? "+" : ""}${(value * 100).toFixed(4)}%`
+        : "—";
+}
+
+function exactGapText(value) {
+    return Number.isFinite(value)
+        ? `${(value * 100).toFixed(4)}%`
         : "—";
 }
 
@@ -178,6 +196,58 @@ function confirmationComparisonHTML(
     `;
 }
 
+
+function maturityComponentsHTML(
+    maturity = {}
+) {
+    const components =
+        Array.isArray(maturity.components)
+            ? maturity.components
+            : [];
+
+    if (components.length === 0) {
+        return "";
+    }
+
+    return components.map(item => `
+        <span
+            class="v106MaturityComponent"
+            data-maturity-component="${escapeHTML(item.key)}"
+            data-maturity-pass="${item.passed ? "true" : "false"}"
+            title="${escapeHTML(item.detail)}"
+        >
+            ${escapeHTML(item.label)}
+            <b>${item.earned}/${item.maximum}</b>
+        </span>
+    `).join("");
+}
+
+
+function missingConditionsHTML(
+    maturity = {}
+) {
+    const conditions =
+        Array.isArray(
+            maturity.missingConditions
+        )
+            ? maturity.missingConditions
+            : [];
+
+    if (conditions.length === 0) {
+        return `
+            <small data-maturity-missing>
+                缺少條件：無，正式安全門檻已齊備
+            </small>
+        `;
+    }
+
+    return `
+        <small data-maturity-missing>
+            缺少條件：${escapeHTML(conditions.join("；"))}
+        </small>
+    `;
+}
+
 function trendSeriesHTML(trend = {}) {
     const series =
         Array.isArray(trend.series)
@@ -240,6 +310,7 @@ export default class LiveCasinoUXController {
         decisionModel = null,
         signalTrendMonitor = null,
         exactConfirmation = null,
+        decisionStabilityEngine = null,
         clock = () => Date.now()
     } = {}) {
         if (!game) {
@@ -263,6 +334,11 @@ export default class LiveCasinoUXController {
         this.exactConfirmation =
             exactConfirmation ??
             new ExactOpportunityConfirmation({
+                clock
+            });
+        this.decisionStabilityEngine =
+            decisionStabilityEngine ??
+            new DecisionStabilityExplainabilityEngine({
                 clock
             });
 
@@ -289,6 +365,21 @@ export default class LiveCasinoUXController {
         ) {
             throw new TypeError(
                 "exactConfirmation requires the V10.5.4 lifecycle API."
+            );
+        }
+
+        if (
+            typeof this.decisionStabilityEngine
+                .start !== "function" ||
+            typeof this.decisionStabilityEngine
+                .acceptProvisional !== "function" ||
+            typeof this.decisionStabilityEngine
+                .acceptFinal !== "function" ||
+            typeof this.decisionStabilityEngine
+                .decorate !== "function"
+        ) {
+            throw new TypeError(
+                "decisionStabilityEngine requires the V10.6 lifecycle API."
             );
         }
 
@@ -374,6 +465,12 @@ export default class LiveCasinoUXController {
             sequence
         });
 
+        this.decisionStabilityEngine.start({
+            sequence,
+            shoeId:
+                this.game.shoeNumber
+        });
+
         this.lastAnalysisStage =
             "quick-running";
 
@@ -385,10 +482,19 @@ export default class LiveCasinoUXController {
             this.game.nextAnalysis;
 
         this.lastDecision =
-            this.exactConfirmation
-                .decisionFor(
-                    this.decisionModel
-                        .build(null)
+            this.decisionStabilityEngine
+                .decorate(
+                    this.exactConfirmation
+                        .decisionFor(
+                            this.decisionModel
+                                .build(null)
+                        ),
+                    {
+                        final: false,
+                        lifecycle:
+                            StableDecisionLifecycle
+                                .ANALYZING
+                    }
                 );
 
         this.render?.();
@@ -437,9 +543,19 @@ export default class LiveCasinoUXController {
                     sequence
                 });
             this.lastDecision =
-                this.exactConfirmation
-                    .decisionFor(
-                        this.lastDecision
+                this.decisionStabilityEngine
+                    .expire(
+                        this.exactConfirmation
+                            .decisionFor(
+                                this.lastDecision
+                            ),
+                        {
+                            sequence,
+                            reason:
+                                this.exactConfirmation
+                                    .summary
+                                    .message
+                        }
                     );
             this.render?.();
 
@@ -506,9 +622,19 @@ export default class LiveCasinoUXController {
                         this.lastAnalysisStage =
                             "failed";
                         this.lastDecision =
-                            this.exactConfirmation
-                                .decisionFor(
-                                    this.lastDecision
+                            this.decisionStabilityEngine
+                                .expire(
+                                    this.exactConfirmation
+                                        .decisionFor(
+                                            this.lastDecision
+                                        ),
+                                    {
+                                        sequence,
+                                        reason:
+                                            this.exactConfirmation
+                                                .summary
+                                                .message
+                                    }
                                 );
                         this.render?.();
                     }
@@ -617,11 +743,53 @@ export default class LiveCasinoUXController {
         this.lastAcceptedAnalysis =
             analysis;
 
-        this.lastDecision =
+        const confirmedDecision =
             this.exactConfirmation
                 .decisionFor(
                     rawDecision
                 );
+
+        this.lastDecision = exact
+            ? this.decisionStabilityEngine
+                .acceptFinal(
+                    analysis,
+                    confirmedDecision,
+                    {
+                        sequence:
+                            this.analysisSequence,
+                        roundId:
+                            analysis
+                                ?.generatedAfterRound ??
+                            analysis
+                                ?.roundNumber ??
+                            null,
+                        durationMs:
+                            this.lastAnalysisDurationMs
+                    }
+                )
+            : this.decisionStabilityEngine
+                .acceptProvisional(
+                    analysis,
+                    confirmedDecision,
+                    {
+                        sequence:
+                            this.analysisSequence,
+                        roundId:
+                            analysis
+                                ?.generatedAfterRound ??
+                            analysis
+                                ?.roundNumber ??
+                            null
+                    }
+                );
+
+        if (!this.lastDecision) {
+            throw new Error(
+                exact
+                    ? "V10.6 rejected a stale Exact final snapshot."
+                    : "V10.6 rejected a stale provisional result."
+            );
+        }
 
         /*
          * V10.5.4 trend history is final-result only. The same-round Quick
@@ -657,6 +825,10 @@ export default class LiveCasinoUXController {
             !this.exactConfirmation
                 .beginExact({
                     sequence
+                }) ||
+            !this.decisionStabilityEngine
+                .beginExact({
+                    sequence
                 })
         ) {
             return;
@@ -666,9 +838,18 @@ export default class LiveCasinoUXController {
             "confirming";
 
         this.lastDecision =
-            this.exactConfirmation
-                .decisionFor(
-                    this.lastDecision
+            this.decisionStabilityEngine
+                .decorate(
+                    this.exactConfirmation
+                        .decisionFor(
+                            this.lastDecision
+                        ),
+                    {
+                        final: false,
+                        lifecycle:
+                            StableDecisionLifecycle
+                                .EXACT_CONFIRMING
+                    }
                 );
 
         this.render?.();
@@ -702,9 +883,19 @@ export default class LiveCasinoUXController {
                         this.lastAnalysisStage =
                             "failed";
                         this.lastDecision =
-                            this.exactConfirmation
-                                .decisionFor(
-                                    this.lastDecision
+                            this.decisionStabilityEngine
+                                .expire(
+                                    this.exactConfirmation
+                                        .decisionFor(
+                                            this.lastDecision
+                                        ),
+                                    {
+                                        sequence,
+                                        reason:
+                                            this.exactConfirmation
+                                                .summary
+                                                .message
+                                    }
                                 );
                         this.render?.();
                         return;
@@ -753,9 +944,19 @@ export default class LiveCasinoUXController {
                         this.lastAnalysisStage =
                             "failed";
                         this.lastDecision =
-                            this.exactConfirmation
-                                .decisionFor(
-                                    this.lastDecision
+                            this.decisionStabilityEngine
+                                .expire(
+                                    this.exactConfirmation
+                                        .decisionFor(
+                                            this.lastDecision
+                                        ),
+                                    {
+                                        sequence,
+                                        reason:
+                                            this.exactConfirmation
+                                                .summary
+                                                .message
+                                    }
                                 );
                         this.render?.();
                     }
@@ -882,10 +1083,19 @@ export default class LiveCasinoUXController {
                 "quick-running"
         ) {
             return this.lastDecision ??
-                this.exactConfirmation
-                    .decisionFor(
-                        this.decisionModel
-                            .build(null)
+                this.decisionStabilityEngine
+                    .decorate(
+                        this.exactConfirmation
+                            .decisionFor(
+                                this.decisionModel
+                                    .build(null)
+                            ),
+                        {
+                            final: false,
+                            lifecycle:
+                                StableDecisionLifecycle
+                                    .ANALYZING
+                        }
                     );
         }
 
@@ -895,9 +1105,18 @@ export default class LiveCasinoUXController {
                     .build(null);
 
             return this.lastDecision ??
-                this.exactConfirmation
-                    .decisionFor(
-                        waiting
+                this.decisionStabilityEngine
+                    .decorate(
+                        this.exactConfirmation
+                            .decisionFor(
+                                waiting
+                            ),
+                        {
+                            final: false,
+                            lifecycle:
+                                StableDecisionLifecycle
+                                    .ANALYZING
+                        }
                     );
         }
 
@@ -978,6 +1197,14 @@ export default class LiveCasinoUXController {
                     incomingRound
             });
 
+            this.decisionStabilityEngine.start({
+                sequence,
+                roundId:
+                    incomingRound,
+                shoeId:
+                    this.game.shoeNumber
+            });
+
             accepted = exact
                 ? this.exactConfirmation
                     .acceptExact(
@@ -1008,9 +1235,35 @@ export default class LiveCasinoUXController {
                 exact
                     ? "confirmed"
                     : "provisional";
-            this.lastDecision =
+            const confirmedDecision =
                 this.exactConfirmation
                     .decisionFor(live);
+
+            this.lastDecision = exact
+                ? this.decisionStabilityEngine
+                    .acceptFinal(
+                        analysis,
+                        confirmedDecision,
+                        {
+                            sequence:
+                                this.analysisSequence,
+                            roundId:
+                                incomingRound,
+                            durationMs:
+                                this.lastAnalysisDurationMs
+                        }
+                    )
+                : this.decisionStabilityEngine
+                    .acceptProvisional(
+                        analysis,
+                        confirmedDecision,
+                        {
+                            sequence:
+                                this.analysisSequence,
+                            roundId:
+                                incomingRound
+                        }
+                    );
 
             if (exact) {
                 this.observeSignalTrend(
@@ -1021,8 +1274,14 @@ export default class LiveCasinoUXController {
         }
 
         return this.lastDecision ??
-            this.exactConfirmation
-                .decisionFor(live);
+            this.decisionStabilityEngine
+                .decorate(
+                    this.exactConfirmation
+                        .decisionFor(live),
+                    {
+                        final: false
+                    }
+                );
     }
 
     observeSignalTrend(
@@ -1077,6 +1336,9 @@ export default class LiveCasinoUXController {
                 this.analysisSequence
         });
 
+        this.decisionStabilityEngine
+            .reset();
+
         this.signalTrendMonitor.reset({
             shoeId:
                 this.game.shoeNumber
@@ -1110,6 +1372,16 @@ export default class LiveCasinoUXController {
             d.evidence ?? {};
         const trend =
             this.getSignalTrend();
+        const maturity =
+            d.opportunityMaturity ??
+            {};
+        const closeCall =
+            d.closeCall ??
+            {};
+        const evSourceLabel =
+            d.stableDecisionFinal
+                ? "Exact EV"
+                : "暫定 MC EV";
 
         const blockerHTML =
             d.primaryBlocker
@@ -1133,6 +1405,10 @@ export default class LiveCasinoUXController {
                 data-confirmation-state="${escapeHTML(confirmation.state)}"
                 data-decision-final="${confirmation.isFinal ? "true" : "false"}"
                 data-decision-provisional="${confirmation.isFinal ? "false" : "true"}"
+                data-stable-lifecycle="${escapeHTML(d.lifecycle)}"
+                data-market-state="${escapeHTML(d.marketState)}"
+                data-close-call="${closeCall.active ? "true" : "false"}"
+                data-final-snapshot="${escapeHTML(d.finalSnapshot?.snapshotId ?? "")}"
             >
                 <div class="v1044DecisionCard v1044DecisionMain">
                     <span class="v1044Meta">下一局決策</span>
@@ -1149,6 +1425,23 @@ export default class LiveCasinoUXController {
                             ${escapeHTML(d.recommendationLabel)}
                         </strong>
                     </div>
+                    <div
+                        class="v106DecisionState"
+                        data-decision-stability-state
+                    >
+                        <span>
+                            決策階段：
+                            <b data-stable-lifecycle-label>
+                                ${escapeHTML(d.lifecycleLabel)}
+                            </b>
+                        </span>
+                        <span>
+                            市場狀態：
+                            <b data-market-state-label>
+                                ${escapeHTML(d.marketStateLabel)}
+                            </b>
+                        </span>
+                    </div>
                     <div class="v105DecisionBadges">
                         <span>
                             策略：
@@ -1159,7 +1452,7 @@ export default class LiveCasinoUXController {
                         <span>
                             信號：
                             <b data-decision-signal>
-                                ${escapeHTML(d.categoryLabel)}
+                                ${escapeHTML(d.marketStateLabel ?? d.categoryLabel)}
                             </b>
                         </span>
                         <span>
@@ -1174,6 +1467,35 @@ export default class LiveCasinoUXController {
                                 ${pct(evidence.confidence)}
                             </b>
                         </span>
+                    </div>
+                    <div
+                        class="v106ExactEVComparison"
+                        data-exact-ev-comparison
+                    >
+                        <span>${evSourceLabel}｜閒 <b data-exact-player-ev>${exactEVText(d.ev?.player)}</b></span>
+                        <span>莊 <b data-exact-banker-ev>${exactEVText(d.ev?.banker)}</b></span>
+                        <span>差距 <b data-exact-main-gap>${exactGapText(closeCall.gap)}</b></span>
+                        <small>
+                            穩定門檻 ${exactGapText(closeCall.threshold)}
+                            ${closeCall.active ? "· 低於門檻，不硬選閒／莊" : ""}
+                        </small>
+                    </div>
+                    <div
+                        class="v106Maturity"
+                        data-opportunity-maturity
+                        data-maturity-score="${maturity.score ?? 0}"
+                    >
+                        <div class="v106MaturityHeader">
+                            <span>機會成熟度</span>
+                            <strong data-maturity-score>
+                                ${maturity.score ?? 0}/${maturity.maximum ?? 100}
+                            </strong>
+                            <small>${escapeHTML(maturity.label ?? "條件不足")}</small>
+                        </div>
+                        <div class="v106MaturityComponents">
+                            ${maturityComponentsHTML(maturity)}
+                        </div>
+                        ${missingConditionsHTML(maturity)}
                     </div>
                     <div class="v105DecisionMeta">
                         相對優勢：
@@ -1269,8 +1591,8 @@ export default class LiveCasinoUXController {
                     <strong>${status}</strong>
                     <div>
                         ${escapeHTML(d.categoryLabel)}
-                        · ${escapeHTML(evidence.shortLabel ?? "等待")}
-                        · ${confirmation.isFinal ? "最終" : "暫定"}
+                        · ${escapeHTML(d.lifecycleLabel)}
+                        · 成熟度 ${maturity.score ?? 0}/100
                         · 波動比 ${ratioText(d.risk)}
                     </div>
                 </div>
@@ -1291,6 +1613,12 @@ export default class LiveCasinoUXController {
             d.evidence ?? {};
         const trend =
             this.getSignalTrend();
+        const maturity =
+            d.opportunityMaturity ??
+            {};
+        const closeCall =
+            d.closeCall ??
+            {};
 
         const dockReason =
             !confirmation.isFinal
@@ -1311,6 +1639,9 @@ export default class LiveCasinoUXController {
                 data-decision-provisional="${confirmation.isFinal ? "false" : "true"}"
                 data-trend-direction="${escapeHTML(trend.direction)}"
                 data-opportunity-state="${escapeHTML(trend.opportunityState)}"
+                data-stable-lifecycle="${escapeHTML(d.lifecycle)}"
+                data-market-state="${escapeHTML(d.marketState)}"
+                data-close-call="${closeCall.active ? "true" : "false"}"
                 aria-live="polite"
                 aria-hidden="true"
             >
@@ -1319,13 +1650,12 @@ export default class LiveCasinoUXController {
                     ${escapeHTML(d.headlineLabel ?? "狀態")}：${escapeHTML(d.recommendationLabel)}
                 </strong>
                 <span class="v105DecisionDockAction">
-                    ${confirmation.isFinal ? "最終" : "暫定"}
-                    · ${escapeHTML(d.actionLabel)} · ${escapeHTML(d.categoryLabel)}
+                    ${escapeHTML(d.lifecycleLabel)}
+                    · ${escapeHTML(d.actionLabel)} · ${escapeHTML(d.marketStateLabel)}
                 </span>
                 <span class="v105DecisionDockConfidence">
-                    ${escapeHTML(confirmation.stateLabel)}
-                    · ${escapeHTML(evidence.shortLabel ?? "等待")}
-                    · ${escapeHTML(trend.directionSymbol ?? "•")}${escapeHTML(trend.directionLabel ?? "等待趨勢")}
+                    成熟度 ${maturity.score ?? 0}/100
+                    · 閒莊差距 ${exactGapText(closeCall.gap)}
                 </span>
                 <span class="v105DecisionDockAmount">
                     建議額 ${d.amount ?? 0}
@@ -1426,6 +1756,9 @@ export default class LiveCasinoUXController {
             d.confirmation ??
             this.exactConfirmation
                 .summary;
+        const maturity =
+            d.opportunityMaturity ??
+            {};
 
         const runtimeSummary =
             this.aiRuntime?.summary ??
@@ -1434,20 +1767,18 @@ export default class LiveCasinoUXController {
         text(
             root,
             "[data-ai-status]",
-            confirmation.isFinal
-                ? "final-decision-ready"
-                : confirmation.state ===
-                    ExactOpportunityState.FAILED
-                    ? "exact-confirmation-failed"
-                    : d.ready
-                        ? "provisional-only"
+            d.lifecycle ??
+                (
+                    confirmation.isFinal
+                        ? "final-decision-ready"
                         : "waiting-data"
+                )
         );
 
         text(
             root,
             "[data-ai-stage]",
-            "exact-opportunity-confirmation-v10.5.4"
+            "decision-stability-explainability-v10.6"
         );
 
         text(
@@ -1482,7 +1813,8 @@ export default class LiveCasinoUXController {
             root,
             "[data-ai-strategy]",
             d.ready
-                ? d.categoryLabel
+                ? d.marketStateLabel ??
+                    d.categoryLabel
                 : "—"
         );
 
@@ -1506,7 +1838,7 @@ export default class LiveCasinoUXController {
             root,
             "[data-ai-feedback]",
             confirmation.isFinal
-                ? `${trend.opportunityLabel}：${d.primaryBlocker ?? trend.opportunityReason}`
+                ? `${d.lifecycleLabel}｜${d.reason}`
                 : d.ready
                     ? confirmation.message
                 : "尚無決策回饋"
@@ -1525,7 +1857,7 @@ export default class LiveCasinoUXController {
             "[data-ai-adaptive]",
             confirmation.isFinal &&
                 d.ready
-                ? `${trend.opportunityLabel} · 安全門檻 ${trend.passedGateCount ?? 0}/${trend.totalGateCount ?? 5}`
+                ? `機會成熟度 ${maturity.score ?? 0}/100 · ${maturity.missingConditions?.[0] ?? "安全門檻已齊備"}`
                 : `${confirmation.stateLabel} · 正式決策尚未發布`
         );
     }
@@ -1581,6 +1913,11 @@ export default class LiveCasinoUXController {
 
         root.setAttribute?.(
             "data-live-casino-v1054",
+            "true"
+        );
+
+        root.setAttribute?.(
+            "data-live-casino-v106",
             "true"
         );
 
@@ -1701,6 +2038,10 @@ export default class LiveCasinoUXController {
                 EXACT_OPPORTUNITY_CONFIRMATION_UX_VERSION,
             exactConfirmationCoreVersion:
                 EXACT_OPPORTUNITY_CONFIRMATION_VERSION,
+            decisionStabilityVersion:
+                DECISION_STABILITY_EXPLAINABILITY_UX_VERSION,
+            decisionStabilityCoreVersion:
+                DECISION_STABILITY_EXPLAINABILITY_VERSION,
             profile:
                 this.analysisProfile,
             deadlineMs:
@@ -1717,6 +2058,12 @@ export default class LiveCasinoUXController {
             exactConfirmation:
                 this.exactConfirmation
                     .summary,
+            decisionStability:
+                this.decisionStabilityEngine
+                    .summary,
+            decisionAudit:
+                this.decisionStabilityEngine
+                    .getAuditTrail(),
             decision:
                 decision
         };
