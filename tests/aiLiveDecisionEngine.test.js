@@ -556,7 +556,8 @@ export default async function aiLiveDecisionEngineTest() {
         html.includes(
             'data-decision-final="false"'
         ) &&
-        html.includes("暫定候選：") &&
+        html.includes("分析狀態：") &&
+        html.includes("Exact 確認中") &&
         !html.includes("推薦：閒家") &&
         html.includes("暫定 MC") &&
         html.includes("不可作為正式下注依據") &&
@@ -571,7 +572,9 @@ export default async function aiLiveDecisionEngineTest() {
         html.includes("趨勢：") &&
         html.includes("距正 EV：") &&
         html.includes("安全門檻：") &&
-        html.includes("data-trend-series"),
+        html.includes("data-trend-series") &&
+        html.includes("機會成熟度") &&
+        html.includes("缺少條件"),
         "Dashboard 首屏決策資訊不完整"
     );
 
@@ -593,11 +596,11 @@ export default async function aiLiveDecisionEngineTest() {
     assert(
         fields.get("[data-ai-stage]")
             .textContent ===
-            "exact-opportunity-confirmation-v10.5.4" &&
+            "decision-stability-explainability-v10.6" &&
         fields.get("[data-ai-decision]")
-            .textContent.includes("閒家") &&
+            .textContent.includes("Exact 確認中") &&
         fields.get("[data-ai-strategy]")
-            .textContent === "相對最佳" &&
+            .textContent === "等待 Exact 最終結果" &&
         !fields.get("[data-ai-feedback]")
             .textContent.includes("等待 Runtime"),
         "AI Closed-Loop 尚未接入 Exact Confirmation"
