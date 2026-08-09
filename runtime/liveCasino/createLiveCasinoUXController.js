@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.5.2
+ * Baccarat Analyzer V10.5.3
  * Path: runtime/liveCasino/createLiveCasinoUXController.js
  * Purpose: Factory for live casino UX/performance controller.
  */
@@ -12,9 +12,13 @@ import LiveCasinoPerformancePolicy
 import LiveCasinoDecisionModel
     from "./LiveCasinoDecisionModel.js";
 
+import SignalTrendMonitor
+    from "./SignalTrendMonitor.js";
+
 export const LIVE_CASINO_UX_FACTORY_VERSION = "10.4.5";
 export const AI_LIVE_DECISION_FACTORY_VERSION = "10.5.0";
 export const AI_LIVE_DECISION_CALIBRATION_FACTORY_VERSION = "10.5.2";
+export const SIGNAL_TREND_MONITOR_FACTORY_VERSION = "10.5.3";
 
 export default function createLiveCasinoUXController({
     game,
@@ -25,6 +29,7 @@ export default function createLiveCasinoUXController({
 } = {}) {
     const {
         decision = {},
+        signalTrend = {},
         ...performancePolicy
     } = performance ?? {};
 
@@ -41,6 +46,10 @@ export default function createLiveCasinoUXController({
             new LiveCasinoDecisionModel({
                 thresholds:
                     decision
-            })
+            }),
+        signalTrendMonitor:
+            new SignalTrendMonitor(
+                signalTrend
+            )
     });
 }
