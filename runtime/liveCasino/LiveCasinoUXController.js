@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.5.2
+ * Baccarat Analyzer V10.5.3
  * Path: runtime/liveCasino/LiveCasinoUXController.js
  * Purpose:
  *   3-second live analysis path + compact decision-first Dashboard bridge.
@@ -11,6 +11,10 @@ import LiveCasinoPerformancePolicy, {
 import LiveCasinoDecisionModel
     from "./LiveCasinoDecisionModel.js";
 
+import SignalTrendMonitor, {
+    SIGNAL_TREND_MONITOR_VERSION
+} from "./SignalTrendMonitor.js";
+
 import {
     LIVE_CASINO_UX_CSS,
     LIVE_CASINO_UX_STYLE_ID
@@ -20,6 +24,7 @@ export const LIVE_CASINO_UX_CONTROLLER_VERSION = "10.4.5";
 export const AI_LIVE_DECISION_UX_VERSION = "10.5.0";
 export const AI_LIVE_DECISION_DOCK_VERSION = "10.5.1";
 export const AI_LIVE_DECISION_EVIDENCE_UX_VERSION = "10.5.2";
+export const SIGNAL_TREND_OPPORTUNITY_UX_VERSION = "10.5.3";
 
 function delay(ms) {
     return new Promise(resolve =>
@@ -78,6 +83,74 @@ function evRangeText(evidence = {}) {
     return `${evText(evidence.evLowerBound)} ～ ${evText(evidence.evUpperBound)}`;
 }
 
+function trendMovementText(trend = {}) {
+    if (!trend.ready) {
+        return "• 等待趨勢";
+    }
+
+    const movement =
+        Number.isFinite(trend.deltaEV)
+            ? ` ${evText(trend.deltaEV)}`
+            : "";
+
+    const provisional =
+        trend.trendSampleCount >= 2 &&
+        !trend.trendEvidenceQualified
+            ? "暫定"
+            : "";
+
+    return `${trend.directionSymbol ?? "•"} ${provisional}${trend.directionLabel ?? "等待趨勢"}${movement}`;
+}
+
+function distanceToPositiveText(trend = {}) {
+    if (
+        !trend.ready ||
+        !Number.isFinite(
+            trend.distanceToPositiveEV
+        )
+    ) {
+        return "—";
+    }
+
+    return trend.distanceToPositiveEV === 0
+        ? "已達正 EV"
+        : `${(trend.distanceToPositiveEV * 100).toFixed(2)}%`;
+}
+
+function trendSeriesHTML(trend = {}) {
+    const series =
+        Array.isArray(trend.series)
+            ? trend.series
+            : [];
+
+    if (series.length === 0) {
+        return `
+            <span class="v1053TrendEmpty">
+                完成本局後開始累積趨勢
+            </span>
+        `;
+    }
+
+    return series.map((point, index) => {
+        const round =
+            Number.isInteger(point.round)
+                ? `#${point.round}`
+                : `T${index + 1}`;
+
+        return `
+            <span
+                class="v1053TrendPoint"
+                data-trend-point
+                data-trend-positive="${point.ev > 0 ? "true" : "false"}"
+                title="${escapeHTML(`${round} ${trend.targetLabel} EV ${evText(point.ev)} · ${point.evidenceLabel ?? "—"}`)}"
+            >
+                ${escapeHTML(round)}
+                <b>${evText(point.ev)}</b>
+            </span>
+        `;
+    }).join("");
+}
+
 function escapeHTML(value) {
     return String(value ?? "—")
         .replaceAll("&", "&amp;")
@@ -104,6 +177,7 @@ export default class LiveCasinoUXController {
         aiRuntime = null,
         policy = null,
         decisionModel = null,
+        signalTrendMonitor = null,
         clock = () => Date.now()
     } = {}) {
         if (!game) {
@@ -121,12 +195,29 @@ export default class LiveCasinoUXController {
         this.decisionModel =
             decisionModel ??
             new LiveCasinoDecisionModel();
+        this.signalTrendMonitor =
+            signalTrendMonitor ??
+            new SignalTrendMonitor();
+
+        if (
+            typeof this.signalTrendMonitor
+                .observe !== "function" ||
+            typeof this.signalTrendMonitor
+                .reset !== "function"
+        ) {
+            throw new TypeError(
+                "signalTrendMonitor requires observe() and reset()."
+            );
+        }
+
         this.clock = clock;
 
         this.analysisProfile =
             LiveCasinoAnalysisProfile.QUICK;
 
         this.lastDecision = null;
+        this.lastSignalTrend =
+            this.signalTrendMonitor.summary;
         this.lastAnalysisDurationMs = null;
         this.lastAnalysisTimedOut = false;
         this.lastAnalysisStage = "idle";
@@ -312,6 +403,11 @@ export default class LiveCasinoUXController {
                 analysis
             );
 
+        this.observeSignalTrend(
+            analysis,
+            this.lastDecision
+        );
+
         this.render?.();
 
         return analysis;
@@ -485,19 +581,82 @@ export default class LiveCasinoUXController {
     }
 
     getDecision() {
+        const analysis =
+            this.game.nextAnalysis;
         const live =
             this.decisionModel.build(
-                this.game.nextAnalysis
+                analysis
             );
 
         if (live.ready) {
             this.lastDecision = live;
+            this.observeSignalTrend(
+                analysis,
+                live
+            );
         }
 
         return (
             this.lastDecision ??
             live
         );
+    }
+
+    observeSignalTrend(
+        analysis,
+        decision
+    ) {
+        if (
+            !analysis ||
+            !decision?.ready
+        ) {
+            return this.lastSignalTrend;
+        }
+
+        this.lastSignalTrend =
+            this.signalTrendMonitor
+                .observe(
+                    analysis,
+                    decision,
+                    {
+                        shoeNumber:
+                            this.game
+                                .shoeNumber
+                    }
+                );
+
+        return this.lastSignalTrend;
+    }
+
+    getSignalTrend() {
+        return (
+            this.lastSignalTrend ??
+            this.signalTrendMonitor
+                .summary
+        );
+    }
+
+    resetSignalTrend() {
+        clearTimeout(
+            this.pendingRefine
+        );
+
+        this.pendingRefine = null;
+        this.analysisSequence++;
+        this.lastDecision = null;
+        this.lastAnalysisDurationMs = null;
+        this.lastAnalysisTimedOut = false;
+        this.lastAnalysisStage = "idle";
+
+        this.signalTrendMonitor.reset({
+            shoeId:
+                this.game.shoeNumber
+        });
+
+        this.lastSignalTrend =
+            this.signalTrendMonitor.summary;
+
+        return this;
     }
 
     renderDecisionHTML() {
@@ -520,6 +679,8 @@ export default class LiveCasinoUXController {
 
         const evidence =
             d.evidence ?? {};
+        const trend =
+            this.getSignalTrend();
 
         const blockerHTML =
             d.primaryBlocker
@@ -598,6 +759,48 @@ export default class LiveCasinoUXController {
                         </b>
                     </div>
                     ${blockerHTML}
+                    <div
+                        class="v1053Opportunity"
+                        data-signal-trend
+                        data-trend-direction="${escapeHTML(trend.direction)}"
+                        data-opportunity-state="${escapeHTML(trend.opportunityState)}"
+                    >
+                        <span>
+                            機會：
+                            <b data-opportunity-label>
+                                ${escapeHTML(trend.opportunityLabel)}
+                            </b>
+                        </span>
+                        <span>
+                            趨勢：
+                            <b data-trend-direction>
+                                ${escapeHTML(trendMovementText(trend))}
+                            </b>
+                        </span>
+                        <span>
+                            距正 EV：
+                            <b data-opportunity-distance>
+                                ${escapeHTML(distanceToPositiveText(trend))}
+                            </b>
+                        </span>
+                        <span>
+                            安全門檻：
+                            <b data-opportunity-gates>
+                                ${trend.passedGateCount ?? 0}/${trend.totalGateCount ?? 5}
+                            </b>
+                        </span>
+                    </div>
+                    <div
+                        class="v1053TrendSeries"
+                        data-trend-series
+                        aria-label="${escapeHTML(`${trend.targetLabel ?? "主注"}最近 EV 趨勢`)}"
+                    >
+                        <span class="v1053TrendSeriesLabel">
+                            ${escapeHTML(trend.targetLabel ?? "主注")}近 ${trend.trendSampleCount ?? 0} 局
+                            · 連續最佳 ${trend.bestStreak ?? 0} 局
+                        </span>
+                        ${trendSeriesHTML(trend)}
+                    </div>
                     <small data-decision-reason>
                         判斷：${escapeHTML(d.reason)}
                     </small>
@@ -640,10 +843,14 @@ export default class LiveCasinoUXController {
 
         const evidence =
             d.evidence ?? {};
+        const trend =
+            this.getSignalTrend();
 
         const dockReason =
-            d.primaryBlocker ??
-            d.reason;
+            trend.ready
+                ? `${trend.opportunityLabel} · ${d.primaryBlocker ?? trend.opportunityReason}`
+                : d.primaryBlocker ??
+                    d.reason;
 
         return `
             <section
@@ -651,6 +858,8 @@ export default class LiveCasinoUXController {
                 data-live-decision-dock
                 data-decision-category="${escapeHTML(d.category)}"
                 data-decision-action="${escapeHTML(d.action)}"
+                data-trend-direction="${escapeHTML(trend.direction)}"
+                data-opportunity-state="${escapeHTML(trend.opportunityState)}"
                 aria-live="polite"
                 aria-hidden="true"
             >
@@ -663,6 +872,7 @@ export default class LiveCasinoUXController {
                 </span>
                 <span class="v105DecisionDockConfidence">
                     ${escapeHTML(evidence.shortLabel ?? "等待")}
+                    · ${escapeHTML(trend.directionSymbol ?? "•")}${escapeHTML(trend.directionLabel ?? "等待趨勢")}
                 </span>
                 <span class="v105DecisionDockAmount">
                     建議額 ${d.amount ?? 0}
@@ -757,6 +967,8 @@ export default class LiveCasinoUXController {
     updateAIPanel(root) {
         const d =
             this.getDecision();
+        const trend =
+            this.getSignalTrend();
 
         const runtimeSummary =
             this.aiRuntime?.summary ??
@@ -773,7 +985,7 @@ export default class LiveCasinoUXController {
         text(
             root,
             "[data-ai-stage]",
-            "decision-gate-calibration-v10.5.2"
+            "signal-trend-opportunity-v10.5.3"
         );
 
         text(
@@ -833,8 +1045,7 @@ export default class LiveCasinoUXController {
             root,
             "[data-ai-feedback]",
             d.ready
-                ? d.primaryBlocker ??
-                    d.reason
+                ? `${trend.opportunityLabel}：${d.primaryBlocker ?? trend.opportunityReason}`
                 : "尚無決策回饋"
         );
 
@@ -843,14 +1054,14 @@ export default class LiveCasinoUXController {
             "[data-ai-learning]",
             runtimeSummary?.state
                 ? `Runtime ${runtimeSummary.state}`
-                : `${d.evidence?.shortLabel ?? "Evidence"}→EV 範圍→波動→Kelly`
+                : `${trend.targetLabel ?? "主注"}近 ${trend.trendSampleCount ?? 0} 局 · ${trendMovementText(trend)}`
         );
 
         text(
             root,
             "[data-ai-adaptive]",
             d.ready
-                ? `Evidence Gate→${d.categoryLabel}`
+                ? `${trend.opportunityLabel} · 安全門檻 ${trend.passedGateCount ?? 0}/${trend.totalGateCount ?? 5}`
                 : "等待下一局資料"
         );
     }
@@ -1003,6 +1214,9 @@ export default class LiveCasinoUXController {
     }
 
     get summary() {
+        const decision =
+            this.getDecision();
+
         return {
             version:
                 LIVE_CASINO_UX_CONTROLLER_VERSION,
@@ -1010,6 +1224,10 @@ export default class LiveCasinoUXController {
                 AI_LIVE_DECISION_UX_VERSION,
             evidenceUXVersion:
                 AI_LIVE_DECISION_EVIDENCE_UX_VERSION,
+            signalTrendVersion:
+                SIGNAL_TREND_OPPORTUNITY_UX_VERSION,
+            signalTrendMonitorVersion:
+                SIGNAL_TREND_MONITOR_VERSION,
             profile:
                 this.analysisProfile,
             deadlineMs:
@@ -1021,8 +1239,10 @@ export default class LiveCasinoUXController {
                 this.lastAnalysisStage,
             timedOut:
                 this.lastAnalysisTimedOut,
+            signalTrend:
+                this.getSignalTrend(),
             decision:
-                this.getDecision()
+                decision
         };
     }
 }
