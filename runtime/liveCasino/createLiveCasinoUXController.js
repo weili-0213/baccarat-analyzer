@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.5.4
+ * Baccarat Analyzer V10.6.0
  * Path: runtime/liveCasino/createLiveCasinoUXController.js
  * Purpose: Factory for live casino UX/performance controller.
  */
@@ -18,11 +18,15 @@ import SignalTrendMonitor
 import ExactOpportunityConfirmation
     from "./ExactOpportunityConfirmation.js";
 
+import DecisionStabilityExplainabilityEngine
+    from "./DecisionStabilityExplainabilityEngine.js";
+
 export const LIVE_CASINO_UX_FACTORY_VERSION = "10.4.5";
 export const AI_LIVE_DECISION_FACTORY_VERSION = "10.5.0";
 export const AI_LIVE_DECISION_CALIBRATION_FACTORY_VERSION = "10.5.2";
 export const SIGNAL_TREND_MONITOR_FACTORY_VERSION = "10.5.3";
 export const EXACT_OPPORTUNITY_CONFIRMATION_FACTORY_VERSION = "10.5.4";
+export const DECISION_STABILITY_EXPLAINABILITY_FACTORY_VERSION = "10.6.0";
 
 export default function createLiveCasinoUXController({
     game,
@@ -35,6 +39,7 @@ export default function createLiveCasinoUXController({
         decision = {},
         signalTrend = {},
         exactConfirmation = {},
+        decisionStability = {},
         ...performancePolicy
     } = performance ?? {};
 
@@ -59,6 +64,11 @@ export default function createLiveCasinoUXController({
         exactConfirmation:
             new ExactOpportunityConfirmation({
                 ...exactConfirmation,
+                clock
+            }),
+        decisionStabilityEngine:
+            new DecisionStabilityExplainabilityEngine({
+                ...decisionStability,
                 clock
             })
     });
