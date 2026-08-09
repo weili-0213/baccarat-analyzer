@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.5.2
+ * Baccarat Analyzer V10.5.3
  * Path: pages/dashboard.js
  * Purpose:
  *   Live Casino UX & Performance Refactor.
@@ -69,6 +69,7 @@ export const DASHBOARD_PAGE_VERSION = "10.1.0";
 export const DASHBOARD_COMPATIBILITY_VERSION = "10.4.5";
 export const DASHBOARD_LIVE_DECISION_VERSION = "10.5.0";
 export const DASHBOARD_DECISION_CALIBRATION_VERSION = "10.5.2";
+export const DASHBOARD_SIGNAL_TREND_VERSION = "10.5.3";
 
 export const DashboardMode = AnalysisDisplayMode;
 
@@ -436,9 +437,19 @@ export class Dashboard {
     }
 
 
-    startNewShoe() {
-        return this.inputController
-            .startNewShoe();
+    async startNewShoe() {
+        const result =
+            await this.inputController
+                .startNewShoe();
+
+        if (result !== null) {
+            this.liveCasino
+                .resetSignalTrend();
+
+            this.render();
+        }
+
+        return result;
     }
 
     /**
@@ -807,6 +818,8 @@ export class Dashboard {
                 DASHBOARD_LIVE_DECISION_VERSION,
             decisionCalibrationVersion:
                 DASHBOARD_DECISION_CALIBRATION_VERSION,
+            signalTrendVersion:
+                DASHBOARD_SIGNAL_TREND_VERSION,
             controllers: {
                 game: this.gameController.summary,
                 ui: this.uiController.summary,
@@ -1275,6 +1288,9 @@ createDashboard.liveDecisionVersion =
 
 createDashboard.decisionCalibrationVersion =
     DASHBOARD_DECISION_CALIBRATION_VERSION;
+
+createDashboard.signalTrendVersion =
+    DASHBOARD_SIGNAL_TREND_VERSION;
 
 createDashboard.legacyVersion =
     DASHBOARD_VERSION;
