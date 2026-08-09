@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.5.2
+ * Baccarat Analyzer V10.5.3
  * Path: runtime/liveCasino/LiveCasinoUXStyles.js
  * Purpose: Compact single-screen live casino UX styles.
  */
@@ -7,6 +7,7 @@ export const LIVE_CASINO_UX_STYLES_VERSION = "10.4.5";
 export const AI_LIVE_DECISION_STYLES_VERSION = "10.5.0";
 export const RESPONSIVE_LIVE_DECISION_UX_VERSION = "10.5.1";
 export const AI_LIVE_DECISION_EVIDENCE_STYLES_VERSION = "10.5.2";
+export const SIGNAL_TREND_MONITOR_STYLES_VERSION = "10.5.3";
 
 export const LIVE_CASINO_UX_STYLE_ID =
     "baccarat-live-casino-v1044";
@@ -66,8 +67,7 @@ export const LIVE_CASINO_UX_CSS = `
 }
 
 [data-live-casino-v1044] .v1044Decision {
-    position: sticky;
-    top: 0;
+    position: static;
     z-index: 20;
     display: grid;
     grid-template-columns: minmax(220px,1.1fr) repeat(3,minmax(110px,.7fr)) minmax(180px,.9fr);
@@ -159,6 +159,67 @@ export const LIVE_CASINO_UX_CSS = `
     line-height: 1.3;
 }
 
+[data-live-casino-v105] .v1053Opportunity {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem .55rem;
+    margin-top: .25rem;
+    padding: .25rem .35rem;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 7px;
+    background: rgba(0,0,0,.13);
+    font-size: .76rem;
+    line-height: 1.3;
+}
+
+[data-live-casino-v105] .v1053Opportunity span {
+    white-space: nowrap;
+}
+
+[data-live-casino-v105] .v1053Opportunity[data-opportunity-state="actionable"] {
+    color: #86efac;
+    border-color: rgba(74,222,128,.45);
+    background: rgba(34,197,94,.12);
+}
+
+[data-live-casino-v105] .v1053Opportunity[data-opportunity-state="positive-blocked"],
+[data-live-casino-v105] .v1053Opportunity[data-opportunity-state="approaching"] {
+    color: #fde68a;
+    border-color: rgba(245,158,11,.42);
+    background: rgba(245,158,11,.10);
+}
+
+[data-live-casino-v105] .v1053TrendSeries {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .2rem .3rem;
+    margin-top: .22rem;
+    font-size: .7rem;
+}
+
+[data-live-casino-v105] .v1053TrendSeriesLabel {
+    opacity: .76;
+}
+
+[data-live-casino-v105] .v1053TrendPoint {
+    display: inline-flex;
+    gap: .18rem;
+    padding: .08rem .28rem;
+    border-radius: 999px;
+    color: #cbd5e1;
+    background: rgba(148,163,184,.12);
+}
+
+[data-live-casino-v105] .v1053TrendPoint[data-trend-positive="true"] {
+    color: #86efac;
+    background: rgba(34,197,94,.14);
+}
+
+[data-live-casino-v105] .v1053TrendEmpty {
+    opacity: .68;
+}
+
 [data-live-casino-v105] [data-decision-category="positive-ev"] .v1044DecisionMain {
     border-left: 4px solid #4ade80;
 }
@@ -218,6 +279,15 @@ export const LIVE_CASINO_UX_CSS = `
     border-left-color: #4ade80;
 }
 
+[data-live-casino-v105] .v105DecisionDock[data-opportunity-state="approaching"],
+[data-live-casino-v105] .v105DecisionDock[data-opportunity-state="positive-blocked"] {
+    border-left-color: #f59e0b;
+}
+
+[data-live-casino-v105] .v105DecisionDock[data-opportunity-state="actionable"] {
+    border-left-color: #4ade80;
+}
+
 [data-live-casino-v105] .v105DecisionDock[data-decision-category="risk-too-high"],
 [data-live-casino-v105] .v105DecisionDock[data-decision-category="weak-signal"] {
     border-left-color: #f59e0b;
@@ -251,6 +321,14 @@ export const LIVE_CASINO_UX_CSS = `
     text-overflow: ellipsis;
     white-space: nowrap;
     opacity: .82;
+}
+
+[data-live-casino-v105] .v33InputZone,
+[data-live-casino-v105] .v33InsightZone,
+[data-live-casino-v105] .v33RoadZone,
+[data-live-casino-v105] .v33HistoryZone {
+    padding-bottom: calc(5.25rem + env(safe-area-inset-bottom)) !important;
+    scroll-padding-bottom: calc(5.25rem + env(safe-area-inset-bottom));
 }
 
 [data-live-casino-v1044] .v1044Player {
@@ -457,7 +535,6 @@ export const LIVE_CASINO_UX_CSS = `
 
 @media (max-width: 900px) {
     [data-live-casino-v1044] .v1044Decision {
-        position: static;
         grid-template-columns: repeat(3,1fr);
     }
 
@@ -466,11 +543,6 @@ export const LIVE_CASINO_UX_CSS = `
         grid-column: 1 / -1;
     }
 
-    [data-live-casino-v105] .v33InputZone,
-    [data-live-casino-v105] .v33InsightZone {
-        padding-bottom: calc(5.25rem + env(safe-area-inset-bottom)) !important;
-        scroll-padding-bottom: calc(5.25rem + env(safe-area-inset-bottom));
-    }
 }
 
 @media (max-width: 620px) {
@@ -497,6 +569,8 @@ export const LIVE_CASINO_UX_CSS = `
 
     [data-live-casino-v105] .v105DecisionDockConfidence {
         grid-column: 3 / 4;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     [data-live-casino-v105] .v105DecisionDockReason {
@@ -505,6 +579,14 @@ export const LIVE_CASINO_UX_CSS = `
 
     [data-live-casino-v1044] .v1044UnifiedFullAnalysis .v3DataGrid {
         grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)) !important;
+    }
+
+    [data-live-casino-v105] .v1053Opportunity {
+        gap: .2rem .4rem;
+    }
+
+    [data-live-casino-v105] .v1053TrendSeries {
+        overflow: hidden;
     }
 }
 
