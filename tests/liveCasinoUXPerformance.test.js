@@ -1,11 +1,12 @@
 /**
- * Baccarat Analyzer V10.5.3
+ * Baccarat Analyzer V10.5.4
  * Path: tests/liveCasinoUXPerformance.test.js
  * Purpose: Runtime Integration Test for 3-second live decision UX/performance flow.
  */
 
 import LiveCasinoPerformancePolicy, {
-    LIVE_CASINO_PERFORMANCE_POLICY_VERSION
+    LIVE_CASINO_PERFORMANCE_POLICY_VERSION,
+    EXACT_OPPORTUNITY_CONFIRMATION_POLICY_VERSION
 } from "../runtime/liveCasino/LiveCasinoPerformancePolicy.js";
 
 import LiveCasinoDecisionModel, {
@@ -15,6 +16,7 @@ import LiveCasinoDecisionModel, {
 import {
     AI_LIVE_DECISION_ENGINE_VERSION,
     AI_LIVE_DECISION_CALIBRATION_VERSION,
+    EXACT_OPPORTUNITY_CONFIRMATION_ENGINE_VERSION,
     LiveDecisionCategory
 } from "../runtime/liveCasino/AILiveDecisionEngine.js";
 
@@ -24,7 +26,8 @@ import {
     AI_LIVE_DECISION_STYLES_VERSION,
     RESPONSIVE_LIVE_DECISION_UX_VERSION,
     AI_LIVE_DECISION_EVIDENCE_STYLES_VERSION,
-    SIGNAL_TREND_MONITOR_STYLES_VERSION
+    SIGNAL_TREND_MONITOR_STYLES_VERSION,
+    EXACT_OPPORTUNITY_CONFIRMATION_STYLES_VERSION
 } from "../runtime/liveCasino/LiveCasinoUXStyles.js";
 
 import LiveCasinoUXController, {
@@ -32,14 +35,16 @@ import LiveCasinoUXController, {
     AI_LIVE_DECISION_UX_VERSION,
     AI_LIVE_DECISION_DOCK_VERSION,
     AI_LIVE_DECISION_EVIDENCE_UX_VERSION,
-    SIGNAL_TREND_OPPORTUNITY_UX_VERSION
+    SIGNAL_TREND_OPPORTUNITY_UX_VERSION,
+    EXACT_OPPORTUNITY_CONFIRMATION_UX_VERSION
 } from "../runtime/liveCasino/LiveCasinoUXController.js";
 
 import createLiveCasinoUXController, {
     LIVE_CASINO_UX_FACTORY_VERSION,
     AI_LIVE_DECISION_FACTORY_VERSION,
     AI_LIVE_DECISION_CALIBRATION_FACTORY_VERSION,
-    SIGNAL_TREND_MONITOR_FACTORY_VERSION
+    SIGNAL_TREND_MONITOR_FACTORY_VERSION,
+    EXACT_OPPORTUNITY_CONFIRMATION_FACTORY_VERSION
 } from "../runtime/liveCasino/createLiveCasinoUXController.js";
 
 import {
@@ -47,6 +52,11 @@ import {
     SignalOpportunityState,
     SignalTrendDirection
 } from "../runtime/liveCasino/SignalTrendMonitor.js";
+
+import {
+    EXACT_OPPORTUNITY_CONFIRMATION_VERSION,
+    ExactOpportunityState
+} from "../runtime/liveCasino/ExactOpportunityConfirmation.js";
 
 import LiveCasinoUXRuntimeAdapter, {
     LIVE_CASINO_UX_RUNTIME_ADAPTER_VERSION
@@ -189,7 +199,13 @@ function createGame({
             );
 
             this.nextAnalysis =
-                createAnalysis();
+                createAnalysis({
+                    method:
+                        options.mode ===
+                            "hybrid"
+                            ? "hybrid"
+                            : "monteCarlo"
+                });
 
             this.hasNextAnalysis = true;
             this.isAnalyzing = false;
@@ -297,6 +313,24 @@ export default async function liveCasinoUXPerformanceTest() {
     );
 
     assert(
+        [
+            EXACT_OPPORTUNITY_CONFIRMATION_VERSION,
+            EXACT_OPPORTUNITY_CONFIRMATION_ENGINE_VERSION,
+            EXACT_OPPORTUNITY_CONFIRMATION_POLICY_VERSION,
+            EXACT_OPPORTUNITY_CONFIRMATION_STYLES_VERSION,
+            EXACT_OPPORTUNITY_CONFIRMATION_UX_VERSION,
+            EXACT_OPPORTUNITY_CONFIRMATION_FACTORY_VERSION
+        ].every(version =>
+            version === "10.5.4"
+        ),
+        "V10.5.4 Exact Opportunity Confirmation version contract 錯誤"
+    );
+
+    messages.push(
+        "✓ V10.5.4 Exact Opportunity Confirmation 版本正確"
+    );
+
+    assert(
         LIVE_CASINO_UX_CSS.includes(
             ".v1044Decision {\n    position: static;"
         ) &&
@@ -315,7 +349,8 @@ export default async function liveCasinoUXPerformanceTest() {
         new LiveCasinoPerformancePolicy({
             decisionDeadlineMs: 300,
             quickSimulations: 1200,
-            quickBatchSize: 300
+            quickBatchSize: 300,
+            refineDelayMs: 60000
         });
 
     assert(
@@ -405,9 +440,22 @@ export default async function liveCasinoUXPerformanceTest() {
             .signalTrendMonitorVersion ===
             "10.5.3" &&
         controller.summary
+            .exactConfirmationVersion ===
+            "10.5.4" &&
+        controller.summary
+            .exactConfirmation
+            .state ===
+            ExactOpportunityState.CONFIRMING &&
+        controller.summary
+            .decision
+            .decisionFinal === false &&
+        controller.summary
+            .decision
+            .amount === 0 &&
+        controller.summary
             .signalTrend
             .opportunityState ===
-            SignalOpportunityState.WATCH,
+            SignalOpportunityState.INSUFFICIENT_DATA,
         "Live decision mapping 錯誤"
     );
 
@@ -426,16 +474,16 @@ export default async function liveCasinoUXPerformanceTest() {
         dockHTML.includes(
             'data-decision-category="relative-best"'
         ) &&
-        dockHTML.includes("相對最佳：莊家") &&
+        dockHTML.includes("暫定候選：莊家") &&
         !dockHTML.includes("推薦：莊家") &&
+        dockHTML.includes("暫定") &&
         dockHTML.includes("觀望 · 相對最佳") &&
+        dockHTML.includes("Exact 精算確認中") &&
         dockHTML.includes("MC 1,200") &&
         dockHTML.includes("•等待趨勢") &&
-        dockHTML.includes("進入觀察區") &&
         dockHTML.includes(
-            'data-opportunity-state="watch"'
+            'data-opportunity-state="insufficient-data"'
         ) &&
-        dockHTML.includes("EV -0.52%") &&
         dockHTML.includes("建議額 0"),
         "V10.5.2 compact Decision Dock 證據資訊不完整"
     );
@@ -671,13 +719,14 @@ export default async function liveCasinoUXPerformanceTest() {
     return `
 ${messages.join("\n")}
 
-Live Casino UX & Signal Trend Integration V10.5.3 測試完成
+Live Casino UX & Exact Confirmation Integration V10.5.4 測試完成
 
 Version Contracts：通過
 V10.5 Decision Engine：通過
 V10.5.1 Decision Dock：通過
 V10.5.2 Decision Gate Calibration：通過
 V10.5.3 Signal Trend Monitor：通過
+V10.5.4 Exact Opportunity Confirmation：通過
 Full-Size Decision Dock：通過
 Quick Analysis Profile：通過
 Strict + Relative Decision：通過
