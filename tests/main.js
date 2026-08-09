@@ -310,6 +310,9 @@ import noCommissionBaccaratEVTest
 import aiLiveDecisionEngineTest
     from "./aiLiveDecisionEngine.test.js";
 
+import signalTrendMonitorTest
+    from "./signalTrendMonitor.test.js";
+
 
 /**
  * 新增測試時，只需：
@@ -915,6 +918,12 @@ const TESTS = [
         id: "ai-live-decision-engine-v105",
         name: "AI Live Decision Engine V10.5",
         run: aiLiveDecisionEngineTest
+    },
+
+    {
+        id: "signal-trend-monitor-v1053",
+        name: "Signal Trend & Opportunity Monitor V10.5.3",
+        run: signalTrendMonitorTest
     }
 
 ];
