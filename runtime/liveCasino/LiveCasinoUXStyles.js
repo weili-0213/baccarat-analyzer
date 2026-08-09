@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.5.3
+ * Baccarat Analyzer V10.5.4
  * Path: runtime/liveCasino/LiveCasinoUXStyles.js
  * Purpose: Compact single-screen live casino UX styles.
  */
@@ -8,6 +8,7 @@ export const AI_LIVE_DECISION_STYLES_VERSION = "10.5.0";
 export const RESPONSIVE_LIVE_DECISION_UX_VERSION = "10.5.1";
 export const AI_LIVE_DECISION_EVIDENCE_STYLES_VERSION = "10.5.2";
 export const SIGNAL_TREND_MONITOR_STYLES_VERSION = "10.5.3";
+export const EXACT_OPPORTUNITY_CONFIRMATION_STYLES_VERSION = "10.5.4";
 
 export const LIVE_CASINO_UX_STYLE_ID =
     "baccarat-live-casino-v1044";
@@ -106,6 +107,69 @@ export const LIVE_CASINO_UX_CSS = `
 [data-live-casino-v105] .v105DecisionHeadline strong {
     display: inline;
     font-size: 1.25rem !important;
+}
+
+[data-live-casino-v105] .v1054ConfirmationState {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .18rem .45rem;
+    margin: .2rem 0 .28rem;
+    padding: .25rem .4rem;
+    border: 1px solid rgba(96,165,250,.42);
+    border-radius: 7px;
+    color: #bfdbfe;
+    background: rgba(59,130,246,.12);
+    line-height: 1.3;
+}
+
+[data-live-casino-v105] .v1054ConfirmationState strong {
+    display: inline !important;
+    font-size: .8rem !important;
+}
+
+[data-live-casino-v105] .v1054ConfirmationState small {
+    opacity: .86;
+}
+
+[data-live-casino-v105] [data-confirmation-state="confirming"] .v1054ConfirmationState {
+    color: #fde68a;
+    border-color: rgba(245,158,11,.5);
+    background: rgba(245,158,11,.12);
+}
+
+[data-live-casino-v105] [data-confirmation-state="confirmed"] .v1054ConfirmationState {
+    color: #bbf7d0;
+    border-color: rgba(74,222,128,.5);
+    background: rgba(34,197,94,.12);
+}
+
+[data-live-casino-v105] [data-confirmation-state="failed"] .v1054ConfirmationState {
+    color: #fecaca;
+    border-color: rgba(248,113,113,.5);
+    background: rgba(239,68,68,.12);
+}
+
+[data-live-casino-v105] .v1054ResultReplacement {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .2rem .45rem;
+    margin-top: .22rem;
+    padding: .24rem .38rem;
+    border-radius: 7px;
+    color: #e2e8f0;
+    background: rgba(15,23,42,.28);
+    font-size: .74rem;
+    line-height: 1.35;
+}
+
+[data-live-casino-v105] .v1054ResultReplacement small {
+    color: #86efac;
+}
+
+[data-live-casino-v105] [data-decision-provisional="true"] .v1044DecisionMain {
+    border-left: 4px solid #60a5fa;
 }
 
 [data-live-casino-v105] .v105DecisionBadges {
@@ -277,6 +341,18 @@ export const LIVE_CASINO_UX_CSS = `
 
 [data-live-casino-v105] .v105DecisionDock[data-decision-category="positive-ev"] {
     border-left-color: #4ade80;
+}
+
+[data-live-casino-v105] .v105DecisionDock[data-decision-provisional="true"] {
+    border-left-color: #60a5fa;
+}
+
+[data-live-casino-v105] .v105DecisionDock[data-confirmation-state="confirming"] {
+    border-left-color: #f59e0b;
+}
+
+[data-live-casino-v105] .v105DecisionDock[data-confirmation-state="failed"] {
+    border-left-color: #ef4444;
 }
 
 [data-live-casino-v105] .v105DecisionDock[data-opportunity-state="approaching"],
@@ -587,6 +663,19 @@ export const LIVE_CASINO_UX_CSS = `
 
     [data-live-casino-v105] .v1053TrendSeries {
         overflow: hidden;
+    }
+
+    [data-live-casino-v105] .v1054ConfirmationState small {
+        flex-basis: 100%;
+    }
+
+    [data-live-casino-v105] .v1054ResultReplacement b {
+        display: none;
+    }
+
+    [data-live-casino-v105] .v1054ResultReplacement span,
+    [data-live-casino-v105] .v1054ResultReplacement small {
+        flex: 1 1 100%;
     }
 }
 
