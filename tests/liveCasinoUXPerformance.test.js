@@ -443,6 +443,13 @@ export default async function liveCasinoUXPerformanceTest() {
             .exactConfirmationVersion ===
             "10.5.4" &&
         controller.summary
+            .decisionStabilityVersion ===
+            "10.6.0" &&
+        controller.summary
+            .decisionStability
+            .lifecycle ===
+            "exact-confirming" &&
+        controller.summary
             .exactConfirmation
             .state ===
             ExactOpportunityState.CONFIRMING &&
@@ -474,13 +481,12 @@ export default async function liveCasinoUXPerformanceTest() {
         dockHTML.includes(
             'data-decision-category="relative-best"'
         ) &&
-        dockHTML.includes("暫定候選：莊家") &&
+        dockHTML.includes("分析狀態：Exact 確認中") &&
         !dockHTML.includes("推薦：莊家") &&
-        dockHTML.includes("暫定") &&
-        dockHTML.includes("觀望 · 相對最佳") &&
-        dockHTML.includes("Exact 精算確認中") &&
-        dockHTML.includes("MC 1,200") &&
-        dockHTML.includes("•等待趨勢") &&
+        dockHTML.includes("Exact 最終確認中") &&
+        dockHTML.includes("觀望 · 等待 Exact 最終結果") &&
+        dockHTML.includes("成熟度") &&
+        dockHTML.includes("閒莊差距") &&
         dockHTML.includes(
             'data-opportunity-state="insufficient-data"'
         ) &&
