@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.5.4
+ * Baccarat Analyzer V10.6.0
  * Path: runtime/liveCasino/LiveCasinoUXStyles.js
  * Purpose: Compact single-screen live casino UX styles.
  */
@@ -9,6 +9,7 @@ export const RESPONSIVE_LIVE_DECISION_UX_VERSION = "10.5.1";
 export const AI_LIVE_DECISION_EVIDENCE_STYLES_VERSION = "10.5.2";
 export const SIGNAL_TREND_MONITOR_STYLES_VERSION = "10.5.3";
 export const EXACT_OPPORTUNITY_CONFIRMATION_STYLES_VERSION = "10.5.4";
+export const DECISION_STABILITY_EXPLAINABILITY_STYLES_VERSION = "10.6.0";
 
 export const LIVE_CASINO_UX_STYLE_ID =
     "baccarat-live-casino-v1044";
@@ -170,6 +171,115 @@ export const LIVE_CASINO_UX_CSS = `
 
 [data-live-casino-v105] [data-decision-provisional="true"] .v1044DecisionMain {
     border-left: 4px solid #60a5fa;
+}
+
+[data-live-casino-v106] .v106DecisionState,
+[data-live-casino-v106] .v106ExactEVComparison {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .18rem .65rem;
+    min-width: 0;
+    margin-top: .22rem;
+    font-size: .76rem;
+    line-height: 1.35;
+}
+
+[data-live-casino-v106] .v106DecisionState {
+    color: #dbeafe;
+}
+
+[data-live-casino-v106] .v106ExactEVComparison {
+    padding: .24rem .38rem;
+    border: 1px solid rgba(148,163,184,.25);
+    border-radius: 7px;
+    background: rgba(15,23,42,.22);
+}
+
+[data-live-casino-v106] .v106ExactEVComparison small {
+    min-width: 0;
+    opacity: .78;
+    overflow-wrap: anywhere;
+}
+
+[data-live-casino-v106] [data-close-call="true"] .v106ExactEVComparison,
+[data-live-casino-v106] [data-market-state="close-call"] .v1044DecisionMain {
+    border-color: rgba(250,204,21,.58);
+    background: rgba(250,204,21,.08);
+}
+
+[data-live-casino-v106] [data-market-state="close-call"] .v105DecisionHeadline strong,
+[data-live-casino-v106] [data-market-state="close-call"] [data-market-state-label] {
+    color: #fde68a;
+}
+
+[data-live-casino-v106] .v106Maturity {
+    min-width: 0;
+    margin-top: .25rem;
+    padding: .28rem .38rem;
+    border: 1px solid rgba(96,165,250,.24);
+    border-radius: 8px;
+    background: rgba(30,64,175,.09);
+}
+
+[data-live-casino-v106] .v106MaturityHeader {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: .18rem .42rem;
+    font-size: .76rem;
+}
+
+[data-live-casino-v106] .v106MaturityHeader strong {
+    display: inline !important;
+    color: #fde68a;
+    font-size: .94rem !important;
+}
+
+[data-live-casino-v106] .v106MaturityHeader small {
+    opacity: .8;
+}
+
+[data-live-casino-v106] .v106MaturityComponents {
+    display: grid;
+    grid-template-columns: repeat(5,minmax(76px,1fr));
+    gap: .2rem;
+    margin-top: .22rem;
+    min-width: 0;
+}
+
+[data-live-casino-v106] .v106MaturityComponent {
+    display: flex;
+    justify-content: space-between;
+    gap: .22rem;
+    min-width: 0;
+    padding: .14rem .26rem;
+    border-radius: 5px;
+    color: #cbd5e1;
+    background: rgba(148,163,184,.11);
+    font-size: .66rem;
+    overflow-wrap: anywhere;
+}
+
+[data-live-casino-v106] .v106MaturityComponent[data-maturity-pass="true"] {
+    color: #bbf7d0;
+    background: rgba(34,197,94,.13);
+}
+
+[data-live-casino-v106] [data-maturity-missing] {
+    display: block;
+    min-width: 0;
+    margin-top: .2rem;
+    color: #fef3c7;
+    font-size: .68rem;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+[data-live-casino-v106] .v105DecisionDock[data-market-state="close-call"] {
+    border-left-color: #facc15;
 }
 
 [data-live-casino-v105] .v105DecisionBadges {
@@ -619,6 +729,10 @@ export const LIVE_CASINO_UX_CSS = `
         grid-column: 1 / -1;
     }
 
+    [data-live-casino-v106] .v106MaturityComponents {
+        grid-template-columns: repeat(3,minmax(90px,1fr));
+    }
+
 }
 
 @media (max-width: 620px) {
@@ -675,6 +789,24 @@ export const LIVE_CASINO_UX_CSS = `
 
     [data-live-casino-v105] .v1054ResultReplacement span,
     [data-live-casino-v105] .v1054ResultReplacement small {
+        flex: 1 1 100%;
+    }
+
+    [data-live-casino-v106] .v106MaturityComponents {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+    }
+
+    [data-live-casino-v106] [data-maturity-missing] {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    [data-live-casino-v106] .v106ExactEVComparison span {
+        flex: 1 1 auto;
+        white-space: nowrap;
+    }
+
+    [data-live-casino-v106] .v106ExactEVComparison small {
         flex: 1 1 100%;
     }
 }
