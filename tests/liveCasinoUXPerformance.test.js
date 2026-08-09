@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.5.2
+ * Baccarat Analyzer V10.5.3
  * Path: tests/liveCasinoUXPerformance.test.js
  * Purpose: Runtime Integration Test for 3-second live decision UX/performance flow.
  */
@@ -19,24 +19,34 @@ import {
 } from "../runtime/liveCasino/AILiveDecisionEngine.js";
 
 import {
+    LIVE_CASINO_UX_CSS,
     LIVE_CASINO_UX_STYLES_VERSION,
     AI_LIVE_DECISION_STYLES_VERSION,
     RESPONSIVE_LIVE_DECISION_UX_VERSION,
-    AI_LIVE_DECISION_EVIDENCE_STYLES_VERSION
+    AI_LIVE_DECISION_EVIDENCE_STYLES_VERSION,
+    SIGNAL_TREND_MONITOR_STYLES_VERSION
 } from "../runtime/liveCasino/LiveCasinoUXStyles.js";
 
 import LiveCasinoUXController, {
     LIVE_CASINO_UX_CONTROLLER_VERSION,
     AI_LIVE_DECISION_UX_VERSION,
     AI_LIVE_DECISION_DOCK_VERSION,
-    AI_LIVE_DECISION_EVIDENCE_UX_VERSION
+    AI_LIVE_DECISION_EVIDENCE_UX_VERSION,
+    SIGNAL_TREND_OPPORTUNITY_UX_VERSION
 } from "../runtime/liveCasino/LiveCasinoUXController.js";
 
 import createLiveCasinoUXController, {
     LIVE_CASINO_UX_FACTORY_VERSION,
     AI_LIVE_DECISION_FACTORY_VERSION,
-    AI_LIVE_DECISION_CALIBRATION_FACTORY_VERSION
+    AI_LIVE_DECISION_CALIBRATION_FACTORY_VERSION,
+    SIGNAL_TREND_MONITOR_FACTORY_VERSION
 } from "../runtime/liveCasino/createLiveCasinoUXController.js";
+
+import {
+    SIGNAL_TREND_MONITOR_VERSION,
+    SignalOpportunityState,
+    SignalTrendDirection
+} from "../runtime/liveCasino/SignalTrendMonitor.js";
 
 import LiveCasinoUXRuntimeAdapter, {
     LIVE_CASINO_UX_RUNTIME_ADAPTER_VERSION
@@ -57,9 +67,21 @@ function wait(ms) {
 }
 
 
-function createAnalysis() {
+function createAnalysis({
+    round = 1,
+    playerEV = -0.0179,
+    bankerEV = -0.0052,
+    method = "monteCarlo"
+} = {}) {
+    const hasExact =
+        method === "hybrid" ||
+        method === "exact";
+
     return {
-        method: "monteCarlo",
+        generatedAfterRound:
+            round,
+
+        method,
 
         probability: {
             player: 0.444,
@@ -68,8 +90,8 @@ function createAnalysis() {
         },
 
         ev: {
-            player: -0.0179,
-            banker: -0.0052,
+            player: playerEV,
+            banker: bankerEV,
             tie: -0.1538
         },
 
@@ -85,6 +107,17 @@ function createAnalysis() {
             sampleSize: 1200
         },
 
+        exact:
+            hasExact
+                ? {
+                    probability: {
+                        player: 0.444,
+                        banker: 0.462,
+                        tie: 0.094
+                    }
+                }
+                : null,
+
         risk: {
             banker: {
                 relativeRisk: 0.95,
@@ -96,14 +129,14 @@ function createAnalysis() {
         ranking: [
             {
                 key: "banker",
-                ev: -0.0052,
+                ev: bankerEV,
                 confidence: 0.72,
                 risk: 0.95,
                 standardDeviation: 0.95
             },
             {
                 key: "player",
-                ev: -0.0179,
+                ev: playerEV,
                 confidence: 0.68,
                 risk: 0.95,
                 standardDeviation: 0.95
@@ -247,6 +280,36 @@ export default async function liveCasinoUXPerformanceTest() {
         "✓ V10.5.2 Evidence / Decision Gate Calibration 版本正確"
     );
 
+    assert(
+        [
+            SIGNAL_TREND_MONITOR_VERSION,
+            SIGNAL_TREND_MONITOR_STYLES_VERSION,
+            SIGNAL_TREND_OPPORTUNITY_UX_VERSION,
+            SIGNAL_TREND_MONITOR_FACTORY_VERSION
+        ].every(version =>
+            version === "10.5.3"
+        ),
+        "V10.5.3 Signal Trend / Opportunity version contract 錯誤"
+    );
+
+    messages.push(
+        "✓ V10.5.3 Signal Trend / Opportunity Monitor 版本正確"
+    );
+
+    assert(
+        LIVE_CASINO_UX_CSS.includes(
+            ".v1044Decision {\n    position: static;"
+        ) &&
+        LIVE_CASINO_UX_CSS.includes(
+            "scroll-padding-bottom: calc(5.25rem + env(safe-area-inset-bottom));"
+        ),
+        "決策卡仍可能覆蓋完整 EV，或 Dock 未保留安全捲動空間"
+    );
+
+    messages.push(
+        "✓ 全尺寸 Decision Dock 不覆蓋完整 EV"
+    );
+
 
     const policy =
         new LiveCasinoPerformancePolicy({
@@ -334,7 +397,17 @@ export default async function liveCasinoUXPerformanceTest() {
             "10.5.0" &&
         controller.summary
             .evidenceUXVersion ===
-            "10.5.2",
+            "10.5.2" &&
+        controller.summary
+            .signalTrendVersion ===
+            "10.5.3" &&
+        controller.summary
+            .signalTrendMonitorVersion ===
+            "10.5.3" &&
+        controller.summary
+            .signalTrend
+            .opportunityState ===
+            SignalOpportunityState.WATCH,
         "Live decision mapping 錯誤"
     );
 
@@ -357,6 +430,11 @@ export default async function liveCasinoUXPerformanceTest() {
         !dockHTML.includes("推薦：莊家") &&
         dockHTML.includes("觀望 · 相對最佳") &&
         dockHTML.includes("MC 1,200") &&
+        dockHTML.includes("•等待趨勢") &&
+        dockHTML.includes("進入觀察區") &&
+        dockHTML.includes(
+            'data-opportunity-state="watch"'
+        ) &&
         dockHTML.includes("EV -0.52%") &&
         dockHTML.includes("建議額 0"),
         "V10.5.2 compact Decision Dock 證據資訊不完整"
@@ -364,6 +442,47 @@ export default async function liveCasinoUXPerformanceTest() {
 
     messages.push(
         "✓ 離開首屏後的精簡下一局決策資訊完整"
+    );
+
+    game.nextAnalysis =
+        createAnalysis({
+            round: 1,
+            playerEV: -0.0179,
+            bankerEV: -0.0052,
+            method: "hybrid"
+        });
+
+    controller.renderDecisionHTML();
+
+    game.nextAnalysis =
+        createAnalysis({
+            round: 2,
+            playerEV: -0.015,
+            bankerEV: -0.003,
+            method: "hybrid"
+        });
+
+    const trendHTML =
+        controller.renderDecisionHTML();
+
+    assert(
+        controller.summary
+            .signalTrend
+            .direction ===
+            SignalTrendDirection.STRENGTHENING &&
+        controller.summary
+            .signalTrend
+            .opportunityState ===
+            SignalOpportunityState.APPROACHING &&
+        trendHTML.includes("↑ 訊號增強") &&
+        trendHTML.includes("接近正 EV") &&
+        trendHTML.includes("#1") &&
+        trendHTML.includes("#2"),
+        "跨局 EV 趨勢沒有接入 Dashboard"
+    );
+
+    messages.push(
+        "✓ Dashboard 已顯示跨局 EV 增強與接近正 EV"
     );
 
 
@@ -552,12 +671,14 @@ export default async function liveCasinoUXPerformanceTest() {
     return `
 ${messages.join("\n")}
 
-Live Casino UX & Performance Refactor V10.4.5 測試完成
+Live Casino UX & Signal Trend Integration V10.5.3 測試完成
 
 Version Contracts：通過
 V10.5 Decision Engine：通過
 V10.5.1 Decision Dock：通過
 V10.5.2 Decision Gate Calibration：通過
+V10.5.3 Signal Trend Monitor：通過
+Full-Size Decision Dock：通過
 Quick Analysis Profile：通過
 Strict + Relative Decision：通過
 3-Second Deadline Architecture：通過
