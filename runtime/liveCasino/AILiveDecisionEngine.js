@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.5.2
+ * Baccarat Analyzer V10.5.4
  * Path: runtime/liveCasino/AILiveDecisionEngine.js
  *
  * Converges Probability → EV → Confidence → Risk → Ranking →
@@ -11,6 +11,9 @@ export const AI_LIVE_DECISION_ENGINE_VERSION =
 
 export const AI_LIVE_DECISION_CALIBRATION_VERSION =
     "10.5.2";
+
+export const EXACT_OPPORTUNITY_CONFIRMATION_ENGINE_VERSION =
+    "10.5.4";
 
 
 export const LiveDecisionCategory = Object.freeze({
@@ -601,6 +604,8 @@ function createWaitingDecision(reason) {
             AI_LIVE_DECISION_ENGINE_VERSION,
         calibrationVersion:
             AI_LIVE_DECISION_CALIBRATION_VERSION,
+        exactConfirmationVersion:
+            EXACT_OPPORTUNITY_CONFIRMATION_ENGINE_VERSION,
         ready:
             false,
         category:
@@ -668,6 +673,8 @@ function createWaitingDecision(reason) {
             evLowerBound: null,
             evUpperBound: null,
             uncertaintyComplete: false,
+            statisticallyPositiveEV: false,
+            exactConfirmationPass: false,
             robustPositiveEV: false
         },
         blockers: [
@@ -911,7 +918,7 @@ export default class AILiveDecisionEngine {
                     ranked
             });
 
-        const robustPositiveEV =
+        const statisticallyPositiveEV =
             positiveEV &&
             evidence.uncertaintyComplete &&
             (
@@ -926,6 +933,17 @@ export default class AILiveDecisionEngine {
                 )
             );
 
+        const exactConfirmationPass =
+            evidence.hasExact === true;
+
+        const robustPositiveEV =
+            statisticallyPositiveEV &&
+            exactConfirmationPass;
+
+        evidence.statisticallyPositiveEV =
+            statisticallyPositiveEV;
+        evidence.exactConfirmationPass =
+            exactConfirmationPass;
         evidence.robustPositiveEV =
             robustPositiveEV;
 
@@ -962,6 +980,18 @@ export default class AILiveDecisionEngine {
 
         if (
             positiveEV &&
+            !exactConfirmationPass
+        ) {
+            blockers.push(
+                createBlocker(
+                    "EXACT_CONFIRMATION_REQUIRED",
+                    `${decisionCandidate.label}的 MC 正 EV 只列為暫定候選；必須等待同一局 Exact 精算確認。`
+                )
+            );
+        }
+
+        if (
+            positiveEV &&
             !evidence.uncertaintyComplete
         ) {
             blockers.push(
@@ -973,7 +1003,7 @@ export default class AILiveDecisionEngine {
         }
         else if (
             positiveEV &&
-            !robustPositiveEV
+            !statisticallyPositiveEV
         ) {
             blockers.push(
                 createBlocker(
@@ -1082,7 +1112,7 @@ export default class AILiveDecisionEngine {
         }
         else if (
             positiveEV &&
-            !robustPositiveEV
+            !statisticallyPositiveEV
         ) {
             category =
                 LiveDecisionCategory.WEAK_SIGNAL;
@@ -1105,6 +1135,7 @@ export default class AILiveDecisionEngine {
         }
         else if (
             robustPositiveEV &&
+            exactConfirmationPass &&
             hasValidBetRecommendation &&
             confidencePass
         ) {
@@ -1179,6 +1210,8 @@ export default class AILiveDecisionEngine {
                 AI_LIVE_DECISION_ENGINE_VERSION,
             calibrationVersion:
                 AI_LIVE_DECISION_CALIBRATION_VERSION,
+            exactConfirmationVersion:
+                EXACT_OPPORTUNITY_CONFIRMATION_ENGINE_VERSION,
             ready:
                 true,
             category,
@@ -1272,6 +1305,8 @@ export default class AILiveDecisionEngine {
                 AI_LIVE_DECISION_ENGINE_VERSION,
             calibrationVersion:
                 AI_LIVE_DECISION_CALIBRATION_VERSION,
+            exactConfirmationVersion:
+                EXACT_OPPORTUNITY_CONFIRMATION_ENGINE_VERSION,
             categories:
                 Object.values(
                     LiveDecisionCategory
