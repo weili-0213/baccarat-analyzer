@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.5.2
+ * Baccarat Analyzer V10.5.3
  * Path: tests/aiLiveDecisionEngine.test.js
  * Test Runner: tests/main.js
  * AI Live Decision Engine classification and safety regressions.
@@ -28,7 +28,8 @@ import LiveCasinoDecisionModel, {
 
 import LiveCasinoUXController, {
     AI_LIVE_DECISION_UX_VERSION,
-    AI_LIVE_DECISION_EVIDENCE_UX_VERSION
+    AI_LIVE_DECISION_EVIDENCE_UX_VERSION,
+    SIGNAL_TREND_OPPORTUNITY_UX_VERSION
 } from "../runtime/liveCasino/LiveCasinoUXController.js";
 
 
@@ -233,6 +234,7 @@ export default async function aiLiveDecisionEngineTest() {
         AI_LIVE_DECISION_ENGINE_VERSION === "10.5.0" &&
         AI_LIVE_DECISION_CALIBRATION_VERSION === "10.5.2" &&
         AI_LIVE_DECISION_EVIDENCE_UX_VERSION === "10.5.2" &&
+        SIGNAL_TREND_OPPORTUNITY_UX_VERSION === "10.5.3" &&
         AI_LIVE_DECISION_UX_VERSION === "10.5.0" &&
         LIVE_CASINO_DECISION_MODEL_VERSION === "10.4.5" &&
         DEFAULT_LIVE_DECISION_THRESHOLDS
@@ -555,7 +557,12 @@ export default async function aiLiveDecisionEngineTest() {
         html.includes("估計可靠度：") &&
         html.includes("相對優勢：") &&
         html.includes("EV 證據範圍：") &&
-        html.includes("阻擋："),
+        html.includes("阻擋：") &&
+        html.includes("機會：") &&
+        html.includes("趨勢：") &&
+        html.includes("距正 EV：") &&
+        html.includes("安全門檻：") &&
+        html.includes("data-trend-series"),
         "Dashboard 首屏決策資訊不完整"
     );
 
@@ -577,7 +584,7 @@ export default async function aiLiveDecisionEngineTest() {
     assert(
         fields.get("[data-ai-stage]")
             .textContent ===
-            "decision-gate-calibration-v10.5.2" &&
+            "signal-trend-opportunity-v10.5.3" &&
         fields.get("[data-ai-decision]")
             .textContent.includes("閒家") &&
         fields.get("[data-ai-strategy]")
@@ -589,12 +596,12 @@ export default async function aiLiveDecisionEngineTest() {
 
     controller.destroy();
 
-    messages.push("✓ Dashboard 首屏與 AI Closed-Loop 已接入決策結果");
+    messages.push("✓ Dashboard 首屏、趨勢監測與 AI Closed-Loop 已接入決策結果");
 
     return `
 ${messages.join("\n")}
 
-AI Live Decision Engine V10.5.2 測試完成
+AI Live Decision Engine / Signal Trend UX V10.5.3 測試完成
 
 Positive EV：通過
 Relative Best：通過
@@ -610,5 +617,6 @@ No Forced Bet：通過
 Legacy Facade：通過
 Dashboard Decision UI：通過
 AI Closed-Loop Bridge：通過
+Signal Trend UX Bridge：通過
 `;
 }
