@@ -564,7 +564,7 @@ export default async function aiLiveDecisionEngineTest() {
         html.includes("策略：") &&
         html.includes("信號：") &&
         html.includes("證據：") &&
-        html.includes("估計可靠度：") &&
+        html.includes("結果確認度：") &&
         html.includes("相對優勢：") &&
         html.includes("EV 證據範圍：") &&
         html.includes("阻擋：") &&
@@ -573,7 +573,9 @@ export default async function aiLiveDecisionEngineTest() {
         html.includes("距正 EV：") &&
         html.includes("安全門檻：") &&
         html.includes("data-trend-series") &&
-        html.includes("機會成熟度") &&
+        html.includes("機會強度") &&
+        html.includes("執行門檻") &&
+        html.includes("安全證據分解（V10.6）") &&
         html.includes("缺少條件"),
         "Dashboard 首屏決策資訊不完整"
     );
@@ -596,7 +598,7 @@ export default async function aiLiveDecisionEngineTest() {
     assert(
         fields.get("[data-ai-stage]")
             .textContent ===
-            "decision-stability-explainability-v10.6" &&
+            "decision-intelligence-signal-attribution-v10.7" &&
         fields.get("[data-ai-decision]")
             .textContent.includes("Exact 確認中") &&
         fields.get("[data-ai-strategy]")
