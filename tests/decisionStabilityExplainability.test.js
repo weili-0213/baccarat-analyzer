@@ -556,16 +556,16 @@ export default async function decisionStabilityExplainabilityTest() {
             "-1.2396%"
         ) &&
         html.includes(
-            "機會成熟度"
+            "安全證據分解（V10.6）"
         ) &&
         html.includes(
             "缺少條件"
         ) &&
         dock.includes(
-            "最終觀望"
+            "正式觀望"
         ) &&
         dock.includes(
-            "閒莊差距 0.0022%"
+            "門檻"
         ) &&
         dock.includes(
             "建議額 0"
@@ -591,7 +591,7 @@ export default async function decisionStabilityExplainabilityTest() {
     assert(
         fields.get("[data-ai-stage]")
             .textContent ===
-            "decision-stability-explainability-v10.6" &&
+            "decision-intelligence-signal-attribution-v10.7" &&
         fields.get("[data-ai-decision]")
             .textContent.includes(
                 "閒莊近似持平"
@@ -601,7 +601,7 @@ export default async function decisionStabilityExplainabilityTest() {
             "閒莊近似持平" &&
         fields.get("[data-ai-adaptive]")
             .textContent.includes(
-                "機會成熟度"
+                "機會強度"
             ) &&
         LIVE_CASINO_UX_CSS.includes(
             ".v106Maturity"
