@@ -442,7 +442,7 @@ export default async function exactOpportunityConfirmationTest() {
         ) &&
         finalHTML.includes("+2.00%") &&
         finalHTML.includes("-1.26%") &&
-        dockHTML.includes("最終") &&
+        dockHTML.includes("Exact 唯一正式結果") &&
         dockHTML.includes("建議額 0"),
         "Exact 最終結果、單局趨勢或 Dock 同步錯誤"
     );
