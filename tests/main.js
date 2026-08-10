@@ -319,6 +319,9 @@ import exactOpportunityConfirmationTest
 import decisionStabilityExplainabilityTest
     from "./decisionStabilityExplainability.test.js";
 
+import decisionIntelligenceSignalAttributionTest
+    from "./decisionIntelligenceSignalAttribution.test.js";
+
 
 
 /**
@@ -943,6 +946,12 @@ const TESTS = [
         id: "decision-stability-explainability-v106",
         name: "Decision Stability & Explainability Engine V10.6",
         run: decisionStabilityExplainabilityTest
+    },
+
+    {
+        id: "decision-intelligence-signal-attribution-v107",
+        name: "Decision Intelligence & Signal Attribution Engine V10.7",
+        run: decisionIntelligenceSignalAttributionTest
     }
 
 ];
