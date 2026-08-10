@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.6.0
+ * Baccarat Analyzer V10.7.0
  * Path: runtime/liveCasino/LiveCasinoUXController.js
  * Purpose:
  *   3-second live analysis path + compact decision-first Dashboard bridge.
@@ -26,6 +26,10 @@ import DecisionStabilityExplainabilityEngine, {
     StableDecisionLifecycle
 } from "./DecisionStabilityExplainabilityEngine.js";
 
+import DecisionIntelligenceSignalAttributionEngine, {
+    DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_VERSION
+} from "./DecisionIntelligenceSignalAttributionEngine.js";
+
 import {
     LIVE_CASINO_UX_CSS,
     LIVE_CASINO_UX_STYLE_ID
@@ -38,6 +42,7 @@ export const AI_LIVE_DECISION_EVIDENCE_UX_VERSION = "10.5.2";
 export const SIGNAL_TREND_OPPORTUNITY_UX_VERSION = "10.5.3";
 export const EXACT_OPPORTUNITY_CONFIRMATION_UX_VERSION = "10.5.4";
 export const DECISION_STABILITY_EXPLAINABILITY_UX_VERSION = "10.6.0";
+export const DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_UX_VERSION = "10.7.0";
 
 function delay(ms) {
     return new Promise(resolve =>
@@ -248,6 +253,144 @@ function missingConditionsHTML(
     `;
 }
 
+
+function intelligenceMetricHTML({
+    key,
+    label,
+    score,
+    maximum = 100,
+    status,
+    detail = ""
+}) {
+    const safeScore =
+        Number.isFinite(score)
+            ? Math.max(
+                0,
+                Math.min(maximum, score)
+            )
+            : 0;
+    const percent =
+        maximum > 0
+            ? safeScore /
+                maximum * 100
+            : 0;
+
+    return `
+        <article
+            class="v107IntelligenceMetric"
+            data-intelligence-metric="${escapeHTML(key)}"
+            data-intelligence-score="${safeScore}"
+        >
+            <div>
+                <span>${escapeHTML(label)}</span>
+                <strong>${safeScore}/${maximum}</strong>
+            </div>
+            <div
+                class="v107ScoreTrack"
+                aria-hidden="true"
+            >
+                <i style="width:${percent.toFixed(2)}%"></i>
+            </div>
+            <small>
+                ${escapeHTML(status)}
+                ${detail ? `· ${escapeHTML(detail)}` : ""}
+            </small>
+        </article>
+    `;
+}
+
+
+function decisionIntelligenceHTML(
+    intelligence = {}
+) {
+    const canonical =
+        intelligence.canonical ??
+        {};
+    const confirmation =
+        intelligence.resultConfirmation ??
+        {};
+    const opportunity =
+        intelligence.opportunityStrength ??
+        {};
+    const readiness =
+        intelligence.executionReadiness ??
+        {};
+    const attribution =
+        intelligence.signalAttribution ??
+        {};
+    const explanation =
+        intelligence.explanation ??
+        {};
+    const lockText =
+        canonical.locked
+            ? "最終快照已鎖定"
+            : canonical.formal
+                ? "正式結果已確認"
+                : "正式結果尚未發布";
+
+    return `
+        <div
+            class="v107DecisionIntelligence"
+            data-decision-intelligence
+            data-decision-authority="${escapeHTML(canonical.authority)}"
+            data-signal-attribution-type="${escapeHTML(attribution.type)}"
+        >
+            <div class="v107TruthBanner">
+                <strong data-decision-authority-label>
+                    唯一決策來源｜${escapeHTML(canonical.authorityLabel ?? "等待本局分析")}
+                </strong>
+                <span>${escapeHTML(lockText)}</span>
+            </div>
+
+            <div class="v107IntelligenceMetrics">
+                ${intelligenceMetricHTML({
+                    key: "result-confirmation",
+                    label: "結果確認度",
+                    score: confirmation.score,
+                    maximum: confirmation.maximum,
+                    status: confirmation.label ?? "等待分析",
+                    detail: "不是勝率"
+                })}
+                ${intelligenceMetricHTML({
+                    key: "opportunity-strength",
+                    label: "機會強度",
+                    score: opportunity.score,
+                    maximum: opportunity.maximum,
+                    status: opportunity.label ?? "條件不足"
+                })}
+                ${intelligenceMetricHTML({
+                    key: "execution-readiness",
+                    label: "執行門檻",
+                    score: readiness.score,
+                    maximum: readiness.maximum,
+                    status: `${readiness.passedGateCount ?? 0}/${readiness.totalGateCount ?? 6} 項通過`
+                })}
+            </div>
+
+            <div
+                class="v107SignalAttribution"
+                data-signal-attribution
+            >
+                <strong data-signal-attribution-headline>
+                    ${escapeHTML(attribution.headline ?? "等待 Exact 最終歸因")}
+                </strong>
+                <span data-signal-attribution-summary>
+                    ${escapeHTML(attribution.summary ?? "目前尚無可比較結果。")}
+                </span>
+            </div>
+
+            <div class="v107PlainExplanation">
+                <strong data-decision-plain-reason>
+                    為何${canonical.action === "bet" ? "可下注" : "觀望"}：${escapeHTML(explanation.primary ?? "等待完整分析。")}
+                </strong>
+                <small data-decision-next-requirement>
+                    尚需：${escapeHTML(explanation.nextRequirement ?? "等待 Exact 完成。")}
+                </small>
+            </div>
+        </div>
+    `;
+}
+
 function trendSeriesHTML(trend = {}) {
     const series =
         Array.isArray(trend.series)
@@ -311,6 +454,7 @@ export default class LiveCasinoUXController {
         signalTrendMonitor = null,
         exactConfirmation = null,
         decisionStabilityEngine = null,
+        decisionIntelligenceEngine = null,
         clock = () => Date.now()
     } = {}) {
         if (!game) {
@@ -341,6 +485,9 @@ export default class LiveCasinoUXController {
             new DecisionStabilityExplainabilityEngine({
                 clock
             });
+        this.decisionIntelligenceEngine =
+            decisionIntelligenceEngine ??
+            new DecisionIntelligenceSignalAttributionEngine();
 
         if (
             typeof this.signalTrendMonitor
@@ -383,6 +530,15 @@ export default class LiveCasinoUXController {
             );
         }
 
+        if (
+            typeof this.decisionIntelligenceEngine
+                .explain !== "function"
+        ) {
+            throw new TypeError(
+                "decisionIntelligenceEngine requires the V10.7 explain() API."
+            );
+        }
+
         this.clock = clock;
 
         this.analysisProfile =
@@ -414,6 +570,34 @@ export default class LiveCasinoUXController {
 
         this.analysisProfile = profile;
         return this;
+    }
+
+    explainDecision(decision) {
+        if (!decision) {
+            return decision;
+        }
+
+        return this.decisionIntelligenceEngine
+            .explain(
+                decision,
+                {
+                    confirmation:
+                        decision.confirmation ??
+                        this.exactConfirmation
+                            .summary,
+                    trend:
+                        this.getSignalTrend()
+                }
+            );
+    }
+
+    setLastDecision(decision) {
+        this.lastDecision =
+            this.explainDecision(
+                decision
+            );
+
+        return this.lastDecision;
     }
 
     ensureStyles() {
@@ -481,7 +665,7 @@ export default class LiveCasinoUXController {
         this.lastAcceptedAnalysis =
             this.game.nextAnalysis;
 
-        this.lastDecision =
+        this.setLastDecision(
             this.decisionStabilityEngine
                 .decorate(
                     this.exactConfirmation
@@ -495,7 +679,8 @@ export default class LiveCasinoUXController {
                             StableDecisionLifecycle
                                 .ANALYZING
                     }
-                );
+                )
+        );
 
         this.render?.();
 
@@ -542,7 +727,7 @@ export default class LiveCasinoUXController {
                 .fail(error, {
                     sequence
                 });
-            this.lastDecision =
+            this.setLastDecision(
                 this.decisionStabilityEngine
                     .expire(
                         this.exactConfirmation
@@ -556,7 +741,8 @@ export default class LiveCasinoUXController {
                                     .summary
                                     .message
                         }
-                    );
+                    )
+            );
             this.render?.();
 
             return {
@@ -621,7 +807,7 @@ export default class LiveCasinoUXController {
                             });
                         this.lastAnalysisStage =
                             "failed";
-                        this.lastDecision =
+                        this.setLastDecision(
                             this.decisionStabilityEngine
                                 .expire(
                                     this.exactConfirmation
@@ -635,7 +821,8 @@ export default class LiveCasinoUXController {
                                                 .summary
                                                 .message
                                     }
-                                );
+                                )
+                        );
                         this.render?.();
                     }
                 });
@@ -749,7 +936,7 @@ export default class LiveCasinoUXController {
                     rawDecision
                 );
 
-        this.lastDecision = exact
+        const stableDecision = exact
             ? this.decisionStabilityEngine
                 .acceptFinal(
                     analysis,
@@ -783,7 +970,7 @@ export default class LiveCasinoUXController {
                     }
                 );
 
-        if (!this.lastDecision) {
+        if (!stableDecision) {
             throw new Error(
                 exact
                     ? "V10.6 rejected a stale Exact final snapshot."
@@ -799,9 +986,13 @@ export default class LiveCasinoUXController {
         if (exact) {
             this.observeSignalTrend(
                 analysis,
-                this.lastDecision
+                stableDecision
             );
         }
+
+        this.setLastDecision(
+            stableDecision
+        );
 
         this.render?.();
 
@@ -837,7 +1028,7 @@ export default class LiveCasinoUXController {
         this.lastAnalysisStage =
             "confirming";
 
-        this.lastDecision =
+        this.setLastDecision(
             this.decisionStabilityEngine
                 .decorate(
                     this.exactConfirmation
@@ -850,7 +1041,8 @@ export default class LiveCasinoUXController {
                             StableDecisionLifecycle
                                 .EXACT_CONFIRMING
                     }
-                );
+                )
+        );
 
         this.render?.();
 
@@ -882,7 +1074,7 @@ export default class LiveCasinoUXController {
                             );
                         this.lastAnalysisStage =
                             "failed";
-                        this.lastDecision =
+                        this.setLastDecision(
                             this.decisionStabilityEngine
                                 .expire(
                                     this.exactConfirmation
@@ -896,7 +1088,8 @@ export default class LiveCasinoUXController {
                                                 .summary
                                                 .message
                                     }
-                                );
+                                )
+                        );
                         this.render?.();
                         return;
                     }
@@ -943,7 +1136,7 @@ export default class LiveCasinoUXController {
                             });
                         this.lastAnalysisStage =
                             "failed";
-                        this.lastDecision =
+                        this.setLastDecision(
                             this.decisionStabilityEngine
                                 .expire(
                                     this.exactConfirmation
@@ -957,7 +1150,8 @@ export default class LiveCasinoUXController {
                                                 .summary
                                                 .message
                                     }
-                                );
+                                )
+                        );
                         this.render?.();
                     }
                 },
@@ -1083,8 +1277,9 @@ export default class LiveCasinoUXController {
                 "quick-running"
         ) {
             return this.lastDecision ??
-                this.decisionStabilityEngine
-                    .decorate(
+                this.explainDecision(
+                    this.decisionStabilityEngine
+                        .decorate(
                         this.exactConfirmation
                             .decisionFor(
                                 this.decisionModel
@@ -1096,7 +1291,8 @@ export default class LiveCasinoUXController {
                                 StableDecisionLifecycle
                                     .ANALYZING
                         }
-                    );
+                        )
+                );
         }
 
         if (!analysis) {
@@ -1105,8 +1301,9 @@ export default class LiveCasinoUXController {
                     .build(null);
 
             return this.lastDecision ??
-                this.decisionStabilityEngine
-                    .decorate(
+                this.explainDecision(
+                    this.decisionStabilityEngine
+                        .decorate(
                         this.exactConfirmation
                             .decisionFor(
                                 waiting
@@ -1117,7 +1314,8 @@ export default class LiveCasinoUXController {
                                 StableDecisionLifecycle
                                     .ANALYZING
                         }
-                    );
+                        )
+                );
         }
 
         if (
@@ -1135,7 +1333,9 @@ export default class LiveCasinoUXController {
 
         if (!live.ready) {
             return this.lastDecision ??
-                live;
+                this.explainDecision(
+                    live
+                );
         }
 
         const exact =
@@ -1239,7 +1439,7 @@ export default class LiveCasinoUXController {
                 this.exactConfirmation
                     .decisionFor(live);
 
-            this.lastDecision = exact
+            const stableDecision = exact
                 ? this.decisionStabilityEngine
                     .acceptFinal(
                         analysis,
@@ -1268,20 +1468,26 @@ export default class LiveCasinoUXController {
             if (exact) {
                 this.observeSignalTrend(
                     analysis,
-                    this.lastDecision
+                    stableDecision
                 );
             }
+
+            this.setLastDecision(
+                stableDecision
+            );
         }
 
         return this.lastDecision ??
-            this.decisionStabilityEngine
-                .decorate(
+            this.explainDecision(
+                this.decisionStabilityEngine
+                    .decorate(
                     this.exactConfirmation
                         .decisionFor(live),
                     {
                         final: false
                     }
-                );
+                    )
+            );
     }
 
     observeSignalTrend(
@@ -1378,6 +1584,13 @@ export default class LiveCasinoUXController {
         const closeCall =
             d.closeCall ??
             {};
+        const intelligence =
+            d.decisionIntelligence ??
+            {};
+        const resultConfirmation =
+            intelligence
+                .resultConfirmation ??
+            {};
         const evSourceLabel =
             d.stableDecisionFinal
                 ? "Exact EV"
@@ -1425,6 +1638,7 @@ export default class LiveCasinoUXController {
                             ${escapeHTML(d.recommendationLabel)}
                         </strong>
                     </div>
+                    ${decisionIntelligenceHTML(intelligence)}
                     <div
                         class="v106DecisionState"
                         data-decision-stability-state
@@ -1462,9 +1676,9 @@ export default class LiveCasinoUXController {
                             </b>
                         </span>
                         <span>
-                            估計可靠度：
+                            結果確認度：
                             <b data-decision-confidence>
-                                ${pct(evidence.confidence)}
+                                ${resultConfirmation.score ?? 0}/${resultConfirmation.maximum ?? 100}（非勝率）
                             </b>
                         </span>
                     </div>
@@ -1480,23 +1694,23 @@ export default class LiveCasinoUXController {
                             ${closeCall.active ? "· 低於門檻，不硬選閒／莊" : ""}
                         </small>
                     </div>
-                    <div
+                    <details
                         class="v106Maturity"
                         data-opportunity-maturity
                         data-maturity-score="${maturity.score ?? 0}"
                     >
-                        <div class="v106MaturityHeader">
-                            <span>機會成熟度</span>
+                        <summary class="v106MaturityHeader">
+                            <span>安全證據分解（V10.6）</span>
                             <strong data-maturity-score>
                                 ${maturity.score ?? 0}/${maturity.maximum ?? 100}
                             </strong>
-                            <small>${escapeHTML(maturity.label ?? "條件不足")}</small>
-                        </div>
+                            <small>點擊查看原始門檻</small>
+                        </summary>
                         <div class="v106MaturityComponents">
                             ${maturityComponentsHTML(maturity)}
                         </div>
                         ${missingConditionsHTML(maturity)}
-                    </div>
+                    </details>
                     <div class="v105DecisionMeta">
                         相對優勢：
                         <b data-decision-advantage>
@@ -1564,7 +1778,7 @@ export default class LiveCasinoUXController {
                         ${trendSeriesHTML(trend)}
                     </div>
                     <small data-decision-reason>
-                        判斷：${escapeHTML(d.reason)}
+                        核心判斷：${escapeHTML(intelligence.explanation?.primary ?? d.reason)}
                     </small>
                 </div>
 
@@ -1592,7 +1806,8 @@ export default class LiveCasinoUXController {
                     <div>
                         ${escapeHTML(d.categoryLabel)}
                         · ${escapeHTML(d.lifecycleLabel)}
-                        · 成熟度 ${maturity.score ?? 0}/100
+                        · 機會強度 ${intelligence.opportunityStrength?.score ?? 0}/100
+                        · 執行門檻 ${intelligence.executionReadiness?.passedGateCount ?? 0}/${intelligence.executionReadiness?.totalGateCount ?? 6}
                         · 波動比 ${ratioText(d.risk)}
                     </div>
                 </div>
@@ -1619,14 +1834,32 @@ export default class LiveCasinoUXController {
         const closeCall =
             d.closeCall ??
             {};
+        const intelligence =
+            d.decisionIntelligence ??
+            {};
+        const canonical =
+            intelligence.canonical ??
+            {};
+        const attribution =
+            intelligence.signalAttribution ??
+            {};
+        const explanation =
+            intelligence.explanation ??
+            {};
+        const resultConfirmation =
+            intelligence.resultConfirmation ??
+            {};
+        const opportunityStrength =
+            intelligence.opportunityStrength ??
+            {};
+        const executionReadiness =
+            intelligence.executionReadiness ??
+            {};
 
         const dockReason =
             !confirmation.isFinal
                 ? confirmation.message
-                : trend.ready
-                ? `${trend.opportunityLabel} · ${d.primaryBlocker ?? trend.opportunityReason}`
-                : d.primaryBlocker ??
-                    d.reason;
+                : `${attribution.headline ?? "Exact 已完成"}｜${explanation.primary ?? d.primaryBlocker ?? d.reason}`;
 
         return `
             <section
@@ -1642,23 +1875,28 @@ export default class LiveCasinoUXController {
                 data-stable-lifecycle="${escapeHTML(d.lifecycle)}"
                 data-market-state="${escapeHTML(d.marketState)}"
                 data-close-call="${closeCall.active ? "true" : "false"}"
+                data-decision-authority="${escapeHTML(canonical.authority)}"
+                data-signal-attribution-type="${escapeHTML(attribution.type)}"
                 aria-live="polite"
                 aria-hidden="true"
             >
-                <span class="v105DecisionDockLabel">下一局</span>
+                <span class="v105DecisionDockLabel">
+                    下一局 · ${escapeHTML(canonical.source ?? "等待")}
+                </span>
                 <strong class="v105DecisionDockPick">
-                    ${escapeHTML(d.headlineLabel ?? "狀態")}：${escapeHTML(d.recommendationLabel)}
+                    ${escapeHTML(explanation.decisionLine ?? `${d.headlineLabel ?? "狀態"}：${d.recommendationLabel}`)}
                 </strong>
                 <span class="v105DecisionDockAction">
-                    ${escapeHTML(d.lifecycleLabel)}
-                    · ${escapeHTML(d.actionLabel)} · ${escapeHTML(d.marketStateLabel)}
+                    ${escapeHTML(canonical.authorityLabel ?? d.lifecycleLabel)}
+                    · ${escapeHTML(d.marketStateLabel)}
                 </span>
                 <span class="v105DecisionDockConfidence">
-                    成熟度 ${maturity.score ?? 0}/100
-                    · 閒莊差距 ${exactGapText(closeCall.gap)}
+                    確認 ${resultConfirmation.score ?? 0}/100
+                    · 機會 ${opportunityStrength.score ?? 0}/100
                 </span>
                 <span class="v105DecisionDockAmount">
-                    建議額 ${d.amount ?? 0}
+                    門檻 ${executionReadiness.passedGateCount ?? 0}/${executionReadiness.totalGateCount ?? 6}
+                    · 建議額 ${d.amount ?? 0}
                 </span>
                 <small
                     class="v105DecisionDockReason"
@@ -1759,6 +1997,27 @@ export default class LiveCasinoUXController {
         const maturity =
             d.opportunityMaturity ??
             {};
+        const intelligence =
+            d.decisionIntelligence ??
+            {};
+        const canonical =
+            intelligence.canonical ??
+            {};
+        const resultConfirmation =
+            intelligence.resultConfirmation ??
+            {};
+        const opportunityStrength =
+            intelligence.opportunityStrength ??
+            {};
+        const executionReadiness =
+            intelligence.executionReadiness ??
+            {};
+        const attribution =
+            intelligence.signalAttribution ??
+            {};
+        const explanation =
+            intelligence.explanation ??
+            {};
 
         const runtimeSummary =
             this.aiRuntime?.summary ??
@@ -1778,14 +2037,14 @@ export default class LiveCasinoUXController {
         text(
             root,
             "[data-ai-stage]",
-            "decision-stability-explainability-v10.6"
+            "decision-intelligence-signal-attribution-v10.7"
         );
 
         text(
             root,
             "[data-ai-simulation]",
             d.ready
-                ? `${confirmation.stateLabel} · ${d.evidence?.label ?? this.analysisProfile}`
+                ? `${canonical.authorityLabel ?? confirmation.stateLabel} · ${d.evidence?.label ?? this.analysisProfile}`
                 : "—"
         );
 
@@ -1798,7 +2057,7 @@ export default class LiveCasinoUXController {
         text(
             root,
             "[data-ai-confidence]",
-            pct(d.evidence?.confidence)
+            `${resultConfirmation.score ?? 0}/100（結果確認，非勝率）`
         );
 
         text(
@@ -1838,7 +2097,7 @@ export default class LiveCasinoUXController {
             root,
             "[data-ai-feedback]",
             confirmation.isFinal
-                ? `${d.lifecycleLabel}｜${d.reason}`
+                ? `${attribution.headline ?? d.lifecycleLabel}｜${explanation.primary ?? d.reason}`
                 : d.ready
                     ? confirmation.message
                 : "尚無決策回饋"
@@ -1857,7 +2116,7 @@ export default class LiveCasinoUXController {
             "[data-ai-adaptive]",
             confirmation.isFinal &&
                 d.ready
-                ? `機會成熟度 ${maturity.score ?? 0}/100 · ${maturity.missingConditions?.[0] ?? "安全門檻已齊備"}`
+                ? `機會強度 ${opportunityStrength.score ?? 0}/100 · 執行門檻 ${executionReadiness.passedGateCount ?? 0}/${executionReadiness.totalGateCount ?? 6} · ${executionReadiness.remainingConditions?.[0] ?? "安全門檻已齊備"}`
                 : `${confirmation.stateLabel} · 正式決策尚未發布`
         );
     }
@@ -1918,6 +2177,11 @@ export default class LiveCasinoUXController {
 
         root.setAttribute?.(
             "data-live-casino-v106",
+            "true"
+        );
+
+        root.setAttribute?.(
+            "data-live-casino-v107",
             "true"
         );
 
@@ -2042,6 +2306,10 @@ export default class LiveCasinoUXController {
                 DECISION_STABILITY_EXPLAINABILITY_UX_VERSION,
             decisionStabilityCoreVersion:
                 DECISION_STABILITY_EXPLAINABILITY_VERSION,
+            decisionIntelligenceVersion:
+                DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_UX_VERSION,
+            decisionIntelligenceCoreVersion:
+                DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_VERSION,
             profile:
                 this.analysisProfile,
             deadlineMs:
@@ -2064,6 +2332,9 @@ export default class LiveCasinoUXController {
             decisionAudit:
                 this.decisionStabilityEngine
                     .getAuditTrail(),
+            decisionIntelligence:
+                this.decisionIntelligenceEngine
+                    .summary,
             decision:
                 decision
         };
