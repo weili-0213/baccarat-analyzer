@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.6.0
+ * Baccarat Analyzer V10.7.0
  * Path: runtime/liveCasino/LiveCasinoUXStyles.js
  * Purpose: Compact single-screen live casino UX styles.
  */
@@ -10,6 +10,7 @@ export const AI_LIVE_DECISION_EVIDENCE_STYLES_VERSION = "10.5.2";
 export const SIGNAL_TREND_MONITOR_STYLES_VERSION = "10.5.3";
 export const EXACT_OPPORTUNITY_CONFIRMATION_STYLES_VERSION = "10.5.4";
 export const DECISION_STABILITY_EXPLAINABILITY_STYLES_VERSION = "10.6.0";
+export const DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_STYLES_VERSION = "10.7.0";
 
 export const LIVE_CASINO_UX_STYLE_ID =
     "baccarat-live-casino-v1044";
@@ -276,6 +277,219 @@ export const LIVE_CASINO_UX_CSS = `
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+[data-live-casino-v107] .v107DecisionIntelligence {
+    display: grid;
+    gap: .3rem;
+    min-width: 0;
+    margin-top: .3rem;
+}
+
+[data-live-casino-v107] .v105LiveDecision {
+    grid-template-columns:
+        repeat(3,minmax(120px,1fr))
+        minmax(240px,1.15fr);
+}
+
+[data-live-casino-v107] .v1044DecisionMain {
+    grid-column: 1 / -1;
+}
+
+[data-live-casino-v107] .v107TruthBanner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .35rem .65rem;
+    min-width: 0;
+    padding: .28rem .42rem;
+    border: 1px solid rgba(96,165,250,.42);
+    border-radius: 8px;
+    color: #dbeafe;
+    background: rgba(30,64,175,.14);
+    font-size: .74rem;
+}
+
+[data-live-casino-v107] .v107TruthBanner strong,
+[data-live-casino-v107] .v107TruthBanner span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+[data-live-casino-v107] [data-decision-authority="final-exact"] .v107TruthBanner {
+    border-color: rgba(74,222,128,.5);
+    color: #bbf7d0;
+    background: rgba(22,163,74,.13);
+}
+
+[data-live-casino-v107] [data-decision-authority="expired"] .v107TruthBanner {
+    border-color: rgba(248,113,113,.5);
+    color: #fecaca;
+    background: rgba(185,28,28,.13);
+}
+
+[data-live-casino-v107] .v107IntelligenceMetrics {
+    display: grid;
+    grid-template-columns: repeat(3,minmax(0,1fr));
+    gap: .28rem;
+    min-width: 0;
+}
+
+[data-live-casino-v107] .v107IntelligenceMetric {
+    display: grid;
+    gap: .15rem;
+    min-width: 0;
+    padding: .28rem .36rem;
+    border: 1px solid rgba(148,163,184,.2);
+    border-radius: 8px;
+    background: rgba(15,23,42,.24);
+}
+
+[data-live-casino-v107] .v107IntelligenceMetric > div:first-child {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .25rem;
+    min-width: 0;
+    font-size: .69rem;
+}
+
+[data-live-casino-v107] .v107IntelligenceMetric strong {
+    display: inline !important;
+    flex: 0 0 auto;
+    color: #f8fafc;
+    font-size: .82rem !important;
+}
+
+[data-live-casino-v107] .v107IntelligenceMetric small {
+    min-width: 0;
+    color: #cbd5e1;
+    font-size: .64rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+[data-live-casino-v107] .v107ScoreTrack {
+    height: 4px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(148,163,184,.18);
+}
+
+[data-live-casino-v107] .v107ScoreTrack i {
+    display: block;
+    height: 100%;
+    max-width: 100%;
+    border-radius: inherit;
+    background: #60a5fa;
+}
+
+[data-live-casino-v107] [data-intelligence-metric="opportunity-strength"] .v107ScoreTrack i {
+    background: #facc15;
+}
+
+[data-live-casino-v107] [data-intelligence-metric="execution-readiness"] .v107ScoreTrack i {
+    background: #4ade80;
+}
+
+[data-live-casino-v107] .v107SignalAttribution {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: .12rem .45rem;
+    min-width: 0;
+    padding: .28rem .42rem;
+    border-left: 4px solid #60a5fa;
+    border-radius: 7px;
+    background: rgba(30,64,175,.12);
+    font-size: .72rem;
+    line-height: 1.35;
+}
+
+[data-live-casino-v107] .v107SignalAttribution strong {
+    color: #bfdbfe;
+}
+
+[data-live-casino-v107] .v107SignalAttribution span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+[data-live-casino-v107] [data-signal-attribution-type="false-positive-rejected"] .v107SignalAttribution {
+    border-left-color: #f59e0b;
+    background: rgba(245,158,11,.12);
+}
+
+[data-live-casino-v107] [data-signal-attribution-type="false-positive-rejected"] .v107SignalAttribution strong {
+    color: #fde68a;
+}
+
+[data-live-casino-v107] [data-signal-attribution-type="opportunity-confirmed"] .v107SignalAttribution {
+    border-left-color: #4ade80;
+    background: rgba(34,197,94,.12);
+}
+
+[data-live-casino-v107] [data-signal-attribution-type="opportunity-confirmed"] .v107SignalAttribution strong {
+    color: #bbf7d0;
+}
+
+[data-live-casino-v107] .v107PlainExplanation {
+    display: grid;
+    gap: .1rem;
+    min-width: 0;
+    padding: .28rem .42rem;
+    border-radius: 7px;
+    color: #f8fafc;
+    background: rgba(2,6,23,.2);
+    font-size: .72rem;
+    line-height: 1.35;
+}
+
+[data-live-casino-v107] .v107PlainExplanation strong,
+[data-live-casino-v107] .v107PlainExplanation small {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+[data-live-casino-v107] .v107PlainExplanation small {
+    color: #fde68a;
+}
+
+[data-live-casino-v107] details.v106Maturity {
+    padding: .24rem .38rem;
+}
+
+[data-live-casino-v107] details.v106Maturity > summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+[data-live-casino-v107] details.v106Maturity > summary::-webkit-details-marker {
+    display: none;
+}
+
+[data-live-casino-v107] details.v106Maturity > summary::after {
+    content: "＋";
+    margin-left: auto;
+    color: #93c5fd;
+}
+
+[data-live-casino-v107] details.v106Maturity[open] > summary::after {
+    content: "－";
+}
+
+[data-live-casino-v107] .v105DecisionDock[data-decision-authority="final-exact"] {
+    border-left-color: #4ade80;
+}
+
+[data-live-casino-v107] .v105DecisionDock[data-signal-attribution-type="false-positive-rejected"] {
+    border-left-color: #f59e0b;
+}
+
+[data-live-casino-v107] .v105DecisionDockPick {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 [data-live-casino-v106] .v105DecisionDock[data-market-state="close-call"] {
@@ -808,6 +1022,79 @@ export const LIVE_CASINO_UX_CSS = `
 
     [data-live-casino-v106] .v106ExactEVComparison small {
         flex: 1 1 100%;
+    }
+
+    [data-live-casino-v107] .v107TruthBanner {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: .12rem;
+    }
+
+    [data-live-casino-v107] .v107IntelligenceMetrics {
+        gap: .2rem;
+    }
+
+    [data-live-casino-v107] .v107IntelligenceMetric {
+        padding: .24rem .26rem;
+    }
+
+    [data-live-casino-v107] .v107IntelligenceMetric > div:first-child {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: .05rem;
+    }
+
+    [data-live-casino-v107] .v107SignalAttribution {
+        display: grid;
+        gap: .08rem;
+    }
+
+    [data-live-casino-v107] .v105DecisionDock {
+        grid-template-columns: minmax(0,1fr) auto;
+        gap: .18rem .45rem;
+        width: calc(100% - 1rem);
+        padding: .48rem .58rem;
+    }
+
+    [data-live-casino-v107] .v105DecisionDockLabel {
+        display: none;
+    }
+
+    [data-live-casino-v107] .v105DecisionDockPick {
+        grid-column: 1 / -1;
+        white-space: normal;
+        font-size: .84rem;
+        line-height: 1.25;
+    }
+
+    [data-live-casino-v107] .v105DecisionDockAction {
+        grid-column: 1 / 2;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    [data-live-casino-v107] .v105DecisionDockAmount {
+        display: inline !important;
+        grid-column: 2 / 3;
+        text-align: right;
+    }
+
+    [data-live-casino-v107] .v105DecisionDockConfidence {
+        grid-column: 1 / -1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    [data-live-casino-v107] .v105DecisionDockReason {
+        display: -webkit-box;
+        grid-column: 1 / -1;
+        overflow: hidden;
+        white-space: normal;
+        line-height: 1.25;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
     }
 }
 
