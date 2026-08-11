@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.7.0
+ * Baccarat Analyzer V10.8.0
  * Path: runtime/liveCasino/LiveCasinoPerformancePolicy.js
  * Purpose: Defines live-casino analysis deadlines and fast/refine profiles.
  */
@@ -7,6 +7,7 @@ export const LIVE_CASINO_PERFORMANCE_POLICY_VERSION = "10.4.5";
 export const EXACT_OPPORTUNITY_CONFIRMATION_POLICY_VERSION = "10.5.4";
 export const DECISION_STABILITY_EXPLAINABILITY_POLICY_VERSION = "10.6.0";
 export const DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_POLICY_VERSION = "10.7.0";
+export const WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_POLICY_VERSION = "10.8.0";
 
 export const LiveCasinoAnalysisProfile = Object.freeze({
     QUICK: "quick",
@@ -67,6 +68,8 @@ export default class LiveCasinoPerformancePolicy {
                 DECISION_STABILITY_EXPLAINABILITY_POLICY_VERSION,
             decisionIntelligenceVersion:
                 DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_POLICY_VERSION,
+            wholeShoeStrategyVersion:
+                WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_POLICY_VERSION,
             decisionDeadlineMs: this.decisionDeadlineMs,
             quickSimulations: this.quickSimulations,
             quickBatchSize: this.quickBatchSize,
