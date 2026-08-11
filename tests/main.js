@@ -322,6 +322,9 @@ import decisionStabilityExplainabilityTest
 import decisionIntelligenceSignalAttributionTest
     from "./decisionIntelligenceSignalAttribution.test.js";
 
+import wholeShoeProfitabilityStrategyValidationTest
+    from "./wholeShoeProfitabilityStrategyValidation.test.js";
+
 
 
 /**
@@ -952,6 +955,12 @@ const TESTS = [
         id: "decision-intelligence-signal-attribution-v107",
         name: "Decision Intelligence & Signal Attribution Engine V10.7",
         run: decisionIntelligenceSignalAttributionTest
+    },
+
+    {
+        id: "whole-shoe-profitability-strategy-validation-v108",
+        name: "Whole-Shoe Profitability & Strategy Validation Engine V10.8",
+        run: wholeShoeProfitabilityStrategyValidationTest
     }
 
 ];
