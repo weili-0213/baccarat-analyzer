@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.8.0
+ * Baccarat Analyzer V10.9.0
  * Path: runtime/liveCasino/createLiveCasinoUXController.js
  * Purpose: Factory for live casino UX/performance controller.
  */
@@ -27,6 +27,9 @@ import DecisionIntelligenceSignalAttributionEngine
 import WholeShoeProfitabilityStrategyValidationEngine
     from "./WholeShoeProfitabilityStrategyValidationEngine.js";
 
+import FifteenSecondEightMarketPredictionEngine
+    from "./FifteenSecondEightMarketPredictionEngine.js";
+
 export const LIVE_CASINO_UX_FACTORY_VERSION = "10.4.5";
 export const AI_LIVE_DECISION_FACTORY_VERSION = "10.5.0";
 export const AI_LIVE_DECISION_CALIBRATION_FACTORY_VERSION = "10.5.2";
@@ -35,6 +38,7 @@ export const EXACT_OPPORTUNITY_CONFIRMATION_FACTORY_VERSION = "10.5.4";
 export const DECISION_STABILITY_EXPLAINABILITY_FACTORY_VERSION = "10.6.0";
 export const DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_FACTORY_VERSION = "10.7.0";
 export const WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_FACTORY_VERSION = "10.8.0";
+export const FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_FACTORY_VERSION = "10.9.0";
 
 export default function createLiveCasinoUXController({
     game,
@@ -50,6 +54,7 @@ export default function createLiveCasinoUXController({
         decisionStability = {},
         decisionIntelligence = {},
         wholeShoeStrategy = {},
+        predictionBoard = {},
         ...performancePolicy
     } = performance ?? {};
 
@@ -88,6 +93,10 @@ export default function createLiveCasinoUXController({
         wholeShoeStrategyEngine:
             new WholeShoeProfitabilityStrategyValidationEngine(
                 wholeShoeStrategy
+            ),
+        predictionEngine:
+            new FifteenSecondEightMarketPredictionEngine(
+                predictionBoard
             )
     });
 }
