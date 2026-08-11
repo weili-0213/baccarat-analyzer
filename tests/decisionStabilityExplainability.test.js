@@ -591,7 +591,7 @@ export default async function decisionStabilityExplainabilityTest() {
     assert(
         fields.get("[data-ai-stage]")
             .textContent ===
-            "decision-intelligence-signal-attribution-v10.7" &&
+            "whole-shoe-profitability-strategy-validation-v10.8" &&
         fields.get("[data-ai-decision]")
             .textContent.includes(
                 "閒莊近似持平"
@@ -601,7 +601,7 @@ export default async function decisionStabilityExplainabilityTest() {
             "閒莊近似持平" &&
         fields.get("[data-ai-adaptive]")
             .textContent.includes(
-                "機會強度"
+                "固定閒條件獲利"
             ) &&
         LIVE_CASINO_UX_CSS.includes(
             ".v106Maturity"
