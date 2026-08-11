@@ -325,6 +325,8 @@ import decisionIntelligenceSignalAttributionTest
 import wholeShoeProfitabilityStrategyValidationTest
     from "./wholeShoeProfitabilityStrategyValidation.test.js";
 
+import fifteenSecondEightMarketPredictionTest
+    from "./fifteenSecondEightMarketPrediction.test.js";
 
 
 /**
@@ -961,6 +963,12 @@ const TESTS = [
         id: "whole-shoe-profitability-strategy-validation-v108",
         name: "Whole-Shoe Profitability & Strategy Validation Engine V10.8",
         run: wholeShoeProfitabilityStrategyValidationTest
+    },
+
+    {
+        id: "fifteen-second-eight-market-prediction-v109",
+        name: "15-Second Eight-Market Prediction Board V10.9",
+        run: fifteenSecondEightMarketPredictionTest
     }
 
 ];
