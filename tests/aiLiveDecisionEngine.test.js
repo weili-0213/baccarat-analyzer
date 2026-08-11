@@ -598,7 +598,7 @@ export default async function aiLiveDecisionEngineTest() {
     assert(
         fields.get("[data-ai-stage]")
             .textContent ===
-            "decision-intelligence-signal-attribution-v10.7" &&
+            "whole-shoe-profitability-strategy-validation-v10.8" &&
         fields.get("[data-ai-decision]")
             .textContent.includes("Exact 確認中") &&
         fields.get("[data-ai-strategy]")
