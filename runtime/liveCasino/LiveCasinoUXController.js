@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.7.0
+ * Baccarat Analyzer V10.8.0
  * Path: runtime/liveCasino/LiveCasinoUXController.js
  * Purpose:
  *   3-second live analysis path + compact decision-first Dashboard bridge.
@@ -30,6 +30,10 @@ import DecisionIntelligenceSignalAttributionEngine, {
     DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_VERSION
 } from "./DecisionIntelligenceSignalAttributionEngine.js";
 
+import WholeShoeProfitabilityStrategyValidationEngine, {
+    WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_VERSION
+} from "./WholeShoeProfitabilityStrategyValidationEngine.js";
+
 import {
     LIVE_CASINO_UX_CSS,
     LIVE_CASINO_UX_STYLE_ID
@@ -43,6 +47,7 @@ export const SIGNAL_TREND_OPPORTUNITY_UX_VERSION = "10.5.3";
 export const EXACT_OPPORTUNITY_CONFIRMATION_UX_VERSION = "10.5.4";
 export const DECISION_STABILITY_EXPLAINABILITY_UX_VERSION = "10.6.0";
 export const DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_UX_VERSION = "10.7.0";
+export const WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_UX_VERSION = "10.8.0";
 
 function delay(ms) {
     return new Promise(resolve =>
@@ -89,6 +94,18 @@ function ratioText(value) {
 function integerText(value) {
     return Number.isFinite(value)
         ? Math.floor(value).toLocaleString()
+        : "—";
+}
+
+function probabilityPercentText(value) {
+    return Number.isFinite(value)
+        ? `${(value * 100).toFixed(1)}%`
+        : "逐局重算";
+}
+
+function profitUnitsText(value) {
+    return Number.isFinite(value)
+        ? `${value > 0 ? "+" : ""}${value.toFixed(1)}u`
         : "—";
 }
 
@@ -391,6 +408,152 @@ function decisionIntelligenceHTML(
     `;
 }
 
+
+function wholeShoeProjectionRowHTML(
+    projection = {}
+) {
+    const selected =
+        projection.selectedLabel &&
+        projection.selectedLabel !== "觀望"
+            ? `｜${projection.selectedLabel}`
+            : "";
+
+    return `
+        <div
+            class="v108ProjectionRow"
+            data-whole-shoe-projection="${escapeHTML(projection.policyKey)}"
+            data-projection-ready="${projection.ready ? "true" : "false"}"
+        >
+            <span>
+                ${escapeHTML(projection.label ?? "策略")}${escapeHTML(selected)}
+            </span>
+            <b>
+                獲利 ${probabilityPercentText(projection.positiveProbability)}
+            </b>
+            <small>
+                預期 ${profitUnitsText(projection.expectedFinalProfitUnits)}
+            </small>
+        </div>
+    `;
+}
+
+
+function wholeShoeStrategyHTML(
+    report = {}
+) {
+    const realized =
+        report.realizedValidation ??
+        {};
+    const projection =
+        report.conditionalProjection ??
+        {};
+    const exact =
+        realized.exactPositiveOnly ??
+        {};
+    const relative =
+        realized.relativeBest ??
+        {};
+    const player =
+        realized.playerFlat ??
+        {};
+    const banker =
+        realized.bankerFlat ??
+        {};
+    const range =
+        report.remainingRoundRange ??
+        {};
+    const safePolicy =
+        report.safePolicy ??
+        {};
+    const opportunity =
+        report.currentOpportunity ??
+        {};
+
+    return `
+        <section
+            class="v108WholeShoeStrategy"
+            data-whole-shoe-strategy
+            data-whole-shoe-version="${escapeHTML(report.version)}"
+            data-whole-shoe-actionable="${opportunity.actionable ? "true" : "false"}"
+        >
+            <div class="v108WholeShoeHeader">
+                <div>
+                    <strong>整靴獲利與策略驗證</strong>
+                    <small>實際 walk-forward ＋ 條件投影（不是牌序預測）</small>
+                </div>
+                <span data-whole-shoe-rules>
+                    ${escapeHTML(report.rules?.label ?? "免佣百家樂")}
+                </span>
+            </div>
+
+            <div class="v108WholeShoeStatus">
+                <span>
+                    已完成
+                    <b data-whole-shoe-rounds>${report.roundsCompleted ?? 0}</b>
+                    局
+                </span>
+                <span>
+                    預估剩餘
+                    <b data-whole-shoe-remaining>${escapeHTML(range.label ?? "—")}</b>
+                </span>
+                <span>
+                    正式策略已驗證
+                    <b>${exact.evaluatedRounds ?? 0}</b>
+                    局
+                </span>
+            </div>
+
+            <div class="v108SafePolicy">
+                <strong data-whole-shoe-safe-policy>
+                    整靴安全政策｜${escapeHTML(safePolicy.label ?? "只執行 Exact 正 EV")}
+                </strong>
+                <span>${escapeHTML(safePolicy.reason ?? "逐局等待 Exact。")}</span>
+            </div>
+
+            <div class="v108RealizedGrid">
+                <article data-whole-shoe-ledger="exact-positive-only">
+                    <span>Exact-only</span>
+                    <strong data-whole-shoe-exact-profit>${profitUnitsText(exact.profitUnits)}</strong>
+                    <small>下注 ${exact.bets ?? 0}｜勝 ${exact.wins ?? 0}｜負 ${exact.losses ?? 0}</small>
+                </article>
+                <article data-whole-shoe-ledger="relative-best">
+                    <span>相對最佳</span>
+                    <strong>${profitUnitsText(relative.profitUnits)}</strong>
+                    <small>本次追蹤 ${relative.evaluatedRounds ?? 0} 局</small>
+                </article>
+                <article data-whole-shoe-ledger="player-flat">
+                    <span>整靴固定閒</span>
+                    <strong>${profitUnitsText(player.profitUnits)}</strong>
+                    <small>實際 ${player.evaluatedRounds ?? 0} 局</small>
+                </article>
+                <article data-whole-shoe-ledger="banker-flat">
+                    <span>整靴固定莊</span>
+                    <strong>${profitUnitsText(banker.profitUnits)}</strong>
+                    <small>莊 6 依半賠結算</small>
+                </article>
+            </div>
+
+            <details class="v108ProjectionDetails">
+                <summary>
+                    <span>查看剩餘牌局條件投影</span>
+                    <small>採 ${range.projection ?? 0} 局中位假設</small>
+                </summary>
+                <div class="v108ProjectionGrid">
+                    ${wholeShoeProjectionRowHTML(projection.noBet)}
+                    ${wholeShoeProjectionRowHTML(projection.playerFlat)}
+                    ${wholeShoeProjectionRowHTML(projection.bankerFlat)}
+                    ${wholeShoeProjectionRowHTML(projection.currentRelativeFlat)}
+                    ${wholeShoeProjectionRowHTML(projection.exactPositiveOnly)}
+                </div>
+                <small class="v108ProjectionWarning">
+                    ${escapeHTML(projection.assumption ?? "條件投影不代表未來牌序。")}
+                    ${escapeHTML(report.opportunityForecast?.reason ?? "")}
+                </small>
+            </details>
+        </section>
+    `;
+}
+
 function trendSeriesHTML(trend = {}) {
     const series =
         Array.isArray(trend.series)
@@ -455,6 +618,7 @@ export default class LiveCasinoUXController {
         exactConfirmation = null,
         decisionStabilityEngine = null,
         decisionIntelligenceEngine = null,
+        wholeShoeStrategyEngine = null,
         clock = () => Date.now()
     } = {}) {
         if (!game) {
@@ -488,6 +652,9 @@ export default class LiveCasinoUXController {
         this.decisionIntelligenceEngine =
             decisionIntelligenceEngine ??
             new DecisionIntelligenceSignalAttributionEngine();
+        this.wholeShoeStrategyEngine =
+            wholeShoeStrategyEngine ??
+            new WholeShoeProfitabilityStrategyValidationEngine();
 
         if (
             typeof this.signalTrendMonitor
@@ -539,6 +706,17 @@ export default class LiveCasinoUXController {
             );
         }
 
+        if (
+            typeof this.wholeShoeStrategyEngine
+                .explain !== "function" ||
+            typeof this.wholeShoeStrategyEngine
+                .reset !== "function"
+        ) {
+            throw new TypeError(
+                "wholeShoeStrategyEngine requires the V10.8 explain() and reset() API."
+            );
+        }
+
         this.clock = clock;
 
         this.analysisProfile =
@@ -577,18 +755,51 @@ export default class LiveCasinoUXController {
             return decision;
         }
 
-        return this.decisionIntelligenceEngine
+        const intelligence =
+            this.decisionIntelligenceEngine
+                .explain(
+                    decision,
+                    {
+                        confirmation:
+                            decision.confirmation ??
+                            this.exactConfirmation
+                                .summary,
+                        trend:
+                            this.getSignalTrend()
+                    }
+                );
+
+        return this.wholeShoeStrategyEngine
             .explain(
-                decision,
-                {
-                    confirmation:
-                        decision.confirmation ??
-                        this.exactConfirmation
-                            .summary,
-                    trend:
-                        this.getSignalTrend()
-                }
+                intelligence,
+                this.getWholeShoeContext()
             );
+    }
+
+    getWholeShoeContext() {
+        return {
+            shoeId:
+                this.game.shoeNumber ??
+                null,
+            roundCount:
+                this.game.roundCount ??
+                this.game.history?.count ??
+                0,
+            history:
+                this.game.history ??
+                [],
+            remainingCards:
+                this.game.remainingCards ??
+                this.game.shoe
+                    ?.physicalRemaining ??
+                null,
+            observableRemaining:
+                this.game
+                    .observableRemainingCards ??
+                this.game.shoe
+                    ?.observableRemaining ??
+                null
+        };
     }
 
     setLastDecision(decision) {
@@ -1545,6 +1756,16 @@ export default class LiveCasinoUXController {
         this.decisionStabilityEngine
             .reset();
 
+        this.wholeShoeStrategyEngine
+            .reset({
+                shoeId:
+                    this.game.shoeNumber ??
+                    null,
+                roundCount:
+                    this.game.roundCount ??
+                    0
+            });
+
         this.signalTrendMonitor.reset({
             shoeId:
                 this.game.shoeNumber
@@ -1586,6 +1807,9 @@ export default class LiveCasinoUXController {
             {};
         const intelligence =
             d.decisionIntelligence ??
+            {};
+        const wholeShoe =
+            d.wholeShoeStrategy ??
             {};
         const resultConfirmation =
             intelligence
@@ -1639,6 +1863,7 @@ export default class LiveCasinoUXController {
                         </strong>
                     </div>
                     ${decisionIntelligenceHTML(intelligence)}
+                    ${wholeShoeStrategyHTML(wholeShoe)}
                     <div
                         class="v106DecisionState"
                         data-decision-stability-state
@@ -1855,6 +2080,16 @@ export default class LiveCasinoUXController {
         const executionReadiness =
             intelligence.executionReadiness ??
             {};
+        const wholeShoe =
+            d.wholeShoeStrategy ??
+            {};
+        const exactLedger =
+            wholeShoe.realizedValidation
+                ?.exactPositiveOnly ??
+            {};
+        const remainingRange =
+            wholeShoe.remainingRoundRange ??
+            {};
 
         const dockReason =
             !confirmation.isFinal
@@ -1877,6 +2112,7 @@ export default class LiveCasinoUXController {
                 data-close-call="${closeCall.active ? "true" : "false"}"
                 data-decision-authority="${escapeHTML(canonical.authority)}"
                 data-signal-attribution-type="${escapeHTML(attribution.type)}"
+                data-whole-shoe-version="${escapeHTML(wholeShoe.version)}"
                 aria-live="polite"
                 aria-hidden="true"
             >
@@ -1897,12 +2133,13 @@ export default class LiveCasinoUXController {
                 <span class="v105DecisionDockAmount">
                     門檻 ${executionReadiness.passedGateCount ?? 0}/${executionReadiness.totalGateCount ?? 6}
                     · 建議額 ${d.amount ?? 0}
+                    · 整靴 ${profitUnitsText(exactLedger.profitUnits)}
                 </span>
                 <small
                     class="v105DecisionDockReason"
                     title="${escapeHTML(dockReason)}"
                 >
-                    ${escapeHTML(dockReason)}
+                    ${escapeHTML(dockReason)}｜剩餘約 ${escapeHTML(remainingRange.label ?? "—")}
                 </small>
             </section>
         `;
@@ -2018,6 +2255,17 @@ export default class LiveCasinoUXController {
         const explanation =
             intelligence.explanation ??
             {};
+        const wholeShoe =
+            d.wholeShoeStrategy ??
+            {};
+        const exactLedger =
+            wholeShoe.realizedValidation
+                ?.exactPositiveOnly ??
+            {};
+        const playerProjection =
+            wholeShoe.conditionalProjection
+                ?.playerFlat ??
+            {};
 
         const runtimeSummary =
             this.aiRuntime?.summary ??
@@ -2037,7 +2285,7 @@ export default class LiveCasinoUXController {
         text(
             root,
             "[data-ai-stage]",
-            "decision-intelligence-signal-attribution-v10.7"
+            "whole-shoe-profitability-strategy-validation-v10.8"
         );
 
         text(
@@ -2108,7 +2356,7 @@ export default class LiveCasinoUXController {
             "[data-ai-learning]",
             runtimeSummary?.state
                 ? `Runtime ${runtimeSummary.state}`
-                : `${trend.targetLabel ?? "主注"}近 ${trend.trendSampleCount ?? 0} 局 · ${trendMovementText(trend)}`
+                : `整靴 Exact-only ${profitUnitsText(exactLedger.profitUnits)} · 已驗證 ${exactLedger.evaluatedRounds ?? 0} 局`
         );
 
         text(
@@ -2116,7 +2364,7 @@ export default class LiveCasinoUXController {
             "[data-ai-adaptive]",
             confirmation.isFinal &&
                 d.ready
-                ? `機會強度 ${opportunityStrength.score ?? 0}/100 · 執行門檻 ${executionReadiness.passedGateCount ?? 0}/${executionReadiness.totalGateCount ?? 6} · ${executionReadiness.remainingConditions?.[0] ?? "安全門檻已齊備"}`
+                ? `固定閒條件獲利 ${probabilityPercentText(playerProjection.positiveProbability)} · 剩餘 ${wholeShoe.remainingRoundRange?.label ?? "—"} · ${wholeShoe.safePolicy?.label ?? "只執行 Exact 正 EV"}`
                 : `${confirmation.stateLabel} · 正式決策尚未發布`
         );
     }
@@ -2182,6 +2430,11 @@ export default class LiveCasinoUXController {
 
         root.setAttribute?.(
             "data-live-casino-v107",
+            "true"
+        );
+
+        root.setAttribute?.(
+            "data-live-casino-v108",
             "true"
         );
 
@@ -2310,6 +2563,10 @@ export default class LiveCasinoUXController {
                 DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_UX_VERSION,
             decisionIntelligenceCoreVersion:
                 DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_VERSION,
+            wholeShoeStrategyVersion:
+                WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_UX_VERSION,
+            wholeShoeStrategyCoreVersion:
+                WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_VERSION,
             profile:
                 this.analysisProfile,
             deadlineMs:
@@ -2334,6 +2591,9 @@ export default class LiveCasinoUXController {
                     .getAuditTrail(),
             decisionIntelligence:
                 this.decisionIntelligenceEngine
+                    .summary,
+            wholeShoeStrategy:
+                this.wholeShoeStrategyEngine
                     .summary,
             decision:
                 decision
