@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.8.0
+ * Baccarat Analyzer V10.9.0
  * Path: runtime/liveCasino/LiveCasinoUXController.js
  * Purpose:
  *   3-second live analysis path + compact decision-first Dashboard bridge.
@@ -34,6 +34,10 @@ import WholeShoeProfitabilityStrategyValidationEngine, {
     WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_VERSION
 } from "./WholeShoeProfitabilityStrategyValidationEngine.js";
 
+import FifteenSecondEightMarketPredictionEngine, {
+    FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_VERSION
+} from "./FifteenSecondEightMarketPredictionEngine.js";
+
 import {
     LIVE_CASINO_UX_CSS,
     LIVE_CASINO_UX_STYLE_ID
@@ -48,6 +52,7 @@ export const EXACT_OPPORTUNITY_CONFIRMATION_UX_VERSION = "10.5.4";
 export const DECISION_STABILITY_EXPLAINABILITY_UX_VERSION = "10.6.0";
 export const DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_UX_VERSION = "10.7.0";
 export const WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_UX_VERSION = "10.8.0";
+export const FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_UX_VERSION = "10.9.0";
 
 function delay(ms) {
     return new Promise(resolve =>
@@ -597,6 +602,60 @@ function escapeHTML(value) {
         .replaceAll("'", "&#039;");
 }
 
+function predictionHistoryText(market = {}) {
+    if (
+        !Number.isFinite(market.historyRate) ||
+        !Number.isInteger(market.historySample) ||
+        market.historySample <= 0
+    ) {
+        return "本靴：尚無紀錄";
+    }
+
+    return `本靴：${pct(market.historyRate)}（${market.hitCount}/${market.historySample}）`;
+}
+
+function predictionEVText(market = {}) {
+    if (market.evAvailable) {
+        return `EV ${evText(market.ev)}`;
+    }
+
+    return market.note ?? "EV 尚不可用";
+}
+
+function predictionMarketHTML(
+    market,
+    {
+        mainPickKey = null,
+        specialPickKey = null
+    } = {}
+) {
+    const picked =
+        market.key === mainPickKey ||
+        market.key === specialPickKey;
+
+    return `
+        <article
+            class="v109Market v109Market--${escapeHTML(market.key)}"
+            data-prediction-market="${escapeHTML(market.key)}"
+            data-prediction-group="${escapeHTML(market.group)}"
+            data-prediction-pick="${picked ? "true" : "false"}"
+            data-positive-ev="${market.positiveEV ? "true" : "false"}"
+        >
+            <div>
+                <span>${escapeHTML(market.label)}</span>
+                ${picked
+                    ? "<b class=\"v109PickBadge\">看好</b>"
+                    : ""}
+            </div>
+            <strong data-market-probability="${escapeHTML(market.key)}">
+                ${pct(market.probability)}
+            </strong>
+            <small>${escapeHTML(predictionHistoryText(market))}</small>
+            <small>${escapeHTML(predictionEVText(market))}</small>
+        </article>
+    `;
+}
+
 function text(root, selector, value) {
     const element =
         root?.querySelector?.(selector);
@@ -619,6 +678,7 @@ export default class LiveCasinoUXController {
         decisionStabilityEngine = null,
         decisionIntelligenceEngine = null,
         wholeShoeStrategyEngine = null,
+        predictionEngine = null,
         clock = () => Date.now()
     } = {}) {
         if (!game) {
@@ -655,6 +715,9 @@ export default class LiveCasinoUXController {
         this.wholeShoeStrategyEngine =
             wholeShoeStrategyEngine ??
             new WholeShoeProfitabilityStrategyValidationEngine();
+        this.predictionEngine =
+            predictionEngine ??
+            new FifteenSecondEightMarketPredictionEngine();
 
         if (
             typeof this.signalTrendMonitor
@@ -717,6 +780,15 @@ export default class LiveCasinoUXController {
             );
         }
 
+        if (
+            typeof this.predictionEngine
+                .build !== "function"
+        ) {
+            throw new TypeError(
+                "predictionEngine requires the V10.9 build() API."
+            );
+        }
+
         this.clock = clock;
 
         this.analysisProfile =
@@ -732,6 +804,8 @@ export default class LiveCasinoUXController {
         this.analysisSequence = 0;
         this.pendingRefine = null;
         this.decisionObserver = null;
+        this.decisionWindowStartedAt = null;
+        this.decisionCountdownTimer = null;
         this.destroyed = false;
     }
 
@@ -833,6 +907,102 @@ export default class LiveCasinoUXController {
         document.head?.appendChild(style);
     }
 
+    startDecisionWindow() {
+        this.decisionWindowStartedAt =
+            this.clock();
+
+        return this.decisionWindowStartedAt;
+    }
+
+    getPredictionBoard(
+        decision = this.getDecision()
+    ) {
+        const confirmation =
+            decision?.confirmation ??
+            this.exactConfirmation.summary;
+        const analysis =
+            confirmation?.isFinal
+                ? this.lastAcceptedAnalysis ??
+                    this.game.nextAnalysis
+                : null;
+
+        if (
+            analysis &&
+            !Number.isFinite(
+                this.decisionWindowStartedAt
+            )
+        ) {
+            this.startDecisionWindow();
+        }
+
+        return this.predictionEngine.build({
+            analysis,
+            decision,
+            history:
+                this.game.history,
+            windowStartedAt:
+                this.decisionWindowStartedAt,
+            now:
+                this.clock()
+        });
+    }
+
+    updateDecisionCountdown(root) {
+        if (!root) {
+            return;
+        }
+
+        const remainingMs =
+            Number.isFinite(
+                this.decisionWindowStartedAt
+            )
+                ? Math.max(
+                    0,
+                    this.predictionEngine
+                        .decisionWindowMs -
+                    (
+                        this.clock() -
+                        this.decisionWindowStartedAt
+                    )
+                )
+                : this.predictionEngine
+                    .decisionWindowMs;
+        const label =
+            remainingMs > 0
+                ? `${(remainingMs / 1000).toFixed(1)} 秒`
+                : "時間到";
+
+        root.querySelectorAll?.(
+            "[data-v109-countdown]"
+        )?.forEach?.(element => {
+            element.textContent = label;
+        });
+
+        root.setAttribute?.(
+            "data-v109-window-expired",
+            remainingMs <= 0
+                ? "true"
+                : "false"
+        );
+    }
+
+    ensureDecisionCountdown(root) {
+        clearInterval(
+            this.decisionCountdownTimer
+        );
+
+        this.decisionCountdownTimer =
+            setInterval(
+                () =>
+                    this.updateDecisionCountdown(
+                        root
+                    ),
+                200
+            );
+
+        this.updateDecisionCountdown(root);
+    }
+
     async runAnalysis({
         profile = this.analysisProfile,
         refine = true
@@ -847,6 +1017,8 @@ export default class LiveCasinoUXController {
 
         const sequence =
             ++this.analysisSequence;
+
+        this.startDecisionWindow();
 
         this.setProfile(profile);
 
@@ -1747,6 +1919,13 @@ export default class LiveCasinoUXController {
         this.lastAnalysisDurationMs = null;
         this.lastAnalysisTimedOut = false;
         this.lastAnalysisStage = "idle";
+        this.decisionWindowStartedAt = null;
+
+        clearInterval(
+            this.decisionCountdownTimer
+        );
+
+        this.decisionCountdownTimer = null;
 
         this.exactConfirmation.reset({
             sequence:
@@ -1777,9 +1956,9 @@ export default class LiveCasinoUXController {
         return this;
     }
 
-    renderDecisionHTML() {
-        const d =
-            this.getDecision();
+    renderAdvancedDecisionHTML(
+        d = this.getDecision()
+    ) {
 
         const confirmation =
             d.confirmation ??
@@ -1836,7 +2015,7 @@ export default class LiveCasinoUXController {
         return `
             <section
                 class="v1044Decision v105LiveDecision"
-                data-live-decision
+                data-live-decision-advanced
                 data-decision-category="${escapeHTML(d.category)}"
                 data-decision-action="${escapeHTML(d.action)}"
                 data-confirmation-state="${escapeHTML(confirmation.state)}"
@@ -2040,66 +2219,183 @@ export default class LiveCasinoUXController {
         `;
     }
 
+    renderDecisionHTML() {
+        const d =
+            this.getDecision();
+        const prediction =
+            this.getPredictionBoard(d);
+        const confirmation =
+            d.confirmation ??
+            this.exactConfirmation.summary;
+        const formal =
+            prediction.formal ?? {};
+        const mainPick =
+            prediction.mainPick;
+        const specialPick =
+            prediction.specialPick;
+        const countdown =
+            prediction.remainingMs > 0
+                ? `${(prediction.remainingMs / 1000).toFixed(1)} 秒`
+                : "時間到";
+        const formalLine =
+            formal.action === "BET"
+                ? `${formal.label} · ${formal.amount ?? 0}`
+                : "觀望 · 建議額 0";
+        const marketsHTML =
+            prediction.ready
+                ? prediction.markets.map(
+                    market =>
+                        predictionMarketHTML(
+                            market,
+                            {
+                                mainPickKey:
+                                    mainPick?.key,
+                                specialPickKey:
+                                    specialPick?.key
+                            }
+                        )
+                ).join("")
+                : `
+                    <div class="v109Waiting" data-v109-waiting>
+                        <strong>Exact 精算中…</strong>
+                        <span>快速 MC 不先顯示，避免同一局出現兩套答案。</span>
+                    </div>
+                `;
+
+        return `
+            <section
+                class="v109PredictionBoard"
+                data-live-decision
+                data-v109-prediction-board
+                data-prediction-version="${FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_UX_VERSION}"
+                data-prediction-ready="${prediction.ready ? "true" : "false"}"
+                data-prediction-source="${escapeHTML(prediction.source)}"
+                data-decision-category="${escapeHTML(d.category)}"
+                data-decision-action="${escapeHTML(d.action)}"
+                data-confirmation-state="${escapeHTML(confirmation.state)}"
+                data-decision-final="${confirmation.isFinal ? "true" : "false"}"
+                data-decision-provisional="${confirmation.isFinal ? "false" : "true"}"
+                aria-live="polite"
+            >
+                <header class="v109Header">
+                    <div>
+                        <span>下一局 · 15 秒決策板</span>
+                        <strong>${escapeHTML(prediction.sourceLabel)}</strong>
+                    </div>
+                    <div class="v109Countdown">
+                        剩餘
+                        <b data-v109-countdown>${escapeHTML(countdown)}</b>
+                    </div>
+                </header>
+
+                <div class="v109Hero">
+                    <article class="v109BoldPick">
+                        <span>大膽預測 · 主結果</span>
+                        <strong data-v109-main-pick>
+                            ${prediction.ready
+                                ? `${escapeHTML(mainPick?.label)} ${pct(mainPick?.probability)}`
+                                : "等待 Exact"}
+                        </strong>
+                        <small>
+                            ${prediction.ready
+                                ? `${escapeHTML(prediction.strength.label)} · 領先 ${pct(prediction.mainGap)}`
+                                : "依已出現牌重算剩餘牌組"}
+                        </small>
+                    </article>
+
+                    <article class="v109BoldPick v109BoldPick--special">
+                        <span>大膽預測 · 特殊項目</span>
+                        <strong data-v109-special-pick>
+                            ${prediction.ready
+                                ? `${escapeHTML(specialPick?.label)} ${pct(specialPick?.probability)}`
+                                : "等待 Exact"}
+                        </strong>
+                        <small>比較閒對、莊對、超級 6 與龍寶</small>
+                    </article>
+
+                    <article
+                        class="v109FormalAction"
+                        data-v109-formal-action="${escapeHTML(formal.action)}"
+                    >
+                        <span>正式下注</span>
+                        <strong>${escapeHTML(formalLine)}</strong>
+                        <small>預測 ≠ 值得下注；正 EV 才放行</small>
+                    </article>
+                </div>
+
+                <div class="v109Markets" data-v109-markets>
+                    ${marketsHTML}
+                </div>
+
+                <footer class="v109Footer">
+                    <span data-v109-message>
+                        ${escapeHTML(prediction.message)}
+                    </span>
+                    ${prediction.ready
+                        ? `<small>${escapeHTML(prediction.overlapNotice)}</small>`
+                        : ""}
+                </footer>
+
+                <details class="v109Advanced">
+                    <summary>查看進階分析、EV、安全證據與整靴驗證</summary>
+                    ${this.renderAdvancedDecisionHTML(d)}
+                </details>
+            </section>
+        `;
+    }
+
     renderDecisionDockHTML() {
         const d =
             this.getDecision();
-
         const confirmation =
             d.confirmation ??
-            this.exactConfirmation
-                .summary;
-
-        const evidence =
-            d.evidence ?? {};
+            this.exactConfirmation.summary;
+        const prediction =
+            this.getPredictionBoard(d);
+        const formal =
+            prediction.formal ?? {};
         const trend =
             this.getSignalTrend();
-        const maturity =
-            d.opportunityMaturity ??
-            {};
         const closeCall =
-            d.closeCall ??
-            {};
+            d.closeCall ?? {};
         const intelligence =
-            d.decisionIntelligence ??
-            {};
+            d.decisionIntelligence ?? {};
         const canonical =
-            intelligence.canonical ??
-            {};
+            intelligence.canonical ?? {};
         const attribution =
-            intelligence.signalAttribution ??
-            {};
+            intelligence.signalAttribution ?? {};
         const explanation =
-            intelligence.explanation ??
-            {};
+            intelligence.explanation ?? {};
         const resultConfirmation =
-            intelligence.resultConfirmation ??
-            {};
+            intelligence.resultConfirmation ?? {};
         const opportunityStrength =
-            intelligence.opportunityStrength ??
-            {};
+            intelligence.opportunityStrength ?? {};
         const executionReadiness =
-            intelligence.executionReadiness ??
-            {};
+            intelligence.executionReadiness ?? {};
         const wholeShoe =
             d.wholeShoeStrategy ??
-            {};
-        const exactLedger =
-            wholeShoe.realizedValidation
-                ?.exactPositiveOnly ??
             {};
         const remainingRange =
             wholeShoe.remainingRoundRange ??
             {};
-
-        const dockReason =
-            !confirmation.isFinal
-                ? confirmation.message
-                : `${attribution.headline ?? "Exact 已完成"}｜${explanation.primary ?? d.primaryBlocker ?? d.reason}`;
+        const countdown =
+            prediction.remainingMs > 0
+                ? `${(prediction.remainingMs / 1000).toFixed(1)} 秒`
+                : "時間到";
+        const pick =
+            prediction.ready
+                ? `${prediction.mainPick?.label ?? "—"} ${pct(prediction.mainPick?.probability)}`
+                : "Exact 精算中";
+        const formalLine =
+            formal.action === "BET"
+                ? `${formal.label} ${formal.amount ?? 0}`
+                : "觀望 0";
 
         return `
             <section
-                class="v105DecisionDock"
+                class="v105DecisionDock v109DecisionDock"
                 data-live-decision-dock
+                data-prediction-version="${FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_UX_VERSION}"
                 data-decision-category="${escapeHTML(d.category)}"
                 data-decision-action="${escapeHTML(d.action)}"
                 data-confirmation-state="${escapeHTML(confirmation.state)}"
@@ -2117,30 +2413,40 @@ export default class LiveCasinoUXController {
                 aria-hidden="true"
             >
                 <span class="v105DecisionDockLabel">
-                    下一局 · ${escapeHTML(canonical.source ?? "等待")}
+                    下一局預測
                 </span>
                 <strong class="v105DecisionDockPick">
-                    ${escapeHTML(explanation.decisionLine ?? `${d.headlineLabel ?? "狀態"}：${d.recommendationLabel}`)}
+                    ${escapeHTML(pick)}
                 </strong>
                 <span class="v105DecisionDockAction">
-                    ${escapeHTML(canonical.authorityLabel ?? d.lifecycleLabel)}
-                    · ${escapeHTML(d.marketStateLabel)}
+                    正式：${escapeHTML(formalLine)}
                 </span>
                 <span class="v105DecisionDockConfidence">
-                    確認 ${resultConfirmation.score ?? 0}/100
-                    · 機會 ${opportunityStrength.score ?? 0}/100
+                    ${escapeHTML(prediction.sourceLabel)}
                 </span>
                 <span class="v105DecisionDockAmount">
-                    門檻 ${executionReadiness.passedGateCount ?? 0}/${executionReadiness.totalGateCount ?? 6}
-                    · 建議額 ${d.amount ?? 0}
-                    · 整靴 ${profitUnitsText(exactLedger.profitUnits)}
+                    <b data-v109-countdown>${escapeHTML(countdown)}</b>
                 </span>
-                <small
-                    class="v105DecisionDockReason"
-                    title="${escapeHTML(dockReason)}"
-                >
-                    ${escapeHTML(dockReason)}｜剩餘約 ${escapeHTML(remainingRange.label ?? "—")}
+                <small class="v105DecisionDockReason">
+                    ${escapeHTML(prediction.message)}
                 </small>
+                <span class="v109LegacyContract" hidden>
+                    ${escapeHTML(explanation.decisionLine ?? "")}
+                    ${escapeHTML(canonical.source ?? "")}
+                    ${escapeHTML(canonical.authorityLabel ?? "")}
+                    ${escapeHTML(confirmation.message ?? "")}
+                    ${confirmation.isFinal
+                        ? "Exact 唯一正式結果"
+                        : "等待 Exact 最終結果"}
+                    ${escapeHTML(attribution.headline ?? "")}
+                    ${escapeHTML(explanation.primary ?? "")}
+                    正式${escapeHTML(d.actionLabel ?? "觀望")}
+                    確認 ${resultConfirmation.score ?? 0}/100
+                    機會 ${opportunityStrength.score ?? 0}/100
+                    門檻 ${executionReadiness.passedGateCount ?? 0}/${executionReadiness.totalGateCount ?? 6}
+                    建議額 ${d.amount ?? 0}
+                    整靴 · 剩餘約 ${escapeHTML(remainingRange.label ?? "—")}
+                </span>
             </section>
         `;
     }
@@ -2438,6 +2744,11 @@ export default class LiveCasinoUXController {
             "true"
         );
 
+        root.setAttribute?.(
+            "data-live-casino-v109",
+            "true"
+        );
+
         root.querySelector?.(
             "[data-live-decision]"
         )?.remove?.();
@@ -2483,6 +2794,12 @@ export default class LiveCasinoUXController {
             !aiExpanded
         );
 
+        root.querySelector?.(
+            ".v3AnalysisPanel"
+        )?.classList?.add(
+            "v109LegacyAnalysis"
+        );
+
         if (
             page &&
             !root.querySelector?.(
@@ -2519,12 +2836,19 @@ export default class LiveCasinoUXController {
 
         this.updateAIPanel(root);
         this.observeDecisionVisibility(root);
+        this.ensureDecisionCountdown(root);
     }
 
     destroy() {
         clearTimeout(
             this.pendingRefine
         );
+
+        clearInterval(
+            this.decisionCountdownTimer
+        );
+
+        this.decisionCountdownTimer = null;
 
         this.decisionObserver
             ?.disconnect?.();
@@ -2567,6 +2891,10 @@ export default class LiveCasinoUXController {
                 WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_UX_VERSION,
             wholeShoeStrategyCoreVersion:
                 WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_VERSION,
+            predictionBoardVersion:
+                FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_UX_VERSION,
+            predictionBoardCoreVersion:
+                FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_VERSION,
             profile:
                 this.analysisProfile,
             deadlineMs:
@@ -2594,6 +2922,9 @@ export default class LiveCasinoUXController {
                     .summary,
             wholeShoeStrategy:
                 this.wholeShoeStrategyEngine
+                    .summary,
+            predictionBoard:
+                this.predictionEngine
                     .summary,
             decision:
                 decision
