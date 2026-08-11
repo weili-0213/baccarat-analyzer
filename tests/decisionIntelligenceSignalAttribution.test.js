@@ -640,7 +640,7 @@ export default async function decisionIntelligenceSignalAttributionTest() {
     assert(
         fields.get("[data-ai-stage]")
             .textContent ===
-            "decision-intelligence-signal-attribution-v10.7" &&
+            "whole-shoe-profitability-strategy-validation-v10.8" &&
         fields.get("[data-ai-confidence]")
             .textContent.includes(
                 "非勝率"
@@ -651,7 +651,7 @@ export default async function decisionIntelligenceSignalAttributionTest() {
             ) &&
         fields.get("[data-ai-adaptive]")
             .textContent.includes(
-                "機會強度 30/100"
+                "固定閒條件獲利"
             ) &&
         controller.summary
             .decisionIntelligenceVersion ===
