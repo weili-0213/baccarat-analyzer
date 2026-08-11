@@ -1,5 +1,5 @@
 /**
- * Baccarat Analyzer V10.7.0
+ * Baccarat Analyzer V10.8.0
  * Path: runtime/liveCasino/LiveCasinoUXStyles.js
  * Purpose: Compact single-screen live casino UX styles.
  */
@@ -11,6 +11,7 @@ export const SIGNAL_TREND_MONITOR_STYLES_VERSION = "10.5.3";
 export const EXACT_OPPORTUNITY_CONFIRMATION_STYLES_VERSION = "10.5.4";
 export const DECISION_STABILITY_EXPLAINABILITY_STYLES_VERSION = "10.6.0";
 export const DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_STYLES_VERSION = "10.7.0";
+export const WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_STYLES_VERSION = "10.8.0";
 
 export const LIVE_CASINO_UX_STYLE_ID =
     "baccarat-live-casino-v1044";
@@ -490,6 +491,222 @@ export const LIVE_CASINO_UX_CSS = `
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+[data-live-casino-v108] .v108WholeShoeStrategy {
+    display: grid;
+    gap: .3rem;
+    min-width: 0;
+    margin-top: .34rem;
+    padding: .38rem .44rem;
+    border: 1px solid rgba(45,212,191,.34);
+    border-radius: 9px;
+    background: rgba(15,118,110,.1);
+}
+
+[data-live-casino-v108] .v108WholeShoeHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .25rem .65rem;
+    min-width: 0;
+}
+
+[data-live-casino-v108] .v108WholeShoeHeader > div {
+    display: grid;
+    gap: .03rem;
+    min-width: 0;
+}
+
+[data-live-casino-v108] .v108WholeShoeHeader strong {
+    display: inline !important;
+    color: #ccfbf1;
+    font-size: .8rem !important;
+}
+
+[data-live-casino-v108] .v108WholeShoeHeader small {
+    color: #99f6e4;
+    font-size: .64rem;
+    overflow-wrap: anywhere;
+}
+
+[data-live-casino-v108] .v108WholeShoeHeader > span {
+    flex: 0 0 auto;
+    padding: .12rem .34rem;
+    border: 1px solid rgba(250,204,21,.34);
+    border-radius: 999px;
+    color: #fef3c7;
+    background: rgba(250,204,21,.08);
+    font-size: .62rem;
+    white-space: nowrap;
+}
+
+[data-live-casino-v108] .v108WholeShoeStatus {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .18rem .65rem;
+    min-width: 0;
+    color: #d1fae5;
+    font-size: .68rem;
+}
+
+[data-live-casino-v108] .v108WholeShoeStatus b {
+    display: inline !important;
+    color: #f8fafc;
+    font-size: .72rem !important;
+}
+
+[data-live-casino-v108] .v108SafePolicy {
+    display: grid;
+    gap: .06rem;
+    min-width: 0;
+    padding: .25rem .36rem;
+    border-left: 4px solid #2dd4bf;
+    border-radius: 6px;
+    color: #f0fdfa;
+    background: rgba(13,148,136,.12);
+    font-size: .68rem;
+}
+
+[data-live-casino-v108] .v108SafePolicy strong {
+    display: inline !important;
+    color: #99f6e4;
+    font-size: .72rem !important;
+}
+
+[data-live-casino-v108] .v108SafePolicy span {
+    overflow-wrap: anywhere;
+}
+
+[data-live-casino-v108] [data-whole-shoe-actionable="true"] .v108SafePolicy {
+    border-left-color: #4ade80;
+    background: rgba(34,197,94,.13);
+}
+
+[data-live-casino-v108] .v108RealizedGrid {
+    display: grid;
+    grid-template-columns: repeat(4,minmax(0,1fr));
+    gap: .24rem;
+    min-width: 0;
+}
+
+[data-live-casino-v108] .v108RealizedGrid article {
+    display: grid;
+    gap: .04rem;
+    min-width: 0;
+    padding: .24rem .3rem;
+    border: 1px solid rgba(148,163,184,.18);
+    border-radius: 7px;
+    background: rgba(2,6,23,.17);
+}
+
+[data-live-casino-v108] .v108RealizedGrid span,
+[data-live-casino-v108] .v108RealizedGrid small {
+    min-width: 0;
+    color: #cbd5e1;
+    font-size: .61rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+[data-live-casino-v108] .v108RealizedGrid strong {
+    display: inline !important;
+    color: #f8fafc;
+    font-size: .76rem !important;
+}
+
+[data-live-casino-v108] .v108ProjectionDetails {
+    min-width: 0;
+    padding: .22rem .32rem;
+    border: 1px solid rgba(94,234,212,.16);
+    border-radius: 7px;
+    background: rgba(2,44,34,.18);
+}
+
+[data-live-casino-v108] .v108ProjectionDetails > summary {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .3rem;
+    min-width: 0;
+    color: #ccfbf1;
+    cursor: pointer;
+    list-style: none;
+    font-size: .68rem;
+}
+
+[data-live-casino-v108] .v108ProjectionDetails > summary::-webkit-details-marker {
+    display: none;
+}
+
+[data-live-casino-v108] .v108ProjectionDetails > summary::after {
+    content: "＋";
+    margin-left: .25rem;
+    color: #5eead4;
+}
+
+[data-live-casino-v108] .v108ProjectionDetails[open] > summary::after {
+    content: "－";
+}
+
+[data-live-casino-v108] .v108ProjectionDetails > summary small {
+    margin-left: auto;
+    color: #99f6e4;
+    font-size: .6rem;
+}
+
+[data-live-casino-v108] .v108ProjectionGrid {
+    display: grid;
+    grid-template-columns: repeat(5,minmax(0,1fr));
+    gap: .22rem;
+    min-width: 0;
+    margin-top: .28rem;
+}
+
+[data-live-casino-v108] .v108ProjectionRow {
+    display: grid;
+    gap: .04rem;
+    min-width: 0;
+    padding: .22rem .28rem;
+    border-radius: 6px;
+    background: rgba(15,23,42,.25);
+    font-size: .61rem;
+}
+
+[data-live-casino-v108] .v108ProjectionRow span,
+[data-live-casino-v108] .v108ProjectionRow b,
+[data-live-casino-v108] .v108ProjectionRow small {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+[data-live-casino-v108] .v108ProjectionRow b {
+    display: inline !important;
+    color: #f8fafc;
+    font-size: .66rem !important;
+}
+
+[data-live-casino-v108] .v108ProjectionRow small,
+[data-live-casino-v108] .v108ProjectionWarning {
+    color: #a7f3d0;
+    font-size: .58rem;
+}
+
+[data-live-casino-v108] .v108ProjectionWarning {
+    display: block;
+    margin-top: .24rem;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+[data-live-casino-v108] .v105DecisionDock[data-whole-shoe-version="10.8.0"] {
+    box-shadow:
+        0 8px 24px rgba(0,0,0,.34),
+        inset 0 1px 0 rgba(45,212,191,.12);
 }
 
 [data-live-casino-v106] .v105DecisionDock[data-market-state="close-call"] {
@@ -1095,6 +1312,50 @@ export const LIVE_CASINO_UX_CSS = `
         line-height: 1.25;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 2;
+    }
+
+    [data-live-casino-v108] .v108WholeShoeHeader {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    [data-live-casino-v108] .v108WholeShoeHeader > span {
+        width: fit-content;
+        white-space: normal;
+    }
+
+    [data-live-casino-v108] .v108WholeShoeStatus {
+        display: grid;
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: .12rem .35rem;
+    }
+
+    [data-live-casino-v108] .v108WholeShoeStatus span:last-child {
+        grid-column: 1 / -1;
+    }
+
+    [data-live-casino-v108] .v108RealizedGrid {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+    }
+
+    [data-live-casino-v108] .v108ProjectionDetails > summary {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    [data-live-casino-v108] .v108ProjectionGrid {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+    }
+
+    [data-live-casino-v108] .v108ProjectionRow:last-child {
+        grid-column: 1 / -1;
+    }
+
+    [data-live-casino-v108] .v105DecisionDockAmount {
+        max-width: 48vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 }
 
