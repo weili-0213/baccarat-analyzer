@@ -27,8 +27,8 @@ import DecisionIntelligenceSignalAttributionEngine
 import WholeShoeProfitabilityStrategyValidationEngine
     from "./WholeShoeProfitabilityStrategyValidationEngine.js";
 
-import FifteenSecondEightMarketPredictionEngine
-    from "./FifteenSecondEightMarketPredictionEngine.js";
+import CompositionEdgeSelectiveBettingEngine
+    from "./CompositionEdgeSelectiveBettingEngine.js";
 
 export const LIVE_CASINO_UX_FACTORY_VERSION = "10.4.5";
 export const AI_LIVE_DECISION_FACTORY_VERSION = "10.5.0";
@@ -39,6 +39,7 @@ export const DECISION_STABILITY_EXPLAINABILITY_FACTORY_VERSION = "10.6.0";
 export const DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_FACTORY_VERSION = "10.7.0";
 export const WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_FACTORY_VERSION = "10.8.0";
 export const FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_FACTORY_VERSION = "10.9.0";
+export const COMPOSITION_EDGE_SELECTIVE_BETTING_FACTORY_VERSION = "10.10.0";
 
 export default function createLiveCasinoUXController({
     game,
@@ -95,7 +96,7 @@ export default function createLiveCasinoUXController({
                 wholeShoeStrategy
             ),
         predictionEngine:
-            new FifteenSecondEightMarketPredictionEngine(
+            new CompositionEdgeSelectiveBettingEngine(
                 predictionBoard
             )
     });
