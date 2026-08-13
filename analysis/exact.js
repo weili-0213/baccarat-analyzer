@@ -748,6 +748,12 @@ export default class Exact {
             super6:
                 0,
 
+            super6TwoCard:
+                0,
+
+            super6ThreeCard:
+                0,
+
             playerNatural:
                 0,
 
@@ -768,6 +774,25 @@ export default class Exact {
 
             bankerDragonBonus:
                 0,
+
+            dragonBonusNaturalTie:
+                0,
+
+            playerDragonBonusNaturalWin: 0,
+            playerDragonBonusMargin4: 0,
+            playerDragonBonusMargin5: 0,
+            playerDragonBonusMargin6: 0,
+            playerDragonBonusMargin7: 0,
+            playerDragonBonusMargin8: 0,
+            playerDragonBonusMargin9: 0,
+
+            bankerDragonBonusNaturalWin: 0,
+            bankerDragonBonusMargin4: 0,
+            bankerDragonBonusMargin5: 0,
+            bankerDragonBonusMargin6: 0,
+            bankerDragonBonusMargin7: 0,
+            bankerDragonBonusMargin8: 0,
+            bankerDragonBonusMargin9: 0,
 
             totalProbability:
                 0,
@@ -1087,6 +1112,12 @@ export default class Exact {
             accumulator.super6 +=
                 probability;
 
+            accumulator[
+                bankerRanks.length === 2
+                    ? "super6TwoCard"
+                    : "super6ThreeCard"
+            ] += probability;
+
         }
 
         /**
@@ -1122,6 +1153,15 @@ export default class Exact {
                 .playerDragonBonus +=
                 probability;
 
+            if (playerNatural) {
+                accumulator.playerDragonBonusNaturalWin +=
+                    probability;
+            }
+            else if (margin >= 4 && margin <= 9) {
+                accumulator[`playerDragonBonusMargin${margin}`] +=
+                    probability;
+            }
+
         }
 
         if (
@@ -1138,6 +1178,26 @@ export default class Exact {
 
             accumulator
                 .bankerDragonBonus +=
+                probability;
+
+            if (bankerNatural) {
+                accumulator.bankerDragonBonusNaturalWin +=
+                    probability;
+            }
+            else if (margin >= 4 && margin <= 9) {
+                accumulator[`bankerDragonBonusMargin${margin}`] +=
+                    probability;
+            }
+
+        }
+
+        if (
+            winner === "Tie" &&
+            playerNatural &&
+            bankerNatural
+        ) {
+
+            accumulator.dragonBonusNaturalTie +=
                 probability;
 
         }
