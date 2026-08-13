@@ -211,13 +211,13 @@ export const BET_CONFIG = Object.freeze({
             null,
 
         provisional:
-            true,
+            false,
 
         recommendationEligible:
             false,
 
         analysisAvailable:
-            false
+            true
 
     }),
 
@@ -236,13 +236,13 @@ export const BET_CONFIG = Object.freeze({
             null,
 
         provisional:
-            true,
+            false,
 
         recommendationEligible:
             false,
 
         analysisAvailable:
-            false
+            true
 
     })
 
@@ -1083,8 +1083,8 @@ export default class AnalyzerLegacyCore {
     /**
      * 計算全部 EV。
      *
-     * Dragon Bonus 尚未具備完整分差機率，
-     * 因此保留欄位但固定為 0，並由 evStatus 標示 unavailable。
+     * V10.10 Exact/MC 已提供龍寶完整分級機率；舊輸入缺少分級欄位時，
+     * EV 仍回傳 0 並由 evStatus 標示 unavailable。
      */
     getEV(probability) {
 
@@ -1093,17 +1093,7 @@ export default class AnalyzerLegacyCore {
                 probability
             );
 
-        return {
-
-            ...result,
-
-            playerDragonBonus:
-                0,
-
-            bankerDragonBonus:
-                0
-
-        };
+        return result;
 
     }
 
@@ -1111,7 +1101,7 @@ export default class AnalyzerLegacyCore {
     /**
      * 建立 EV 可用狀態。
      */
-    getEVStatus() {
+    getEVStatus(probability = null) {
 
         const result = {};
 
@@ -1124,7 +1114,8 @@ export default class AnalyzerLegacyCore {
 
             result[name] =
                 this.ev.getStatus(
-                    name
+                    name,
+                    probability
                 );
 
         }
@@ -1947,7 +1938,7 @@ export default class AnalyzerLegacyCore {
             );
 
         const evStatus =
-            this.getEVStatus();
+            this.getEVStatus(finalProbability);
 
         const kelly =
             this.getKelly(
