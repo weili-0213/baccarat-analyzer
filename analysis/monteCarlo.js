@@ -506,6 +506,9 @@ export default class MonteCarlo {
             super6:
                 0,
 
+            super6TwoCard: 0,
+            super6ThreeCard: 0,
+
             playerNatural:
                 0,
 
@@ -525,7 +528,23 @@ export default class MonteCarlo {
                 0,
 
             bankerDragonBonus:
-                0
+                0,
+
+            dragonBonusNaturalTie: 0,
+            playerDragonBonusNaturalWin: 0,
+            playerDragonBonusMargin4: 0,
+            playerDragonBonusMargin5: 0,
+            playerDragonBonusMargin6: 0,
+            playerDragonBonusMargin7: 0,
+            playerDragonBonusMargin8: 0,
+            playerDragonBonusMargin9: 0,
+            bankerDragonBonusNaturalWin: 0,
+            bankerDragonBonusMargin4: 0,
+            bankerDragonBonusMargin5: 0,
+            bankerDragonBonusMargin6: 0,
+            bankerDragonBonusMargin7: 0,
+            bankerDragonBonusMargin8: 0,
+            bankerDragonBonusMargin9: 0
 
         };
 
@@ -817,6 +836,17 @@ export default class MonteCarlo {
 
             counters.super6++;
 
+            const bankerCardCount =
+                result.banker?.count ??
+                result.bankerCards?.length ??
+                (result.bankerDrewThirdCard ? 3 : 2);
+
+            counters[
+                bankerCardCount === 2
+                    ? "super6TwoCard"
+                    : "super6ThreeCard"
+            ]++;
+
         }
 
 
@@ -882,6 +912,16 @@ export default class MonteCarlo {
             counters
                 .playerDragonBonus++;
 
+            if (result.playerNatural) {
+                counters.playerDragonBonusNaturalWin++;
+            }
+            else {
+                const margin = Math.abs(result.margin ?? 0);
+                if (margin >= 4 && margin <= 9) {
+                    counters[`playerDragonBonusMargin${margin}`]++;
+                }
+            }
+
         }
 
 
@@ -893,6 +933,26 @@ export default class MonteCarlo {
 
             counters
                 .bankerDragonBonus++;
+
+            if (result.bankerNatural) {
+                counters.bankerDragonBonusNaturalWin++;
+            }
+            else {
+                const margin = Math.abs(result.margin ?? 0);
+                if (margin >= 4 && margin <= 9) {
+                    counters[`bankerDragonBonusMargin${margin}`]++;
+                }
+            }
+
+        }
+
+        if (
+            String(result.winner).toLowerCase() === "tie" &&
+            result.playerNatural &&
+            result.bankerNatural
+        ) {
+
+            counters.dragonBonusNaturalTie++;
 
         }
 
