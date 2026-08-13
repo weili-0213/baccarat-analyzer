@@ -375,19 +375,19 @@ export default async function fifteenSecondEightMarketPredictionTest() {
 
     assert(
         html.includes(
-            'data-prediction-version="10.9.0"'
+            'data-prediction-version="10.10.0"'
         ) &&
         html.includes(
-            "下一局 · 15 秒決策板"
+            "下一局 · V10.10 組成優勢決策"
         ) &&
         html.includes(
-            "大膽預測 · 主結果"
+            "情境預測"
         ) &&
         html.includes(
-            "大膽預測 · 特殊項目"
+            "相容特殊優勢"
         ) &&
         html.includes(
-            "預測 ≠ 值得下注"
+            "選擇性下注"
         ) &&
         (
             html.match(
@@ -423,7 +423,7 @@ export default async function fifteenSecondEightMarketPredictionTest() {
             .expired === true &&
         controller.summary
             .predictionBoardVersion ===
-            "10.9.0" &&
+            "10.10.0" &&
         controller.summary
             .predictionBoard
             .markets.length === 8 &&
