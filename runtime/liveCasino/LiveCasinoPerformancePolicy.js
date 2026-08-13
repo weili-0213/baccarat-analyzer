@@ -9,6 +9,7 @@ export const DECISION_STABILITY_EXPLAINABILITY_POLICY_VERSION = "10.6.0";
 export const DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_POLICY_VERSION = "10.7.0";
 export const WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_POLICY_VERSION = "10.8.0";
 export const FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_POLICY_VERSION = "10.9.0";
+export const COMPOSITION_EDGE_SELECTIVE_BETTING_POLICY_VERSION = "10.10.0";
 
 export const LiveCasinoAnalysisProfile = Object.freeze({
     QUICK: "quick",
@@ -73,6 +74,8 @@ export default class LiveCasinoPerformancePolicy {
                 WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_POLICY_VERSION,
             predictionBoardVersion:
                 FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_POLICY_VERSION,
+            compositionEdgeVersion:
+                COMPOSITION_EDGE_SELECTIVE_BETTING_POLICY_VERSION,
             decisionDeadlineMs: this.decisionDeadlineMs,
             quickSimulations: this.quickSimulations,
             quickBatchSize: this.quickBatchSize,
