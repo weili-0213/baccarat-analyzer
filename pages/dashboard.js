@@ -75,6 +75,7 @@ export const DASHBOARD_DECISION_STABILITY_EXPLAINABILITY_VERSION = "10.6.0";
 export const DASHBOARD_DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_VERSION = "10.7.0";
 export const DASHBOARD_WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_VERSION = "10.8.0";
 export const DASHBOARD_FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_VERSION = "10.9.0";
+export const DASHBOARD_COMPOSITION_EDGE_SELECTIVE_BETTING_VERSION = "10.10.0";
 
 export const DashboardMode = AnalysisDisplayMode;
 
@@ -835,6 +836,8 @@ export class Dashboard {
                 DASHBOARD_WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_VERSION,
             fifteenSecondEightMarketPredictionVersion:
                 DASHBOARD_FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_VERSION,
+            compositionEdgeSelectiveBettingVersion:
+                DASHBOARD_COMPOSITION_EDGE_SELECTIVE_BETTING_VERSION,
             controllers: {
                 game: this.gameController.summary,
                 ui: this.uiController.summary,
@@ -1321,6 +1324,9 @@ createDashboard.wholeShoeProfitabilityStrategyValidationVersion =
 
 createDashboard.fifteenSecondEightMarketPredictionVersion =
     DASHBOARD_FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_VERSION;
+
+createDashboard.compositionEdgeSelectiveBettingVersion =
+    DASHBOARD_COMPOSITION_EDGE_SELECTIVE_BETTING_VERSION;
 
 createDashboard.legacyVersion =
     DASHBOARD_VERSION;
