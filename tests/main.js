@@ -328,6 +328,9 @@ import wholeShoeProfitabilityStrategyValidationTest
 import fifteenSecondEightMarketPredictionTest
     from "./fifteenSecondEightMarketPrediction.test.js";
 
+import compositionEdgeSelectiveBettingTest
+    from "./compositionEdgeSelectiveBetting.test.js";
+
 
 /**
  * 新增測試時，只需：
@@ -969,6 +972,12 @@ const TESTS = [
         id: "fifteen-second-eight-market-prediction-v109",
         name: "15-Second Eight-Market Prediction Board V10.9",
         run: fifteenSecondEightMarketPredictionTest
+    },
+
+    {
+        id: "composition-edge-selective-betting-v1010",
+        name: "Composition Edge & Selective Betting Engine V10.10",
+        run: compositionEdgeSelectiveBettingTest
     }
 
 ];
