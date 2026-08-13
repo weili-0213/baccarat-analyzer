@@ -34,9 +34,9 @@ import WholeShoeProfitabilityStrategyValidationEngine, {
     WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_VERSION
 } from "./WholeShoeProfitabilityStrategyValidationEngine.js";
 
-import FifteenSecondEightMarketPredictionEngine, {
-    FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_VERSION
-} from "./FifteenSecondEightMarketPredictionEngine.js";
+import CompositionEdgeSelectiveBettingEngine, {
+    COMPOSITION_EDGE_SELECTIVE_BETTING_VERSION
+} from "./CompositionEdgeSelectiveBettingEngine.js";
 
 import {
     LIVE_CASINO_UX_CSS,
@@ -53,6 +53,7 @@ export const DECISION_STABILITY_EXPLAINABILITY_UX_VERSION = "10.6.0";
 export const DECISION_INTELLIGENCE_SIGNAL_ATTRIBUTION_UX_VERSION = "10.7.0";
 export const WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_UX_VERSION = "10.8.0";
 export const FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_UX_VERSION = "10.9.0";
+export const COMPOSITION_EDGE_SELECTIVE_BETTING_UX_VERSION = "10.10.0";
 
 function delay(ms) {
     return new Promise(resolve =>
@@ -622,6 +623,15 @@ function predictionEVText(market = {}) {
     return market.note ?? "EV 尚不可用";
 }
 
+function predictionEdgeText(market = {}) {
+    if (!Number.isFinite(market.baselineProbability)) {
+        return "";
+    }
+
+    const sign = market.deviation >= 0 ? "+" : "";
+    return `基準 ${pct(market.baselineProbability)} · 偏移 ${sign}${pct(market.deviation)}`;
+}
+
 function predictionMarketHTML(
     market,
     {
@@ -651,6 +661,9 @@ function predictionMarketHTML(
                 ${pct(market.probability)}
             </strong>
             <small>${escapeHTML(predictionHistoryText(market))}</small>
+            ${Number.isFinite(market.baselineProbability)
+                ? `<small>${escapeHTML(predictionEdgeText(market))}</small>`
+                : ""}
             <small>${escapeHTML(predictionEVText(market))}</small>
         </article>
     `;
@@ -717,7 +730,7 @@ export default class LiveCasinoUXController {
             new WholeShoeProfitabilityStrategyValidationEngine();
         this.predictionEngine =
             predictionEngine ??
-            new FifteenSecondEightMarketPredictionEngine();
+            new CompositionEdgeSelectiveBettingEngine();
 
         if (
             typeof this.signalTrendMonitor
@@ -785,7 +798,7 @@ export default class LiveCasinoUXController {
                 .build !== "function"
         ) {
             throw new TypeError(
-                "predictionEngine requires the V10.9 build() API."
+                "predictionEngine requires the V10.10 build() API."
             );
         }
 
@@ -2267,7 +2280,7 @@ export default class LiveCasinoUXController {
                 class="v109PredictionBoard"
                 data-live-decision
                 data-v109-prediction-board
-                data-prediction-version="${FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_UX_VERSION}"
+                data-prediction-version="${COMPOSITION_EDGE_SELECTIVE_BETTING_UX_VERSION}"
                 data-prediction-ready="${prediction.ready ? "true" : "false"}"
                 data-prediction-source="${escapeHTML(prediction.source)}"
                 data-decision-category="${escapeHTML(d.category)}"
@@ -2279,7 +2292,7 @@ export default class LiveCasinoUXController {
             >
                 <header class="v109Header">
                     <div>
-                        <span>下一局 · 15 秒決策板</span>
+                        <span>下一局 · V10.10 組成優勢決策</span>
                         <strong>${escapeHTML(prediction.sourceLabel)}</strong>
                     </div>
                     <div class="v109Countdown">
@@ -2290,7 +2303,7 @@ export default class LiveCasinoUXController {
 
                 <div class="v109Hero">
                     <article class="v109BoldPick">
-                        <span>大膽預測 · 主結果</span>
+                        <span>情境預測 · ${escapeHTML(prediction.compositionState ?? "等待")}</span>
                         <strong data-v109-main-pick>
                             ${prediction.ready
                                 ? `${escapeHTML(mainPick?.label)} ${pct(mainPick?.probability)}`
@@ -2298,28 +2311,30 @@ export default class LiveCasinoUXController {
                         </strong>
                         <small>
                             ${prediction.ready
-                                ? `${escapeHTML(prediction.strength.label)} · 領先 ${pct(prediction.mainGap)}`
+                                ? `基準 ${pct(mainPick?.baselineProbability)} · 偏移 ${mainPick?.deviation >= 0 ? "+" : ""}${pct(mainPick?.deviation)}`
                                 : "依已出現牌重算剩餘牌組"}
                         </small>
                     </article>
 
                     <article class="v109BoldPick v109BoldPick--special">
-                        <span>大膽預測 · 特殊項目</span>
+                        <span>相容特殊優勢</span>
                         <strong data-v109-special-pick>
                             ${prediction.ready
-                                ? `${escapeHTML(specialPick?.label)} ${pct(specialPick?.probability)}`
+                                ? specialPick
+                                    ? `${escapeHTML(specialPick.label)} ${pct(specialPick.probability)}`
+                                    : "無特殊優勢"
                                 : "等待 Exact"}
                         </strong>
-                        <small>比較閒對、莊對、超級 6 與龍寶</small>
+                        <small>只顯示與主情境相容、且偏移或 EV 過門檻者</small>
                     </article>
 
                     <article
                         class="v109FormalAction"
                         data-v109-formal-action="${escapeHTML(formal.action)}"
                     >
-                        <span>正式下注</span>
+                        <span>選擇性下注</span>
                         <strong>${escapeHTML(formalLine)}</strong>
-                        <small>預測 ≠ 值得下注；正 EV 才放行</small>
+                        <small>${escapeHTML(formal.reason)}</small>
                     </article>
                 </div>
 
@@ -2395,7 +2410,7 @@ export default class LiveCasinoUXController {
             <section
                 class="v105DecisionDock v109DecisionDock"
                 data-live-decision-dock
-                data-prediction-version="${FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_UX_VERSION}"
+                data-prediction-version="${COMPOSITION_EDGE_SELECTIVE_BETTING_UX_VERSION}"
                 data-decision-category="${escapeHTML(d.category)}"
                 data-decision-action="${escapeHTML(d.action)}"
                 data-confirmation-state="${escapeHTML(confirmation.state)}"
@@ -2892,9 +2907,9 @@ export default class LiveCasinoUXController {
             wholeShoeStrategyCoreVersion:
                 WHOLE_SHOE_PROFITABILITY_STRATEGY_VALIDATION_VERSION,
             predictionBoardVersion:
-                FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_UX_VERSION,
+                COMPOSITION_EDGE_SELECTIVE_BETTING_UX_VERSION,
             predictionBoardCoreVersion:
-                FIFTEEN_SECOND_EIGHT_MARKET_PREDICTION_VERSION,
+                COMPOSITION_EDGE_SELECTIVE_BETTING_VERSION,
             profile:
                 this.analysisProfile,
             deadlineMs:
