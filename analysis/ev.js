@@ -49,6 +49,16 @@ export const EV_STATUS =
 export const DEFAULT_PAYOUT =
     NO_COMMISSION_PAYOUT;
 
+export const STANDARD_DRAGON_BONUS_PAYOUT = Object.freeze({
+    naturalWin: 1,
+    margin4: 1,
+    margin5: 2,
+    margin6: 4,
+    margin7: 6,
+    margin8: 10,
+    margin9: 30
+});
+
 function assertProbability(
     value,
     name
@@ -72,7 +82,11 @@ export default class EV {
     ) {
         this.payout = {
             ...DEFAULT_PAYOUT,
-            ...payout
+            ...payout,
+            dragonBonus: {
+                ...STANDARD_DRAGON_BONUS_PAYOUT,
+                ...(payout.dragonBonus ?? {})
+            }
         };
 
         this.ruleset = {
@@ -301,12 +315,47 @@ export default class EV {
         );
     }
 
-    playerDragonBonus() {
-        return 0;
+    hasDragonDistribution(probability, side) {
+        return [
+            `${side}DragonBonusNaturalWin`,
+            ...[4, 5, 6, 7, 8, 9].map(
+                margin => `${side}DragonBonusMargin${margin}`
+            ),
+            "dragonBonusNaturalTie"
+        ].every(key =>
+            Number.isFinite(probability?.[key]) &&
+            probability[key] >= 0 &&
+            probability[key] <= 1
+        );
     }
 
-    bankerDragonBonus() {
-        return 0;
+    dragonBonus(probability, side) {
+        if (!this.hasDragonDistribution(probability, side)) {
+            return 0;
+        }
+
+        const payout = this.payout.dragonBonus;
+        const naturalWin = probability[`${side}DragonBonusNaturalWin`];
+        const naturalTie = probability.dragonBonusNaturalTie;
+        let winProbability = naturalWin;
+        let returnValue = naturalWin * payout.naturalWin;
+
+        for (const margin of [4, 5, 6, 7, 8, 9]) {
+            const chance = probability[`${side}DragonBonusMargin${margin}`];
+            winProbability += chance;
+            returnValue += chance * payout[`margin${margin}`];
+        }
+
+        return returnValue -
+            Math.max(0, 1 - winProbability - naturalTie);
+    }
+
+    playerDragonBonus(probability) {
+        return this.dragonBonus(probability, "player");
+    }
+
+    bankerDragonBonus(probability) {
+        return this.dragonBonus(probability, "banker");
     }
 
     all(probability) {
@@ -342,23 +391,36 @@ export default class EV {
                 ),
 
             playerDragonBonus:
-                0,
+                this.playerDragonBonus(probability),
 
             bankerDragonBonus:
-                0
+                this.bankerDragonBonus(probability)
         };
     }
 
-    getStatus(name) {
+    getStatus(name, probability = null) {
+        if (
+            name === "playerDragonBonus" ||
+            name === "bankerDragonBonus"
+        ) {
+            const side = name === "playerDragonBonus"
+                ? "player"
+                : "banker";
+
+            return this.hasDragonDistribution(probability, side)
+                ? EV_STATUS.AVAILABLE
+                : EV_STATUS.UNAVAILABLE;
+        }
+
         return (
             this.status[name] ??
             EV_STATUS.UNAVAILABLE
         );
     }
 
-    isAvailable(name) {
+    isAvailable(name, probability = null) {
         return (
-            this.getStatus(name) ===
+            this.getStatus(name, probability) ===
             EV_STATUS.AVAILABLE
         );
     }
